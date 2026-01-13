@@ -114,7 +114,7 @@ const packageImagesBySlug: Record<string, { src: string; alt: string }[]> = {
   "los-cabos-lujo-bahia": losCabosImages,
 };
 
-type FilterValue<T> = T[number];
+type FilterValue<T extends readonly string[]> = T[number];
 
 type FilterGroupProps<T extends readonly string[]> = {
   label: string;
