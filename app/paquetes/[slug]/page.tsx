@@ -25,7 +25,7 @@ export default function PaqueteDetailPage({ params }: PaqueteDetailPageProps) {
           href="/paquetes"
           className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600 hover:text-brand-700"
         >
-          <- Volver a paquetes
+          &larr; Volver a paquetes
         </Link>
 
         <div className="grid gap-10 lg:grid-cols-[1.4fr_0.9fr]">
