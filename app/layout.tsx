@@ -41,7 +41,9 @@ export default function RootLayout({
         className={`${manrope.variable} ${philosopher.variable} bg-sand text-slate-900 antialiased`}
       >
         <Navbar />
-        <main className="min-h-screen">{children}</main>
+        <main id="top" className="min-h-screen">
+          {children}
+        </main>
         <Footer />
       </body>
     </html>
