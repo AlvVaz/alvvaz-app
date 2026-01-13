@@ -403,7 +403,7 @@ export default function Home() {
             <ImageCarousel
               images={heroImages}
               autoPlay
-              interval={3800}
+              interval={6000}
               className="border border-slate-200 shadow-lg"
               aspectClassName="aspect-[4/3] sm:aspect-[16/9]"
               roundedClassName="rounded-[36px]"

@@ -222,7 +222,7 @@ export function PaquetesGrid({ packages }: PaquetesGridProps) {
                 <ImageCarousel
                   images={packageImagesBySlug[pkg.slug]}
                   autoPlay
-                  interval={4200}
+                  interval={6000}
                   className="mb-4 border border-slate-200"
                   aspectClassName="aspect-[4/3]"
                   roundedClassName="rounded-2xl"

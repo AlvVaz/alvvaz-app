@@ -29,7 +29,7 @@ export function ImageCarousel({
   aspectClassName = "aspect-[16/9]",
   roundedClassName = "rounded-[32px]",
   autoPlay = false,
-  interval = 4200,
+  interval = 6000,
   showControls = true,
   showIndicators = true,
   priority = false,

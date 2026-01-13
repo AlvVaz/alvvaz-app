@@ -26,7 +26,7 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/80">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3" aria-label="Ir al inicio">
           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-brand-200">
             <Image
               src="/logoalvvaz.png"
