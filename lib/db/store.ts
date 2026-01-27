@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 import type {
   Client,
@@ -345,7 +346,7 @@ export async function createMagazineItem(input: {
       kind: input.kind,
       fileUrl: input.fileUrl,
       sortOrder,
-      metadata: input.metadata ?? {},
+      metadata: (input.metadata ?? {}) as Prisma.InputJsonValue,
     },
   });
 
