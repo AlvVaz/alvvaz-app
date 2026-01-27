@@ -1,0 +1,336 @@
+{
+  "clients": [],
+  "issues": [
+    {
+      "id": "990b39eb-6845-4ff0-bf71-8e6165700f7b",
+      "slug": "catalogo-fin-de-anio",
+      "title": "catalogo fin de anio",
+      "description": "feliz anio",
+      "publishedAt": "2026-01-26T00:00:00.000Z",
+      "createdAt": "2026-01-26T19:13:31.758Z",
+      "updatedAt": "2026-01-26T19:13:31.758Z"
+    },
+    {
+      "id": "5bd70c16-e247-49e7-a58b-291d9275bf00",
+      "slug": "semana-santa-2026",
+      "title": "semana santa 2026",
+      "description": "ss26",
+      "publishedAt": "2026-01-26T00:00:00.000Z",
+      "createdAt": "2026-01-26T17:51:11.113Z",
+      "updatedAt": "2026-01-26T17:52:00.539Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "f6bd1fbb-8a6f-4161-a054-40891bc0c0f0",
+      "issueId": "5bd70c16-e247-49e7-a58b-291d9275bf00",
+      "title": "ss26",
+      "kind": "IMAGE",
+      "fileUrl": "/uploads/1769449898558-mvygdmkaif.jpeg",
+      "sortOrder": 0,
+      "createdAt": "2026-01-26T17:51:38.564Z",
+      "metadata": {
+        "mime": "image/jpeg",
+        "originalName": "WhatsApp Image 2026-01-26 at 10.17.15 AM (7).jpeg"
+      }
+    },
+    {
+      "id": "6362e8fc-0f8b-4326-853b-68039939a939",
+      "issueId": "5bd70c16-e247-49e7-a58b-291d9275bf00",
+      "title": "ss26",
+      "kind": "IMAGE",
+      "fileUrl": "/uploads/1769449898566-gxkuzc3ijz5.jpeg",
+      "sortOrder": 1,
+      "createdAt": "2026-01-26T17:51:38.570Z",
+      "metadata": {
+        "mime": "image/jpeg",
+        "originalName": "WhatsApp Image 2026-01-26 at 10.17.15 AM (6).jpeg"
+      }
+    },
+    {
+      "id": "2d0180dd-87e1-4b22-be85-1f4f2ebd66da",
+      "issueId": "5bd70c16-e247-49e7-a58b-291d9275bf00",
+      "title": "ss26",
+      "kind": "IMAGE",
+      "fileUrl": "/uploads/1769449898572-rgjjeg0zqmn.jpeg",
+      "sortOrder": 2,
+      "createdAt": "2026-01-26T17:51:38.575Z",
+      "metadata": {
+        "mime": "image/jpeg",
+        "originalName": "WhatsApp Image 2026-01-26 at 10.17.15 AM (5).jpeg"
+      }
+    },
+    {
+      "id": "dd0950e8-3b26-4103-bef8-bc7be61b44df",
+      "issueId": "5bd70c16-e247-49e7-a58b-291d9275bf00",
+      "title": "ss26",
+      "kind": "IMAGE",
+      "fileUrl": "/uploads/1769449898577-vl3o7evy3ug.jpeg",
+      "sortOrder": 3,
+      "createdAt": "2026-01-26T17:51:38.580Z",
+      "metadata": {
+        "mime": "image/jpeg",
+        "originalName": "WhatsApp Image 2026-01-26 at 10.17.15 AM (4).jpeg"
+      }
+    },
+    {
+      "id": "6d5ccaad-edd0-4ea0-8ae0-8b385385dd0a",
+      "issueId": "5bd70c16-e247-49e7-a58b-291d9275bf00",
+      "title": "ss26",
+      "kind": "IMAGE",
+      "fileUrl": "/uploads/1769449898582-le5xx30mfil.jpeg",
+      "sortOrder": 4,
+      "createdAt": "2026-01-26T17:51:38.586Z",
+      "metadata": {
+        "mime": "image/jpeg",
+        "originalName": "WhatsApp Image 2026-01-26 at 10.17.15 AM (3).jpeg"
+      }
+    },
+    {
+      "id": "cf435bd6-8e32-42e9-a591-96dc32b88847",
+      "issueId": "5bd70c16-e247-49e7-a58b-291d9275bf00",
+      "title": "ss26",
+      "kind": "IMAGE",
+      "fileUrl": "/uploads/1769449898588-iii81p7e83e.jpeg",
+      "sortOrder": 5,
+      "createdAt": "2026-01-26T17:51:38.592Z",
+      "metadata": {
+        "mime": "image/jpeg",
+        "originalName": "WhatsApp Image 2026-01-26 at 10.17.15 AM (2).jpeg"
+      }
+    },
+    {
+      "id": "137448e9-fd51-4135-9e65-26bc4aab9fc7",
+      "issueId": "5bd70c16-e247-49e7-a58b-291d9275bf00",
+      "title": "ss26",
+      "kind": "IMAGE",
+      "fileUrl": "/uploads/1769449898593-rhkh90kc13t.jpeg",
+      "sortOrder": 6,
+      "createdAt": "2026-01-26T17:51:38.597Z",
+      "metadata": {
+        "mime": "image/jpeg",
+        "originalName": "WhatsApp Image 2026-01-26 at 10.17.15 AM (1).jpeg"
+      }
+    },
+    {
+      "id": "bb578e0d-947c-4792-b056-d6157ebb5f1f",
+      "issueId": "5bd70c16-e247-49e7-a58b-291d9275bf00",
+      "title": "ss26",
+      "kind": "IMAGE",
+      "fileUrl": "/uploads/1769449898599-msqggvfuchl.jpeg",
+      "sortOrder": 7,
+      "createdAt": "2026-01-26T17:51:38.603Z",
+      "metadata": {
+        "mime": "image/jpeg",
+        "originalName": "WhatsApp Image 2026-01-26 at 10.17.15 AM.jpeg"
+      }
+    },
+    {
+      "id": "9785e293-222a-4e76-8bae-b5d53bcf6591",
+      "issueId": "5bd70c16-e247-49e7-a58b-291d9275bf00",
+      "title": "ss26",
+      "kind": "IMAGE",
+      "fileUrl": "/uploads/1769449898605-3pb5yjhwzvu.jpeg",
+      "sortOrder": 8,
+      "createdAt": "2026-01-26T17:51:38.608Z",
+      "metadata": {
+        "mime": "image/jpeg",
+        "originalName": "WhatsApp Image 2026-01-26 at 10.17.10 AM.jpeg"
+      }
+    },
+    {
+      "id": "a101d369-b49c-4cb7-aaec-15bcb448cbbd",
+      "issueId": "990b39eb-6845-4ff0-bf71-8e6165700f7b",
+      "title": "2027",
+      "kind": "IMAGE",
+      "fileUrl": "/uploads/1769454860292-k86347usulf.jpeg",
+      "sortOrder": 9,
+      "createdAt": "2026-01-26T19:14:20.297Z",
+      "metadata": {
+        "mime": "image/jpeg",
+        "originalName": "WhatsApp Image 2026-01-26 at 10.17.16 AM (1).jpeg"
+      }
+    },
+    {
+      "id": "e3924226-7f4e-4f75-9a07-4163961f7701",
+      "issueId": "990b39eb-6845-4ff0-bf71-8e6165700f7b",
+      "title": "2027",
+      "kind": "IMAGE",
+      "fileUrl": "/uploads/1769454860300-p2d6jvsjt39.jpeg",
+      "sortOrder": 10,
+      "createdAt": "2026-01-26T19:14:20.305Z",
+      "metadata": {
+        "mime": "image/jpeg",
+        "originalName": "WhatsApp Image 2026-01-26 at 10.17.16 AM.jpeg"
+      }
+    },
+    {
+      "id": "bd59e777-01ce-46fe-8024-a1e19c1e55bf",
+      "issueId": "990b39eb-6845-4ff0-bf71-8e6165700f7b",
+      "title": "2027",
+      "kind": "IMAGE",
+      "fileUrl": "/uploads/1769454860323-ovvnn4q6shq.jpeg",
+      "sortOrder": 11,
+      "createdAt": "2026-01-26T19:14:20.341Z",
+      "metadata": {
+        "mime": "image/jpeg",
+        "originalName": "WhatsApp Image 2026-01-26 at 10.17.15 AM (7).jpeg"
+      }
+    },
+    {
+      "id": "b618dc99-e364-4c81-8dda-98efee4dbbf5",
+      "issueId": "990b39eb-6845-4ff0-bf71-8e6165700f7b",
+      "title": "2027",
+      "kind": "IMAGE",
+      "fileUrl": "/uploads/1769454860415-khvp3g1onp9.jpeg",
+      "sortOrder": 12,
+      "createdAt": "2026-01-26T19:14:20.468Z",
+      "metadata": {
+        "mime": "image/jpeg",
+        "originalName": "WhatsApp Image 2026-01-26 at 10.17.15 AM (6).jpeg"
+      }
+    },
+    {
+      "id": "0802522e-6c19-45e7-83b5-3e44a8cd58cb",
+      "issueId": "990b39eb-6845-4ff0-bf71-8e6165700f7b",
+      "title": "2027",
+      "kind": "IMAGE",
+      "fileUrl": "/uploads/1769454860478-xxgneqf7bxq.jpeg",
+      "sortOrder": 13,
+      "createdAt": "2026-01-26T19:14:20.511Z",
+      "metadata": {
+        "mime": "image/jpeg",
+        "originalName": "WhatsApp Image 2026-01-26 at 10.17.15 AM (5).jpeg"
+      }
+    },
+    {
+      "id": "5de7aea5-e235-4071-8963-041d80fbbb87",
+      "issueId": "990b39eb-6845-4ff0-bf71-8e6165700f7b",
+      "title": "2027",
+      "kind": "IMAGE",
+      "fileUrl": "/uploads/1769454860528-3bushlrnujo.jpeg",
+      "sortOrder": 14,
+      "createdAt": "2026-01-26T19:14:20.660Z",
+      "metadata": {
+        "mime": "image/jpeg",
+        "originalName": "WhatsApp Image 2026-01-26 at 10.17.15 AM (4).jpeg"
+      }
+    }
+  ],
+  "trips": [
+    {
+      "id": "c0d9a949-f8f3-4851-9451-4bc1a93d5a3b",
+      "clientName": "alberto",
+      "destination": "cancun",
+      "hotel": "Xcaret",
+      "supplier": "Volaris",
+      "organizer": "Miguel",
+      "passengerCount": 3,
+      "departureDate": "2026-04-15",
+      "returnDate": "2026-04-30",
+      "travelers": [
+        {
+          "name": "viajero 1",
+          "phone": "55555",
+          "contract": "201"
+        },
+        {
+          "name": "viajero 2",
+          "phone": "55555",
+          "contract": "201"
+        },
+        {
+          "name": "viajero 3",
+          "phone": "555",
+          "contract": "45645"
+        }
+      ],
+      "notes": "",
+      "createdAt": "2026-01-26T18:58:46.865Z",
+      "updatedAt": "2026-01-26T18:58:46.865Z"
+    },
+    {
+      "id": "799edc89-68ec-4f94-8bc5-40fbae40b4d7",
+      "clientName": "Devir",
+      "destination": "Mexico",
+      "hotel": "Xcaret",
+      "supplier": "Volaris",
+      "organizer": "Miguel",
+      "passengerCount": 2,
+      "departureDate": "2026-01-27",
+      "returnDate": "2026-01-31",
+      "travelers": [
+        {
+          "name": "viajero 1",
+          "phone": "4564654645",
+          "contract": "2022"
+        },
+        {
+          "name": "viajero 2",
+          "phone": "54564564",
+          "contract": "654"
+        }
+      ],
+      "notes": "",
+      "createdAt": "2026-01-26T17:21:53.462Z",
+      "updatedAt": "2026-01-26T17:21:53.462Z"
+    },
+    {
+      "id": "dd98e979-5027-4a09-8391-a76abc834cec",
+      "clientName": "alberto",
+      "destination": "Mexico",
+      "hotel": "Xcaret",
+      "supplier": "Volaris",
+      "organizer": "Miguel",
+      "passengerCount": 0,
+      "departureDate": "2026-03-16",
+      "returnDate": "2026-01-30",
+      "travelers": [
+        {
+          "name": "viajero 1",
+          "phone": "4564654645",
+          "contract": "2022"
+        },
+        {
+          "name": "viajero 2",
+          "phone": "54564564",
+          "contract": "654"
+        }
+      ],
+      "notes": "",
+      "createdAt": "2026-01-26T17:21:25.528Z",
+      "updatedAt": "2026-01-26T17:21:25.528Z"
+    },
+    {
+      "id": "5cb9579c-7199-414e-9a77-b1ded1f4726b",
+      "clientName": "Devir",
+      "destination": "Mexico",
+      "hotel": "Xcaret",
+      "supplier": "Volaris",
+      "organizer": "Miguel",
+      "passengerCount": 1,
+      "departureDate": "2026-01-29",
+      "returnDate": "2026-02-11",
+      "travelers": [
+        {
+          "name": "Devir",
+          "phone": "555555555",
+          "contract": "1020"
+        },
+        {
+          "name": "Annelise",
+          "phone": "555555555",
+          "contract": "2021"
+        },
+        {
+          "name": "Thiago",
+          "phone": "55555555",
+          "contract": "2022"
+        }
+      ],
+      "notes": "",
+      "createdAt": "2026-01-26T17:09:34.885Z",
+      "updatedAt": "2026-01-26T17:09:34.885Z"
+    }
+  ]
+}

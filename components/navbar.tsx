@@ -11,9 +11,12 @@ const navItems = [
   { label: "Inicio", href: "/" },
   { label: "Servicios", href: "/servicios" },
   { label: "Paquetes", href: "/paquetes" },
+  { label: "Revista", href: "/magazine" },
   { label: "Reservaciones", href: "/reservaciones" },
   { label: "Contáctanos", href: "/contacto" },
 ];
+
+const adminLink = { label: "Admin", href: "/admin" };
 
 export function Navbar() {
   const pathname = usePathname();
@@ -62,6 +65,12 @@ export function Navbar() {
               </Link>
             );
           })}
+          <Link
+            href={adminLink.href}
+            className="rounded-full border border-brand-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 transition-colors hover:border-brand-400 hover:text-brand-900"
+          >
+            {adminLink.label}
+          </Link>
         </nav>
 
         <button
@@ -135,6 +144,13 @@ export function Navbar() {
               </Link>
             );
           })}
+          <Link
+            href={adminLink.href}
+            onClick={() => setOpen(false)}
+            className="rounded-2xl border border-brand-200 px-4 py-3 text-base font-semibold text-brand-700 transition-colors hover:border-brand-400 hover:text-brand-900"
+          >
+            {adminLink.label}
+          </Link>
         </nav>
       </aside>
     </header>

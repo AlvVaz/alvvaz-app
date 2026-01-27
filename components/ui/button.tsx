@@ -12,6 +12,8 @@ const variants = {
     "border border-brand-200 text-brand-900 hover:border-brand-400 hover:text-brand-950 focus-visible:outline-brand-500",
   subtle:
     "bg-white/80 text-brand-900 hover:bg-white focus-visible:outline-brand-400",
+  inverted:
+    "border border-white/40 text-white hover:border-white hover:text-white focus-visible:outline-white/80",
 };
 
 type ButtonVariant = keyof typeof variants;

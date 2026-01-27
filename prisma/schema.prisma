@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ClientStatus {
+  new
+  active
+  vip
+  archived
+}
+
+enum MagazineItemKind {
+  PDF
+  IMAGE
+}
+
+enum ContractStatus {
+  pending
+  signed
+  paid
+}
+
+model Client {
+  id        String       @id @default(cuid())
+  name      String
+  contact   String
+  tags      String[]
+  notes     String
+  status    ClientStatus
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  contracts Contract[]
+}
+
+model MagazineIssue {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  title       String
+  description String
+  publishedAt String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  items       MagazineItem[]
+}
+
+model MagazineItem {
+  id        String           @id @default(cuid())
+  issueId   String
+  issue     MagazineIssue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  title     String
+  kind      MagazineItemKind
+  fileUrl   String
+  sortOrder Int
+  createdAt DateTime         @default(now())
+  metadata  Json
+
+  @@index([issueId, sortOrder])
+}
+
+model Trip {
+  id             String   @id @default(cuid())
+  clientName     String
+  destination    String
+  hotel          String
+  supplier       String
+  organizer      String
+  passengerCount Int
+  departureDate  String?
+  returnDate     String?
+  travelers      Json
+  notes          String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  contracts      Contract[]
+}
+
+model Contract {
+  id            String   @id @default(cuid())
+  clientId      String?
+  tripId        String?
+  client        Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  trip          Trip?    @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  contractNumber String?
+  reservationDate String?
+  seller         String?
+  agency         String?
+  clientName     String
+  destination    String
+  hotel          String?
+  supplier       String?
+  organizer      String?
+  passengerCount Int?
+  departureDate  String?
+  returnDate     String?
+  travelers      Json
+  description    String?
+  totalPrice     String?
+  firstPayment   String?
+  balanceDue     String?
+  liquidationDate String?
+  status         ContractStatus @default(pending)
+  isSigned       Boolean  @default(false)
+  isPaid         Boolean  @default(false)
+  title         String
+  fileUrl       String?
+  storageBucket String?
+  storagePath   String?
+  mimeType      String?
+  size          Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  metadata      Json
+
+  @@index([clientId])
+  @@index([tripId])
+}
