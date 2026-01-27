@@ -527,7 +527,7 @@ export async function createContract(input: {
       storagePath: input.storagePath ?? null,
       mimeType: input.mimeType ?? null,
       size: input.size ?? null,
-      metadata: input.metadata ?? {},
+      metadata: (input.metadata ?? {}) as Prisma.InputJsonValue,
     },
   });
 
