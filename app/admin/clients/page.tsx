@@ -2,6 +2,8 @@ import { SectionHeading } from "@/components/section-heading";
 import { Button } from "@/components/ui/button";
 import { formatTags, getClients } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 import { createClientAction, deleteClientAction, updateClientAction } from "./actions";
 
 const statusOptions = [

@@ -4,6 +4,8 @@ import { getContracts } from "@/lib/db";
 import { ContractForm } from "./ContractForm";
 import { createContractAction, deleteContractAction, updateContractAction } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function ContratosAdminPage() {
   const contracts = await getContracts();
 

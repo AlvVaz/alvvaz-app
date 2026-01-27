@@ -5,6 +5,8 @@ import type { Trip } from "@/lib/db";
 import { TripForm } from "./TripForm";
 import { createTripAction, deleteTripAction, updateTripAction } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function ViajesAdminPage() {
   const trips = await getTrips();
   const monthFormatter = new Intl.DateTimeFormat("es-MX", {

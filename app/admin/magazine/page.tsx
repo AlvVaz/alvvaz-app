@@ -5,6 +5,8 @@ import { getMagazineIssues, getMagazineItems } from "@/lib/db";
 import { createIssueAction, deleteIssueAction, updateIssueAction } from "./actions";
 import { UploadItemForm } from "./UploadItemForm";
 
+export const dynamic = "force-dynamic";
+
 export default async function MagazineAdminPage() {
   const issues = await getMagazineIssues();
   const items = await getMagazineItems();
