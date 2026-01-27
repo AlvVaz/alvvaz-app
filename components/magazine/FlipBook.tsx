@@ -96,6 +96,10 @@ export function FlipBook({ pages, className }: FlipBookProps) {
         maxWidth={Math.round(sizing.maxWidth)}
         minHeight={Math.round(sizing.minHeight)}
         maxHeight={Math.round(sizing.maxHeight)}
+        startPage={0}
+        flippingTime={700}
+        startZIndex={0}
+        autoSize
         maxShadowOpacity={0.35}
         showCover={false}
         mobileScrollSupport
@@ -103,7 +107,11 @@ export function FlipBook({ pages, className }: FlipBookProps) {
         usePortrait={sizing.isMobile}
         useMouseEvents
         swipeDistance={30}
+        clickEventForward
+        showPageCorners
+        disableFlipByClick={false}
         className="mx-auto"
+        style={{}}
         onFlip={() => {
           // TODO: Analytics tracking for page turns.
         }}
