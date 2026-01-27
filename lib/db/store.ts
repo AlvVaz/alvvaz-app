@@ -572,49 +572,50 @@ export async function updateContract(
   const existing = await prisma.contract.findUnique({ where: { id } });
   if (!existing) return null;
 
+  const data: Prisma.ContractUncheckedUpdateInput = {
+    ...(updates.clientId !== undefined ? { clientId: updates.clientId } : {}),
+    ...(updates.tripId !== undefined ? { tripId: updates.tripId } : {}),
+    ...(updates.contractNumber !== undefined ? { contractNumber: updates.contractNumber } : {}),
+    ...(updates.reservationDate !== undefined
+      ? { reservationDate: updates.reservationDate }
+      : {}),
+    ...(updates.seller !== undefined ? { seller: updates.seller } : {}),
+    ...(updates.agency !== undefined ? { agency: updates.agency } : {}),
+    ...(updates.clientName !== undefined ? { clientName: updates.clientName } : {}),
+    ...(updates.destination !== undefined ? { destination: updates.destination } : {}),
+    ...(updates.hotel !== undefined ? { hotel: updates.hotel } : {}),
+    ...(updates.supplier !== undefined ? { supplier: updates.supplier } : {}),
+    ...(updates.organizer !== undefined ? { organizer: updates.organizer } : {}),
+    ...(updates.passengerCount !== undefined ? { passengerCount: updates.passengerCount } : {}),
+    ...(updates.departureDate !== undefined ? { departureDate: updates.departureDate } : {}),
+    ...(updates.returnDate !== undefined ? { returnDate: updates.returnDate } : {}),
+    ...(updates.travelers !== undefined
+      ? { travelers: normalizeTravelers(updates.travelers) }
+      : {}),
+    ...(updates.description !== undefined ? { description: updates.description } : {}),
+    ...(updates.totalPrice !== undefined ? { totalPrice: updates.totalPrice } : {}),
+    ...(updates.firstPayment !== undefined ? { firstPayment: updates.firstPayment } : {}),
+    ...(updates.balanceDue !== undefined ? { balanceDue: updates.balanceDue } : {}),
+    ...(updates.liquidationDate !== undefined
+      ? { liquidationDate: updates.liquidationDate }
+      : {}),
+    ...(updates.status !== undefined ? { status: updates.status } : {}),
+    ...(updates.isSigned !== undefined ? { isSigned: updates.isSigned } : {}),
+    ...(updates.isPaid !== undefined ? { isPaid: updates.isPaid } : {}),
+    ...(updates.title !== undefined ? { title: updates.title } : {}),
+    ...(updates.fileUrl !== undefined ? { fileUrl: updates.fileUrl } : {}),
+    ...(updates.storageBucket !== undefined ? { storageBucket: updates.storageBucket } : {}),
+    ...(updates.storagePath !== undefined ? { storagePath: updates.storagePath } : {}),
+    ...(updates.mimeType !== undefined ? { mimeType: updates.mimeType } : {}),
+    ...(updates.size !== undefined ? { size: updates.size } : {}),
+    ...(updates.metadata !== undefined
+      ? { metadata: updates.metadata as Prisma.InputJsonValue }
+      : {}),
+  };
+
   const contract = await prisma.contract.update({
     where: { id },
-    data: {
-      ...(updates.clientId !== undefined ? { clientId: updates.clientId } : {}),
-      ...(updates.tripId !== undefined ? { tripId: updates.tripId } : {}),
-      ...(updates.contractNumber !== undefined ? { contractNumber: updates.contractNumber } : {}),
-      ...(updates.reservationDate !== undefined
-        ? { reservationDate: updates.reservationDate }
-        : {}),
-      ...(updates.seller !== undefined ? { seller: updates.seller } : {}),
-      ...(updates.agency !== undefined ? { agency: updates.agency } : {}),
-      ...(updates.clientName !== undefined ? { clientName: updates.clientName } : {}),
-      ...(updates.destination !== undefined ? { destination: updates.destination } : {}),
-      ...(updates.hotel !== undefined ? { hotel: updates.hotel } : {}),
-      ...(updates.organizer !== undefined ? { organizer: updates.organizer } : {}),
-      ...(updates.passengerCount !== undefined
-        ? { passengerCount: updates.passengerCount }
-        : {}),
-      ...(updates.departureDate !== undefined
-        ? { departureDate: updates.departureDate }
-        : {}),
-      ...(updates.returnDate !== undefined ? { returnDate: updates.returnDate } : {}),
-      ...(updates.travelers !== undefined
-        ? { travelers: normalizeTravelers(updates.travelers) }
-        : {}),
-      ...(updates.description !== undefined ? { description: updates.description } : {}),
-      ...(updates.totalPrice !== undefined ? { totalPrice: updates.totalPrice } : {}),
-      ...(updates.firstPayment !== undefined ? { firstPayment: updates.firstPayment } : {}),
-      ...(updates.balanceDue !== undefined ? { balanceDue: updates.balanceDue } : {}),
-      ...(updates.liquidationDate !== undefined
-        ? { liquidationDate: updates.liquidationDate }
-        : {}),
-      ...(updates.status !== undefined ? { status: updates.status } : {}),
-      ...(updates.isSigned !== undefined ? { isSigned: updates.isSigned } : {}),
-      ...(updates.isPaid !== undefined ? { isPaid: updates.isPaid } : {}),
-      ...(updates.title !== undefined ? { title: updates.title } : {}),
-      ...(updates.fileUrl !== undefined ? { fileUrl: updates.fileUrl } : {}),
-      ...(updates.storageBucket !== undefined ? { storageBucket: updates.storageBucket } : {}),
-      ...(updates.storagePath !== undefined ? { storagePath: updates.storagePath } : {}),
-      ...(updates.mimeType !== undefined ? { mimeType: updates.mimeType } : {}),
-      ...(updates.size !== undefined ? { size: updates.size } : {}),
-      ...(updates.metadata !== undefined ? { metadata: updates.metadata } : {}),
-    },
+    data,
   });
 
   return mapContract(contract);
