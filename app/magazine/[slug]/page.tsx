@@ -6,6 +6,8 @@ import { FlipBook } from "@/components/magazine/FlipBook";
 import { buttonLinkStyles } from "@/components/ui/button";
 import { getMagazineIssueBySlug, getMagazinePages } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export default async function MagazineIssuePage({
   params,
 }: {

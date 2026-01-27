@@ -5,6 +5,8 @@ import { SectionHeading } from "@/components/section-heading";
 import { buttonLinkStyles } from "@/components/ui/button";
 import { getMagazineIssues } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export default async function MagazinePage() {
   const issues = await getMagazineIssues();
 
