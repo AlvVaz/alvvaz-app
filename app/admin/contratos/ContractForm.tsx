@@ -232,7 +232,6 @@ export function ContractForm({
       setFirstPaymentValue("");
       setBalanceDueValue("");
       setIsBalanceAuto(true);
-      setStatusValue("");
       setPassengerCountValue("0");
       return;
     }
