@@ -4,6 +4,7 @@ import { getMagazineIssues, getMagazineItems } from "@/lib/db";
 
 import { createIssueAction, deleteIssueAction, updateIssueAction } from "./actions";
 import { UploadItemForm } from "./UploadItemForm";
+import IssueShareButton from "./IssueShareButton";
 
 export const dynamic = "force-dynamic";
 
@@ -25,44 +26,60 @@ export default async function MagazineAdminPage() {
         kicker="Admin"
       />
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="font-display text-lg text-brand-950">Nueva edición</h3>
-        <form action={createIssueAction} className="mt-4 grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-              Título
-            </label>
-            <input
-              name="title"
-              required
-              placeholder="Edición Primavera 2026"
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
-            />
+      <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <details className="group">
+          <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="font-display text-lg text-brand-950">Nueva edición</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Crea y publica una nueva edición en minutos.
+                </p>
+              </div>
+              <span className="rounded-full border border-brand-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+                Agregar
+              </span>
+            </div>
+          </summary>
+          <div className="border-t border-slate-200 px-6 py-4">
+            <form action={createIssueAction} className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                  Título
+                </label>
+                <input
+                  name="title"
+                  required
+                  placeholder="Edición Primavera 2026"
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                  Fecha de publicación
+                </label>
+                <input
+                  type="date"
+                  name="publishedAt"
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+                />
+              </div>
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                  Descripción
+                </label>
+                <textarea
+                  name="description"
+                  className="min-h-[90px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+                  placeholder="Resumen breve de destinos, experiencias y promociones."
+                />
+              </div>
+              <div className="md:col-span-2 flex justify-end">
+                <Button type="submit">Crear edición</Button>
+              </div>
+            </form>
           </div>
-          <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-              Fecha de publicación
-            </label>
-            <input
-              type="date"
-              name="publishedAt"
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
-            />
-          </div>
-          <div className="md:col-span-2 space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-              Descripción
-            </label>
-            <textarea
-              name="description"
-              className="min-h-[90px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
-              placeholder="Resumen breve de destinos, experiencias y promociones."
-            />
-          </div>
-          <div className="md:col-span-2 flex justify-end">
-            <Button type="submit">Crear edición</Button>
-          </div>
-        </form>
+        </details>
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -95,7 +112,7 @@ export default async function MagazineAdminPage() {
                   className="rounded-3xl border border-slate-200 bg-white shadow-sm"
                 >
                   <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
-                    <div className="grid items-center gap-4 md:grid-cols-[2fr_1.5fr_0.8fr_0.7fr]">
+                    <div className="grid items-center gap-4 md:grid-cols-[2fr_1.5fr_0.8fr_0.7fr_0.6fr]">
                       <div className="min-w-0">
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
                           Edición
@@ -124,9 +141,9 @@ export default async function MagazineAdminPage() {
                           Archivos
                         </p>
                         <p className="text-sm text-slate-700">{issueItems.length}</p>
-                        <span className="mt-2 inline-flex rounded-full border border-brand-200 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700">
-                          Ver detalles
-                        </span>
+                      </div>
+                      <div className="flex items-end justify-end md:justify-start">
+                        <IssueShareButton slug={issue.slug} title={issue.title} />
                       </div>
                     </div>
                   </summary>
