@@ -1,8 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { FlipBook } from "@/components/magazine/FlipBook";
-import { buttonLinkStyles } from "@/components/ui/button";
 import { getMagazineIssueBySlug, getMagazinePages } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -73,17 +71,7 @@ export default async function MagazineIssueSharePage({
           </p>
           <h1 className="font-display text-2xl text-white">{issue.title}</h1>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href={`/magazine/${issue.slug}`}
-            className={buttonLinkStyles({ variant: "inverted" })}
-          >
-            Volver a la edición
-          </Link>
-          <Link href="/magazine" className={buttonLinkStyles({ variant: "inverted" })}>
-            Catálogo
-          </Link>
-        </div>
+        <div className="flex flex-wrap items-center gap-3" />
       </div>
 
       <div className="px-4 pb-16">
