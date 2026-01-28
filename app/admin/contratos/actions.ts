@@ -55,11 +55,12 @@ export async function createContractAction(
 
   const travelers = parseTravelers(travelersRaw);
 
+  const resolvedSeller = seller || organizer;
   const contract = await createContract({
     title,
     contractNumber: contractNumber || null,
     reservationDate: reservationDate || null,
-    seller: seller || null,
+    seller: resolvedSeller || null,
     agency: agency || null,
     clientName,
     destination,
@@ -140,11 +141,12 @@ export async function updateContractAction(
 
   const travelers = parseTravelers(travelersRaw);
 
+  const resolvedSeller = seller || organizer;
   const updated = await updateContract(id, {
     title,
     contractNumber: contractNumber || null,
     reservationDate: reservationDate || null,
-    seller: seller || null,
+    seller: resolvedSeller || null,
     agency: agency || null,
     clientName: clientName || "",
     destination: destination || "",

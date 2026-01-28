@@ -2,6 +2,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { getContracts } from "@/lib/db";
 
 import { ContractForm } from "./ContractForm";
+import ContractSummaryActions from "./ContractSummaryActions";
 import { createContractAction, deleteContractAction, updateContractAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -9,8 +10,10 @@ export const dynamic = "force-dynamic";
 export default async function ContratosAdminPage() {
   const contracts = await getContracts();
 
-  const pendingContracts = contracts.filter((contract) => contract.status !== "paid");
-  const approvedContracts = contracts.filter((contract) => contract.status === "paid");
+  const approvedContracts = contracts.filter(
+    (contract) => contract.status === "paid" || contract.status === "signed"
+  );
+  const pendingContracts = contracts.filter((contract) => contract.status === "pending");
 
   return (
     <div className="space-y-10">
@@ -20,18 +23,29 @@ export default async function ContratosAdminPage() {
         kicker="Admin"
       />
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="font-display text-lg text-brand-950">Nuevo contrato</h3>
-        <p className="mt-1 text-sm text-slate-600">
-          Crea el contrato con los datos del viaje y la lista de pasajeros.
-        </p>
-        <div className="mt-4">
-          <ContractForm
-            action={createContractAction}
-            submitLabel="Crear contrato"
-            resetOnSubmit
-          />
-        </div>
+      <section className="rounded-3xl border border-brand-200/70 bg-brand-100/70 shadow-sm">
+        <details className="group">
+          <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="font-display text-lg text-brand-950">Nuevo contrato</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Crea el contrato con los datos del viaje y la lista de pasajeros.
+                </p>
+              </div>
+              <span className="rounded-full border border-brand-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+                Agregar
+              </span>
+            </div>
+          </summary>
+          <div className="border-t border-slate-200 px-6 py-4">
+            <ContractForm
+              action={createContractAction}
+              submitLabel="Crear contrato"
+              resetOnSubmit
+            />
+          </div>
+        </details>
       </section>
 
       <section className="space-y-4">
@@ -53,8 +67,9 @@ export default async function ContratosAdminPage() {
                 key={contract.id}
                 className="rounded-3xl border border-slate-200 bg-white shadow-sm"
               >
-                <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
-                  <div className="grid items-center gap-4 md:grid-cols-[2fr_1.4fr_1fr_0.8fr]">
+                <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                  <div className="rounded-[28px] border border-brand-200/80 bg-gradient-to-br from-white via-brand-50 to-brand-200/60 px-6 py-4 text-brand-950 shadow-[0_12px_28px_rgba(77,143,224,0.16)]">
+                    <div className="grid items-center gap-4 md:grid-cols-[2fr_1.4fr_1fr_0.8fr]">
                     <div className="min-w-0">
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
                         Contrato
@@ -62,7 +77,7 @@ export default async function ContratosAdminPage() {
                       <p className="font-display text-lg text-brand-950">
                         {contract.title}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-brand-700/80">
                         {contract.contractNumber ? `#${contract.contractNumber}` : "Sin folio"}
                       </p>
                     </div>
@@ -70,36 +85,39 @@ export default async function ContratosAdminPage() {
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
                         Cliente
                       </p>
-                      <p className="text-sm text-slate-700">{contract.clientName}</p>
-                      <p className="text-xs text-slate-500">{contract.destination}</p>
+                      <p className="text-sm text-brand-900">{contract.clientName}</p>
+                      <p className="text-sm text-brand-700/80">{contract.destination}</p>
                     </div>
-                    <div>
+                    <div className="flex flex-col items-center text-center">
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
                         Estado
                       </p>
                       <div className="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.2em]">
                         {contract.status === "pending" && (
-                          <span className="rounded-full border border-amber-200 px-2 py-1 text-amber-700">
+                          <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-amber-700">
                             Pendiente
                           </span>
                         )}
                         {contract.status === "signed" && (
-                          <span className="rounded-full border border-blue-200 px-2 py-1 text-blue-700">
+                          <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-1 text-sky-700">
                             Firmado
                           </span>
                         )}
                         {contract.status === "paid" && (
-                          <span className="rounded-full border border-emerald-200 px-2 py-1 text-emerald-700">
+                          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-700">
                             Pagado
                           </span>
                         )}
                       </div>
                     </div>
-                    <div className="text-right md:text-left">
-                      <span className="inline-flex rounded-full border border-brand-200 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700">
-                        Ver detalles
-                      </span>
+                    <div className="flex flex-col items-end gap-2 text-right md:items-start md:text-left">
+                      <ContractSummaryActions
+                        contractId={contract.id}
+                        contractTitle={contract.title}
+                        contractNumber={contract.contractNumber}
+                      />
                     </div>
+                  </div>
                   </div>
                 </summary>
 
@@ -136,8 +154,9 @@ export default async function ContratosAdminPage() {
                 key={contract.id}
                 className="rounded-3xl border border-slate-200 bg-white shadow-sm"
               >
-                <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
-                  <div className="grid items-center gap-4 md:grid-cols-[2fr_1.4fr_1fr_0.8fr]">
+                <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                  <div className="rounded-[28px] border border-brand-200/80 bg-gradient-to-br from-white via-brand-50 to-brand-200/60 px-6 py-4 text-brand-950 shadow-[0_12px_28px_rgba(77,143,224,0.16)]">
+                    <div className="grid items-center gap-4 md:grid-cols-[2fr_1.4fr_1fr_0.8fr]">
                     <div className="min-w-0">
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
                         Contrato
@@ -145,7 +164,7 @@ export default async function ContratosAdminPage() {
                       <p className="font-display text-lg text-brand-950">
                         {contract.title}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-brand-700/80">
                         {contract.contractNumber ? `#${contract.contractNumber}` : "Sin folio"}
                       </p>
                     </div>
@@ -153,22 +172,25 @@ export default async function ContratosAdminPage() {
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
                         Cliente
                       </p>
-                      <p className="text-sm text-slate-700">{contract.clientName}</p>
-                      <p className="text-xs text-slate-500">{contract.destination}</p>
+                      <p className="text-sm text-brand-900">{contract.clientName}</p>
+                      <p className="text-sm text-brand-700/80">{contract.destination}</p>
                     </div>
-                    <div>
+                    <div className="flex flex-col items-center text-center">
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
                         Estado
                       </p>
-                      <span className="rounded-full border border-emerald-200 px-2 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
                         Aprobado
                       </span>
                     </div>
-                    <div className="text-right md:text-left">
-                      <span className="inline-flex rounded-full border border-brand-200 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700">
-                        Ver detalles
-                      </span>
+                    <div className="flex flex-col items-end gap-2 text-right md:items-start md:text-left">
+                      <ContractSummaryActions
+                        contractId={contract.id}
+                        contractTitle={contract.title}
+                        contractNumber={contract.contractNumber}
+                      />
                     </div>
+                  </div>
                   </div>
                 </summary>
 

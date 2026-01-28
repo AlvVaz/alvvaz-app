@@ -4,7 +4,7 @@ import type { FormEvent } from "react";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { Contract, ContractStatus, TripTraveler } from "@/lib/db";
+import type { Contract, TripTraveler } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 
 type ContractFormProps = {
@@ -63,6 +63,7 @@ export function ContractForm({
 }: ContractFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement | null>(null);
+  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [travelers, setTravelers] = useState<TripTraveler[]>(
     initialContract?.travelers?.length ? initialContract.travelers : [emptyTraveler]
   );
@@ -95,10 +96,6 @@ export function ContractForm({
     initialContract?.balanceDue ?? ""
   );
   const [isBalanceAuto, setIsBalanceAuto] = useState(true);
-  const [statusValue, setStatusValue] = useState<ContractStatus | "">(
-    initialContract?.status ??
-      (initialContract?.isPaid ? "paid" : initialContract?.isSigned ? "signed" : "")
-  );
 
   const normalizedTravelers = useMemo(
     () =>
@@ -254,10 +251,6 @@ export function ContractForm({
     setFirstPaymentValue(initialContract.firstPayment ?? "");
     setBalanceDueValue(initialContract.balanceDue ?? "");
     setIsBalanceAuto(true);
-    setStatusValue(
-      initialContract.status ??
-        (initialContract.isPaid ? "paid" : initialContract.isSigned ? "signed" : "")
-    );
   };
 
   const handleReset = (event: FormEvent<HTMLFormElement>) => {
@@ -269,6 +262,19 @@ export function ContractForm({
   const [isOpeningPdf, setIsOpeningPdf] = useState(false);
   const [isSendingPdf, setIsSendingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ message: string; tone: "success" | "info" } | null>(
+    null
+  );
+
+  const pushNotice = (message: string, tone: "success" | "info" = "success") => {
+    setNotice({ message, tone });
+    if (noticeTimerRef.current) {
+      clearTimeout(noticeTimerRef.current);
+    }
+    noticeTimerRef.current = setTimeout(() => {
+      setNotice(null);
+    }, 3500);
+  };
 
   useEffect(() => {
     if (!resetOnSubmit) return;
@@ -276,6 +282,11 @@ export function ContractForm({
     resetFormState();
     formRef.current?.reset();
   }, [formState.submittedAt, resetOnSubmit]);
+
+  useEffect(() => {
+    if (!formState.submittedAt) return;
+    pushNotice("Cambios guardados.");
+  }, [formState.submittedAt]);
 
   const handleGeneratePdf = async () => {
     if (!initialContract) return;
@@ -290,6 +301,7 @@ export function ContractForm({
         setPdfError(payload.error || "No se pudo generar el PDF.");
         return;
       }
+      pushNotice("PDF generado.");
       router.refresh();
     } catch (error) {
       setPdfError("No se pudo generar el PDF.");
@@ -353,7 +365,17 @@ export function ContractForm({
       <input type="hidden" name="travelers" value={travelersPayload} />
       <input type="hidden" name="description" value={descriptionPayload} />
       <input type="hidden" name="clientName" value={titleValue} />
-      <input type="hidden" name="status" value={statusValue} />
+      {notice ? (
+        <div
+          className={`md:col-span-2 rounded-2xl border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] ${
+            notice.tone === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-brand-200 bg-brand-50 text-brand-700"
+          }`}
+        >
+          {notice.message}
+        </div>
+      ) : null}
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
@@ -696,53 +718,47 @@ export function ContractForm({
       </div>
 
       <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
+        {(() => {
+          const currentStatus =
+            initialContract?.status ??
+            (initialContract?.isPaid ? "paid" : initialContract?.isSigned ? "signed" : "");
+          return (
+            <>
         <label className="flex items-center gap-2">
           <input
-            type="checkbox"
-            checked={statusValue === "signed"}
-            onChange={(event) => {
-              if (event.target.checked) {
-                setStatusValue("signed");
-              } else {
-                setStatusValue("");
-              }
-            }}
+            type="radio"
+            name="status"
+            value="signed"
+            defaultChecked={currentStatus === "signed"}
           />
           Firmado
         </label>
         <label className="flex items-center gap-2">
           <input
-            type="checkbox"
-            checked={statusValue === "paid"}
-            onChange={(event) => {
-              if (event.target.checked) {
-                setStatusValue("paid");
-              } else {
-                setStatusValue("");
-              }
-            }}
+            type="radio"
+            name="status"
+            value="paid"
+            defaultChecked={currentStatus === "paid"}
           />
           Pagado
         </label>
         <label className="flex items-center gap-2">
           <input
-            type="checkbox"
-            checked={statusValue === "pending"}
-            onChange={(event) => {
-              if (event.target.checked) {
-                setStatusValue("pending");
-              } else {
-                setStatusValue("");
-              }
-            }}
+            type="radio"
+            name="status"
+            value="pending"
+            defaultChecked={currentStatus === "pending"}
           />
           Pendiente
         </label>
+            </>
+          );
+        })()}
       </div>
 
       {initialContract ? (
         <div className="md:col-span-2 rounded-2xl border border-brand-200 bg-white/70 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
                 Contratos PDF
@@ -751,14 +767,16 @@ export function ContractForm({
                 Genera un PDF listo para enviar al cliente.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleGeneratePdf}
-              disabled={isGeneratingPdf}
-              className="rounded-full border border-brand-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 transition hover:border-brand-400"
-            >
-              {isGeneratingPdf ? "Generando..." : "Generar PDF"}
-            </button>
+            <div className="flex sm:justify-end sm:pt-3">
+              <button
+                type="button"
+                onClick={handleGeneratePdf}
+                disabled={isGeneratingPdf}
+                className="rounded-full border border-brand-300 px-4 py-2.5 text-xs font-semibold uppercase leading-none tracking-[0.2em] text-brand-700 transition hover:border-brand-400"
+              >
+                {isGeneratingPdf ? "Generando..." : "Generar PDF"}
+              </button>
+            </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600">
             {initialContract.storagePath ? (
@@ -767,7 +785,7 @@ export function ContractForm({
                   type="button"
                   onClick={handleOpenPdf}
                   disabled={isOpeningPdf}
-                  className="rounded-full border border-brand-200 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700"
+                  className="rounded-full border border-brand-200 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-700"
                 >
                   {isOpeningPdf ? "Abriendo..." : "Ver PDF"}
                 </button>
@@ -775,7 +793,7 @@ export function ContractForm({
                   type="button"
                   onClick={handleSendPdf}
                   disabled={isSendingPdf}
-                  className="rounded-full border border-brand-200 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700"
+                  className="rounded-full border border-brand-200 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-700"
                 >
                   {isSendingPdf ? "Enviando..." : "Enviar"}
                 </button>
@@ -797,7 +815,12 @@ export function ContractForm({
       <div className="md:col-span-2 flex flex-wrap items-center justify-end gap-3">
         <Button type="submit">{submitLabel}</Button>
         {deleteAction ? (
-          <Button type="submit" formAction={deleteAction} variant="subtle">
+          <Button
+            type="submit"
+            formAction={deleteAction}
+            variant="subtle"
+            onClick={() => pushNotice("Contrato eliminado.", "info")}
+          >
             Eliminar
           </Button>
         ) : null}
