@@ -25,8 +25,8 @@ export const metadata: Metadata = {
   description:
     "Viajes premium a playas de México y destinos internacionales con atención personalizada.",
   icons: {
-    icon: [{ url: "/logoalvvaz.png", type: "image/png" }],
-    apple: "/logoalvvaz.png",
+    icon: [{ url: "/icon.png?v=2", type: "image/png" }],
+    apple: "/icon.png?v=2",
   },
 };
 
