@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import type { Contract, TripTraveler } from "@/lib/db";
 import { Button } from "@/components/ui/button";
+import { useContractsToast } from "./ContractsToastProvider";
 
 type ContractFormProps = {
   action: (
@@ -63,7 +64,7 @@ export function ContractForm({
 }: ContractFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement | null>(null);
-  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { push: pushToast } = useContractsToast();
   const [travelers, setTravelers] = useState<TripTraveler[]>(
     initialContract?.travelers?.length ? initialContract.travelers : [emptyTraveler]
   );
@@ -256,24 +257,19 @@ export function ContractForm({
     resetFormState();
   };
 
+  const handleCollapseForm = () => {
+    const detailsElement = formRef.current?.closest("details");
+    if (detailsElement && detailsElement.hasAttribute("open")) {
+      detailsElement.removeAttribute("open");
+      detailsElement.scrollIntoView({ block: "start", behavior: "smooth" });
+    }
+  };
+
   const [formState, formAction] = useActionState(action, { submittedAt: 0 });
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isOpeningPdf, setIsOpeningPdf] = useState(false);
   const [isSendingPdf, setIsSendingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<{ message: string; tone: "success" | "info" } | null>(
-    null
-  );
-
-  const pushNotice = (message: string, tone: "success" | "info" = "success") => {
-    setNotice({ message, tone });
-    if (noticeTimerRef.current) {
-      clearTimeout(noticeTimerRef.current);
-    }
-    noticeTimerRef.current = setTimeout(() => {
-      setNotice(null);
-    }, 3500);
-  };
 
   useEffect(() => {
     if (!resetOnSubmit) return;
@@ -284,8 +280,8 @@ export function ContractForm({
 
   useEffect(() => {
     if (!formState.submittedAt) return;
-    pushNotice("Cambios guardados.");
-  }, [formState.submittedAt]);
+    pushToast("Cambios guardados.");
+  }, [formState.submittedAt, pushToast]);
 
   const handleGeneratePdf = async () => {
     if (!initialContract) return;
@@ -300,7 +296,7 @@ export function ContractForm({
         setPdfError(payload.error || "No se pudo generar el PDF.");
         return;
       }
-      pushNotice("PDF generado.");
+      pushToast("PDF generado.");
       router.refresh();
     } catch (error) {
       setPdfError("No se pudo generar el PDF.");
@@ -364,17 +360,6 @@ export function ContractForm({
       <input type="hidden" name="travelers" value={travelersPayload} />
       <input type="hidden" name="description" value={descriptionPayload} />
       <input type="hidden" name="clientName" value={titleValue} />
-      {notice ? (
-        <div
-          className={`md:col-span-2 rounded-2xl border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] ${
-            notice.tone === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-brand-200 bg-brand-50 text-brand-700"
-          }`}
-        >
-          {notice.message}
-        </div>
-      ) : null}
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
@@ -750,6 +735,15 @@ export function ContractForm({
           />
           Pendiente
         </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            name="status"
+            value="canceled"
+            defaultChecked={currentStatus === "canceled"}
+          />
+          Cancelado
+        </label>
             </>
           );
         })()}
@@ -812,13 +806,22 @@ export function ContractForm({
       )}
 
       <div className="md:col-span-2 flex flex-wrap items-center justify-end gap-3">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={handleCollapseForm}
+          className="border-brand-200 text-brand-700 hover:border-brand-300 hover:text-brand-900"
+        >
+          Cerrar
+        </Button>
         <Button type="submit">{submitLabel}</Button>
         {deleteAction ? (
           <Button
             type="submit"
             formAction={deleteAction}
             variant="subtle"
-            onClick={() => pushNotice("Contrato eliminado.", "info")}
+            onClick={() => pushToast("Contrato eliminado.", "info")}
+            className="border border-rose-200 text-rose-700 hover:border-rose-300 hover:text-rose-800"
           >
             Eliminar
           </Button>

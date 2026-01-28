@@ -47,7 +47,9 @@ export async function createContractAction(
   const liquidationDate = String(formData.get("liquidationDate") ?? "").trim();
   const statusRaw = String(formData.get("status") ?? "pending").trim();
   const status: ContractStatus =
-    statusRaw === "signed" || statusRaw === "paid" ? statusRaw : "pending";
+    statusRaw === "signed" || statusRaw === "paid" || statusRaw === "canceled"
+      ? statusRaw
+      : "pending";
   const isSigned = status === "signed" || status === "paid";
   const isPaid = status === "paid";
 
@@ -135,7 +137,9 @@ export async function updateContractAction(
   const liquidationDate = String(formData.get("liquidationDate") ?? "").trim();
   const statusRaw = String(formData.get("status") ?? "pending").trim();
   const status: ContractStatus =
-    statusRaw === "signed" || statusRaw === "paid" ? statusRaw : "pending";
+    statusRaw === "signed" || statusRaw === "paid" || statusRaw === "canceled"
+      ? statusRaw
+      : "pending";
   const isSigned = status === "signed" || status === "paid";
   const isPaid = status === "paid";
 

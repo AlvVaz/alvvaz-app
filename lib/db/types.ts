@@ -64,7 +64,7 @@ export type Trip = {
   updatedAt: string;
 };
 
-export type ContractStatus = "pending" | "signed" | "paid";
+export type ContractStatus = "pending" | "signed" | "paid" | "canceled";
 
 export type Contract = {
   id: string;

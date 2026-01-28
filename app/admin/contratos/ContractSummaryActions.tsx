@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useContractsToast } from "./ContractsToastProvider";
 
 type ContractSummaryActionsProps = {
   contractId: string;
@@ -13,8 +14,9 @@ export default function ContractSummaryActions({
   contractTitle,
   contractNumber,
 }: ContractSummaryActionsProps) {
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const { push: pushToast } = useContractsToast();
 
   const buildFileName = () => {
     const baseTitle = contractTitle || "Contrato";
@@ -29,13 +31,13 @@ export default function ContractSummaryActions({
     window.open(`/contratos/${contractId}/pdf`, "_blank", "noopener,noreferrer");
   };
 
-  const handleGeneratePdf = async (
+  const handleSendPdf = async (
     event: React.MouseEvent<HTMLButtonElement>
   ) => {
     event.preventDefault();
     event.stopPropagation();
-    if (isGenerating) return;
-    setIsGenerating(true);
+    if (isSending) return;
+    setIsSending(true);
     try {
       const response = await fetch(`/api/admin/contracts/${contractId}/pdf`, {
         method: "POST",
@@ -44,11 +46,16 @@ export default function ContractSummaryActions({
         throw new Error("No se pudo generar el PDF.");
       }
       await response.json();
-      window.open(`/contratos/${contractId}/pdf`, "_blank", "noopener,noreferrer");
+      const origin = window.location.origin;
+      const shareUrl = `${origin}/contratos/${contractId}/pdf`;
+      const message = `Hola, aquí está tu contrato: ${shareUrl}`;
+      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      pushToast("PDF enviado.");
     } catch {
-      // Silent failure to keep the summary clean.
+      pushToast("No se pudo enviar el PDF.", "error");
     } finally {
-      setIsGenerating(false);
+      setIsSending(false);
     }
   };
 
@@ -82,6 +89,7 @@ export default function ContractSummaryActions({
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      pushToast("PDF guardado.");
     } catch {
       // Silent failure to keep the summary clean.
     } finally {
@@ -107,10 +115,10 @@ export default function ContractSummaryActions({
       </button>
       <button
         type="button"
-        onClick={handleGeneratePdf}
+        onClick={handleSendPdf}
         className="inline-flex rounded-full border border-brand-200 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700 shadow-sm transition hover:border-brand-300 hover:text-brand-900"
       >
-        {isGenerating ? "Generando..." : "Generar PDF"}
+        {isSending ? "Enviando..." : "Enviar PDF"}
       </button>
     </div>
   );

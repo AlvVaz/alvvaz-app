@@ -23,6 +23,7 @@ enum ContractStatus {
   pending
   signed
   paid
+  canceled
 }
 
 model Client {
