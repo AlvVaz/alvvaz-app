@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Manrope, Philosopher } from "next/font/google";
 
-import { Footer } from "@/components/footer";
-import { Navbar } from "@/components/navbar";
+import { SiteChrome } from "@/components/layout/site-chrome";
 
 import "./globals.css";
 
@@ -40,11 +39,7 @@ export default function RootLayout({
       <body
         className={`${manrope.variable} ${philosopher.variable} bg-sand text-slate-900 antialiased`}
       >
-        <Navbar />
-        <main id="top" className="min-h-screen">
-          {children}
-        </main>
-        <Footer />
+        <SiteChrome>{children}</SiteChrome>
       </body>
     </html>
   );
