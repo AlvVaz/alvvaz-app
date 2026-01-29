@@ -20,7 +20,10 @@ export async function POST(request: Request) {
       id: String(item.id ?? "").trim(),
       sortOrder: Number(item.sortOrder ?? 0),
     }))
-    .filter((item) => item.id && Number.isFinite(item.sortOrder));
+    .filter(
+      (item: { id: string; sortOrder: number }) =>
+        item.id && Number.isFinite(item.sortOrder)
+    );
 
   await reorderPromotions(sanitized);
 
