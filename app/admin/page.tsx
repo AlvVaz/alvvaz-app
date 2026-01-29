@@ -49,7 +49,7 @@ export default function AdminPage() {
           </p>
           <Link
             href="/admin/magazine"
-            className={buttonLinkStyles({ variant: "secondary", className: "mt-6" })}
+            className={buttonLinkStyles({ variant: "primary", className: "mt-6" })}
           >
             Gestionar revista
           </Link>
@@ -63,7 +63,7 @@ export default function AdminPage() {
           </p>
           <Link
             href="/admin/promociones"
-            className={buttonLinkStyles({ variant: "secondary", className: "mt-6" })}
+            className={buttonLinkStyles({ variant: "primary", className: "mt-6" })}
           >
             Gestionar promociones
           </Link>
@@ -77,7 +77,7 @@ export default function AdminPage() {
           </p>
           <Link
             href="/admin/contratos"
-            className={buttonLinkStyles({ variant: "secondary", className: "mt-6" })}
+            className={buttonLinkStyles({ variant: "primary", className: "mt-6" })}
           >
             Gestionar contratos
           </Link>
