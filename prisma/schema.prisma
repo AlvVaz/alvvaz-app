@@ -26,6 +26,12 @@ enum ContractStatus {
   canceled
 }
 
+enum PromotionStatus {
+  live
+  draft
+  paused
+}
+
 model Client {
   id        String       @id @default(cuid())
   name      String
@@ -119,4 +125,50 @@ model Contract {
 
   @@index([clientId])
   @@index([tripId])
+}
+
+model Promotion {
+  id              String           @id @default(cuid())
+  slug            String           @unique
+  title           String
+  destinationCity String
+  destinationState String
+  durationDays    Int
+  durationNights  Int?
+  priceFrom       Int
+  category        String
+  budget          String
+  summary         String
+  description     String?
+  includes        String[]
+  excludes        String[]
+  itinerary       String[]
+  activities      String[]
+  availableFrom   String?
+  availableTo     String?
+  hotelName       String?
+  hotelCategory   String?
+  ctaLabel        String?
+  ctaLink         String?
+  tags            String[]
+  status          PromotionStatus  @default(draft)
+  sortOrder       Int              @default(0)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  images          PromotionImage[]
+
+  @@index([status, sortOrder])
+}
+
+model PromotionImage {
+  id           String    @id @default(cuid())
+  promotionId  String
+  promotion    Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  fileUrl      String
+  storageBucket String?
+  storagePath  String?
+  sortOrder    Int
+  createdAt    DateTime  @default(now())
+
+  @@index([promotionId, sortOrder])
 }

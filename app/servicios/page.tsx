@@ -3,7 +3,7 @@ import { SectionHeading } from "@/components/section-heading";
 
 const servicios = [
   {
-    title: "Paquetes a playas de México",
+    title: "Promociones a playas de México",
     description: "Escapadas premium a los destinos más icónicos del país.",
   },
   {
@@ -35,7 +35,7 @@ const pasos = [
   },
   {
     title: "Reserva",
-    description: "Confirmamos disponibilidad y aseguramos tu paquete.",
+    description: "Confirmamos disponibilidad y aseguramos tu promoción.",
   },
   {
     title: "Viaja",

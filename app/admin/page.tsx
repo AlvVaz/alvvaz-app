@@ -8,7 +8,7 @@ export default function AdminPage() {
     <div className="space-y-8">
       <SectionHeading
         title="Panel interno"
-        subtitle="Gestiona clientes, viajes, revista y contratos."
+        subtitle="Gestiona clientes, viajes, revista, promociones y contratos."
         kicker="Admin"
       />
 
@@ -52,6 +52,20 @@ export default function AdminPage() {
             className={buttonLinkStyles({ variant: "secondary", className: "mt-6" })}
           >
             Gestionar revista
+          </Link>
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="font-display text-xl text-brand-950">Promociones</h3>
+          <p className="mt-2 text-sm text-slate-600">
+            Administra promociones destacadas, imágenes y enlaces para reservas
+            en la web.
+          </p>
+          <Link
+            href="/admin/promociones"
+            className={buttonLinkStyles({ variant: "secondary", className: "mt-6" })}
+          >
+            Gestionar promociones
           </Link>
         </div>
 

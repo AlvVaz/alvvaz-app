@@ -345,10 +345,10 @@ export default function Home() {
               </div>
               <div className="flex flex-wrap items-center gap-4">
                 <Link
-                  href="/paquetes"
+                  href="/promociones"
                   className={buttonLinkStyles({ variant: "primary" })}
                 >
-                  Ver Paquetes
+                  Ver Promociones
                 </Link>
                 <Link
                   href="/reservaciones"
@@ -381,7 +381,7 @@ export default function Home() {
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-sm text-slate-600">
                     <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-brand-200/40 via-white to-white px-4 py-3">
-                      Paquetes VIP
+                      Promociones VIP
                     </div>
                     <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-brand-200/40 via-white to-white px-4 py-3">
                       Pagos flexibles

@@ -6,6 +6,9 @@ import type {
   ClientStatus,
   Contract,
   ContractStatus,
+  Promotion,
+  PromotionImage,
+  PromotionStatus,
   MagazineIssue,
   MagazineItem,
   MagazineItemKind,
@@ -153,11 +156,83 @@ function mapContract(contract: {
   };
 }
 
+function mapPromotionImage(image: {
+  id: string;
+  promotionId: string;
+  fileUrl: string;
+  storageBucket: string | null;
+  storagePath: string | null;
+  sortOrder: number;
+  createdAt: Date;
+}): PromotionImage {
+  return {
+    ...image,
+    createdAt: image.createdAt.toISOString(),
+  };
+}
+
+function mapPromotion(promotion: {
+  id: string;
+  slug: string;
+  title: string;
+  destinationCity: string;
+  destinationState: string;
+  durationDays: number;
+  durationNights: number | null;
+  priceFrom: number;
+  category: string;
+  budget: string;
+  summary: string;
+  description: string | null;
+  includes: string[];
+  excludes: string[];
+  itinerary: string[];
+  activities: string[];
+  availableFrom: string | null;
+  availableTo: string | null;
+  hotelName: string | null;
+  hotelCategory: string | null;
+  ctaLabel: string | null;
+  ctaLink: string | null;
+  tags: string[];
+  status: PromotionStatus;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+  images?: {
+    id: string;
+    promotionId: string;
+    fileUrl: string;
+    storageBucket: string | null;
+    storagePath: string | null;
+    sortOrder: number;
+    createdAt: Date;
+  }[];
+}): Promotion {
+  return {
+    ...promotion,
+    images: (promotion.images ?? []).map(mapPromotionImage),
+    createdAt: promotion.createdAt.toISOString(),
+    updatedAt: promotion.updatedAt.toISOString(),
+  };
+}
+
 async function uniqueSlug(base: string, excludeId?: string) {
   let slug = base;
   let counter = 1;
   while (true) {
     const existing = await prisma.magazineIssue.findUnique({ where: { slug } });
+    if (!existing || existing.id === excludeId) return slug;
+    counter += 1;
+    slug = `${base}-${counter}`;
+  }
+}
+
+async function uniquePromotionSlug(base: string, excludeId?: string) {
+  let slug = base;
+  let counter = 1;
+  while (true) {
+    const existing = await prisma.promotion.findUnique({ where: { slug } });
     if (!existing || existing.id === excludeId) return slug;
     counter += 1;
     slug = `${base}-${counter}`;
@@ -626,4 +701,258 @@ export async function deleteContract(id: string) {
   if (!existing) return false;
   await prisma.contract.delete({ where: { id } });
   return true;
+}
+
+function normalizePromotionStatus(status?: string): PromotionStatus {
+  const value = (status ?? "draft").toLowerCase();
+  if (value === "live" || value === "paused") return value;
+  return "draft";
+}
+
+export async function getPromotions(options?: {
+  status?: PromotionStatus | PromotionStatus[];
+}) {
+  const where =
+    options?.status === undefined
+      ? undefined
+      : Array.isArray(options.status)
+      ? { status: { in: options.status } }
+      : { status: options.status };
+
+  const promotions = await prisma.promotion.findMany({
+    where,
+    orderBy: [{ status: "asc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
+    include: { images: { orderBy: { sortOrder: "asc" } } },
+  });
+  return promotions.map(mapPromotion);
+}
+
+export async function getPromotionBySlug(slug: string) {
+  const promotion = await prisma.promotion.findUnique({
+    where: { slug },
+    include: { images: { orderBy: { sortOrder: "asc" } } },
+  });
+  return promotion ? mapPromotion(promotion) : null;
+}
+
+export async function getPromotionById(id: string) {
+  const promotion = await prisma.promotion.findUnique({
+    where: { id },
+    include: { images: { orderBy: { sortOrder: "asc" } } },
+  });
+  return promotion ? mapPromotion(promotion) : null;
+}
+
+export async function createPromotion(input: {
+  title: string;
+  destinationCity: string;
+  destinationState: string;
+  durationDays: number;
+  durationNights?: number | null;
+  priceFrom: number;
+  category: string;
+  budget: string;
+  summary: string;
+  description?: string | null;
+  includes?: string[];
+  excludes?: string[];
+  itinerary?: string[];
+  activities?: string[];
+  availableFrom?: string | null;
+  availableTo?: string | null;
+  hotelName?: string | null;
+  hotelCategory?: string | null;
+  ctaLabel?: string | null;
+  ctaLink?: string | null;
+  tags?: string[];
+  status?: PromotionStatus;
+  sortOrder?: number;
+}) {
+  const baseSlug = slugify(input.title) || `promocion-${Date.now()}`;
+  const slug = await uniquePromotionSlug(baseSlug);
+  const status = normalizePromotionStatus(input.status);
+  const sortOrder =
+    input.sortOrder ??
+    (await prisma.promotion.count({ where: { status } }));
+
+  const resolvedNights =
+    input.durationNights ?? Math.max(input.durationDays - 1, 0);
+
+  const promotion = await prisma.promotion.create({
+    data: {
+      slug,
+      title: input.title,
+      destinationCity: input.destinationCity,
+      destinationState: input.destinationState,
+      durationDays: input.durationDays,
+      durationNights: resolvedNights,
+      priceFrom: input.priceFrom,
+      category: input.category,
+      budget: input.budget,
+      summary: input.summary,
+      description: input.description ?? null,
+      includes: input.includes ?? [],
+      excludes: input.excludes ?? [],
+      itinerary: input.itinerary ?? [],
+      activities: input.activities ?? [],
+      availableFrom: input.availableFrom ?? null,
+      availableTo: input.availableTo ?? null,
+      hotelName: input.hotelName ?? null,
+      hotelCategory: input.hotelCategory ?? null,
+      ctaLabel: input.ctaLabel ?? null,
+      ctaLink: input.ctaLink ?? null,
+      tags: input.tags ?? [],
+      status,
+      sortOrder,
+    },
+    include: { images: { orderBy: { sortOrder: "asc" } } },
+  });
+
+  return mapPromotion(promotion);
+}
+
+export async function updatePromotion(
+  id: string,
+  updates: Partial<{
+    title: string;
+    destinationCity: string;
+    destinationState: string;
+    durationDays: number;
+    durationNights: number | null;
+    priceFrom: number;
+    category: string;
+    budget: string;
+    summary: string;
+    description: string | null;
+    includes: string[];
+    excludes: string[];
+    itinerary: string[];
+    activities: string[];
+    availableFrom: string | null;
+    availableTo: string | null;
+    hotelName: string | null;
+    hotelCategory: string | null;
+    ctaLabel: string | null;
+    ctaLink: string | null;
+    tags: string[];
+    status: PromotionStatus;
+    sortOrder: number;
+  }>
+) {
+  const existing = await prisma.promotion.findUnique({ where: { id } });
+  if (!existing) return null;
+
+  let slug = existing.slug;
+  if (updates.title !== undefined && updates.title !== existing.title) {
+    const baseSlug = slugify(updates.title) || existing.slug;
+    slug = await uniquePromotionSlug(baseSlug, id);
+  }
+
+  let nextSortOrder = updates.sortOrder;
+  if (updates.status && updates.status !== existing.status) {
+    nextSortOrder = await prisma.promotion.count({
+      where: { status: updates.status },
+    });
+  }
+
+  const data: Prisma.PromotionUpdateInput = {
+    ...(updates.title !== undefined ? { title: updates.title } : {}),
+    ...(slug !== existing.slug ? { slug } : {}),
+    ...(updates.destinationCity !== undefined
+      ? { destinationCity: updates.destinationCity }
+      : {}),
+    ...(updates.destinationState !== undefined
+      ? { destinationState: updates.destinationState }
+      : {}),
+    ...(updates.durationDays !== undefined
+      ? { durationDays: updates.durationDays }
+      : {}),
+    ...(updates.durationNights !== undefined
+      ? { durationNights: updates.durationNights }
+      : {}),
+    ...(updates.priceFrom !== undefined ? { priceFrom: updates.priceFrom } : {}),
+    ...(updates.category !== undefined ? { category: updates.category } : {}),
+    ...(updates.budget !== undefined ? { budget: updates.budget } : {}),
+    ...(updates.summary !== undefined ? { summary: updates.summary } : {}),
+    ...(updates.description !== undefined ? { description: updates.description } : {}),
+    ...(updates.includes !== undefined ? { includes: updates.includes } : {}),
+    ...(updates.excludes !== undefined ? { excludes: updates.excludes } : {}),
+    ...(updates.itinerary !== undefined ? { itinerary: updates.itinerary } : {}),
+    ...(updates.activities !== undefined ? { activities: updates.activities } : {}),
+    ...(updates.availableFrom !== undefined
+      ? { availableFrom: updates.availableFrom }
+      : {}),
+    ...(updates.availableTo !== undefined
+      ? { availableTo: updates.availableTo }
+      : {}),
+    ...(updates.hotelName !== undefined ? { hotelName: updates.hotelName } : {}),
+    ...(updates.hotelCategory !== undefined
+      ? { hotelCategory: updates.hotelCategory }
+      : {}),
+    ...(updates.ctaLabel !== undefined ? { ctaLabel: updates.ctaLabel } : {}),
+    ...(updates.ctaLink !== undefined ? { ctaLink: updates.ctaLink } : {}),
+    ...(updates.tags !== undefined ? { tags: updates.tags } : {}),
+    ...(updates.status !== undefined ? { status: updates.status } : {}),
+    ...(nextSortOrder !== undefined ? { sortOrder: nextSortOrder } : {}),
+  };
+
+  const promotion = await prisma.promotion.update({
+    where: { id },
+    data,
+    include: { images: { orderBy: { sortOrder: "asc" } } },
+  });
+
+  return mapPromotion(promotion);
+}
+
+export async function deletePromotion(id: string) {
+  const existing = await prisma.promotion.findUnique({ where: { id } });
+  if (!existing) return false;
+  await prisma.promotion.delete({ where: { id } });
+  return true;
+}
+
+export async function reorderPromotions(
+  updates: Array<{ id: string; sortOrder: number }>
+) {
+  if (updates.length === 0) return;
+  await prisma.$transaction(
+    updates.map((update) =>
+      prisma.promotion.update({
+        where: { id: update.id },
+        data: { sortOrder: update.sortOrder },
+      })
+    )
+  );
+}
+
+export async function createPromotionImage(input: {
+  promotionId: string;
+  fileUrl: string;
+  storageBucket?: string | null;
+  storagePath?: string | null;
+  sortOrder?: number;
+}) {
+  const sortOrder =
+    input.sortOrder ??
+    (await prisma.promotionImage.count({ where: { promotionId: input.promotionId } }));
+
+  const image = await prisma.promotionImage.create({
+    data: {
+      promotionId: input.promotionId,
+      fileUrl: input.fileUrl,
+      storageBucket: input.storageBucket ?? null,
+      storagePath: input.storagePath ?? null,
+      sortOrder,
+    },
+  });
+
+  return mapPromotionImage(image);
+}
+
+export async function deletePromotionImage(id: string) {
+  const existing = await prisma.promotionImage.findUnique({ where: { id } });
+  if (!existing) return null;
+  await prisma.promotionImage.delete({ where: { id } });
+  return mapPromotionImage(existing);
 }

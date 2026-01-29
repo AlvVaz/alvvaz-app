@@ -2,7 +2,8 @@ import { SectionHeading } from "@/components/section-heading";
 import { Button } from "@/components/ui/button";
 import { getMagazineIssues, getMagazineItems } from "@/lib/db";
 
-import { createIssueAction, deleteIssueAction, updateIssueAction } from "./actions";
+import { createIssueActionWithState, deleteIssueAction, updateIssueAction } from "./actions";
+import { NewIssueForm } from "./NewIssueForm";
 import { UploadItemForm } from "./UploadItemForm";
 import IssueShareButton from "./IssueShareButton";
 
@@ -26,7 +27,7 @@ export default async function MagazineAdminPage() {
         kicker="Admin"
       />
 
-      <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <section className="rounded-3xl border border-brand-200/80 bg-gradient-to-br from-brand-100 via-white to-brand-200/70 shadow-sm">
         <details className="group">
           <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -42,54 +43,32 @@ export default async function MagazineAdminPage() {
             </div>
           </summary>
           <div className="border-t border-slate-200 px-6 py-4">
-            <form action={createIssueAction} className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                  Título
-                </label>
-                <input
-                  name="title"
-                  required
-                  placeholder="Edición Primavera 2026"
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                  Fecha de publicación
-                </label>
-                <input
-                  type="date"
-                  name="publishedAt"
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
-                />
-              </div>
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                  Descripción
-                </label>
-                <textarea
-                  name="description"
-                  className="min-h-[90px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
-                  placeholder="Resumen breve de destinos, experiencias y promociones."
-                />
-              </div>
-              <div className="md:col-span-2 flex justify-end">
-                <Button type="submit">Crear edición</Button>
-              </div>
-            </form>
+            <NewIssueForm action={createIssueActionWithState} />
           </div>
         </details>
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="font-display text-lg text-brand-950">Subir PDF o páginas</h3>
-        <p className="mt-1 text-sm text-slate-600">
-          Adjunta PDFs completos o imágenes individuales por edición.
-        </p>
-        <div className="mt-4">
-          <UploadItemForm issues={issues.map((issue) => ({ id: issue.id, title: issue.title }))} />
-        </div>
+      <section className="rounded-3xl border border-brand-200/80 bg-gradient-to-br from-brand-100 via-white to-brand-200/70 shadow-sm">
+        <details className="group">
+          <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="font-display text-lg text-brand-950">Subir PDF o páginas</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Adjunta PDFs completos o imágenes individuales por edición.
+                </p>
+              </div>
+              <span className="rounded-full border border-brand-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+                Subir
+              </span>
+            </div>
+          </summary>
+          <div className="border-t border-slate-200 px-6 py-4">
+            <UploadItemForm
+              issues={issues.map((issue) => ({ id: issue.id, title: issue.title }))}
+            />
+          </div>
+        </details>
       </section>
 
       <section className="space-y-4">
@@ -143,7 +122,12 @@ export default async function MagazineAdminPage() {
                         <p className="text-sm text-slate-700">{issueItems.length}</p>
                       </div>
                       <div className="flex items-end justify-end md:justify-start">
-                        <IssueShareButton slug={issue.slug} title={issue.title} />
+                        <IssueShareButton
+                          slug={issue.slug}
+                          title={issue.title}
+                          deleteAction={deleteIssueAction}
+                          issueId={issue.id}
+                        />
                       </div>
                     </div>
                   </summary>
@@ -189,7 +173,12 @@ export default async function MagazineAdminPage() {
                         <Button type="submit" variant="secondary">
                           Guardar cambios
                         </Button>
-                        <Button type="submit" formAction={deleteIssueAction} variant="subtle">
+                        <Button
+                          type="submit"
+                          formAction={deleteIssueAction}
+                          variant="subtle"
+                          className="border border-rose-300 bg-rose-50 text-rose-700 shadow-sm hover:border-rose-400 hover:text-rose-800"
+                        >
                           Eliminar
                         </Button>
                       </div>

@@ -41,8 +41,8 @@ export function Footer() {
               <Link href="/servicios" className="hover:text-brand-700">
                 Servicios
               </Link>
-              <Link href="/paquetes" className="hover:text-brand-700">
-                Paquetes
+              <Link href="/promociones" className="hover:text-brand-700">
+                Promociones
               </Link>
               <Link href="/reservaciones" className="hover:text-brand-700">
                 Reservaciones

@@ -176,7 +176,7 @@ export async function updateContractAction(
   }
 
   revalidatePath("/admin/contratos");
-  return prevState;
+  return { submittedAt: Date.now() };
 }
 
 export async function deleteContractAction(formData: FormData) {

@@ -23,6 +23,14 @@ export async function createIssueAction(formData: FormData) {
   revalidatePath(`/magazine/${issue.slug}`);
 }
 
+export async function createIssueActionWithState(
+  prevState: { submittedAt: number },
+  formData: FormData
+): Promise<{ submittedAt: number }> {
+  await createIssueAction(formData);
+  return { submittedAt: Date.now() };
+}
+
 export async function updateIssueAction(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
   if (!id) return;
