@@ -56,41 +56,62 @@ export function UploadItemForm({ issues }: { issues: IssueOption[] }) {
     setErrorMessage(null);
 
     try {
+      const prepResponse = await fetch("/api/admin/magazine/upload-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          issueId,
+          files: selectedFiles.map((file) => ({ name: file.name, type: file.type })),
+        }),
+      });
+
+      if (!prepResponse.ok) {
+        const payload = await prepResponse.json().catch(() => ({}));
+        throw new Error(payload.error || "No se pudo preparar la subida.");
+      }
+
+      const prepPayload = await prepResponse.json();
+      const uploads = (prepPayload.uploads ?? []) as {
+        index: number;
+        storagePath: string;
+        signedUrl: string;
+        token: string;
+        kind: "PDF" | "IMAGE";
+        mime: string;
+        originalName: string;
+      }[];
+
       const uploadedItems = [];
-      for (const file of selectedFiles) {
-        const mime = file.type;
-        const kind =
-          mime === "application/pdf"
-            ? "PDF"
-            : mime.startsWith("image/")
-            ? "IMAGE"
-            : null;
-        if (!kind) {
-          throw new Error("Formato no soportado.");
+      for (const [index, file] of selectedFiles.entries()) {
+        const uploadInfo = uploads.find((upload) => upload.index === index);
+        if (!uploadInfo) {
+          throw new Error("No se pudo preparar la subida.");
         }
-        const storagePath = `issues/${issueId}/${file.name}`;
+
         const { error: uploadError } = await supabaseClient.storage
           .from(bucket)
-          .upload(storagePath, file, { contentType: mime, upsert: false });
+          .uploadToSignedUrl(uploadInfo.storagePath, uploadInfo.token, file);
 
         if (uploadError) {
           throw new Error(uploadError.message || "No se pudo subir el archivo.");
         }
 
-        const { data } = supabaseClient.storage.from(bucket).getPublicUrl(storagePath);
+        const { data } = supabaseClient.storage
+          .from(bucket)
+          .getPublicUrl(uploadInfo.storagePath);
         const fileUrl = data.publicUrl;
         const resolvedTitle = title || file.name.replace(/\.[^/.]+$/, "") || "Archivo";
 
         uploadedItems.push({
           issueId,
           title: resolvedTitle,
-          kind,
+          kind: uploadInfo.kind,
           fileUrl,
           metadata: {
-            mime,
+            mime: uploadInfo.mime,
             originalName: file.name,
             bucket,
-            storagePath,
+            storagePath: uploadInfo.storagePath,
           },
         });
 

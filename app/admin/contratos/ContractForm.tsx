@@ -821,7 +821,7 @@ export function ContractForm({
             formAction={deleteAction}
             variant="subtle"
             onClick={() => pushToast("Contrato eliminado.", "info")}
-            className="border border-rose-200 text-rose-700 hover:border-rose-300 hover:text-rose-800"
+            className="border border-rose-200 bg-rose-50/80 text-rose-700 hover:border-rose-300 hover:text-rose-800"
           >
             Eliminar
           </Button>
