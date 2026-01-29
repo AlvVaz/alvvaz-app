@@ -7,9 +7,10 @@ export const runtime = "nodejs";
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const id = String(params.id ?? "").trim();
+  const resolved = await params;
+  const id = String(resolved?.id ?? "").trim();
   if (!id) {
     return NextResponse.json({ ok: false, error: "ID inválido" }, { status: 400 });
   }
