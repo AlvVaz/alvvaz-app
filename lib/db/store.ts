@@ -30,9 +30,9 @@ function normalizeTravelers(travelers?: TripTraveler[]) {
   if (!travelers) return [];
   return travelers
     .map((traveler) => ({
-      name: traveler.name?.trim() ?? "",
-      phone: traveler.phone?.trim() ?? "",
-      contract: traveler.contract?.trim() ?? "",
+      name: String(traveler.name ?? "").trim(),
+      phone: String(traveler.phone ?? "").trim(),
+      contract: String(traveler.contract ?? "").trim(),
     }))
     .filter((traveler) => traveler.name || traveler.phone || traveler.contract);
 }
@@ -89,13 +89,15 @@ export async function syncClientsFromTravelers(
   const normalized = normalizeTravelers(travelers);
   if (normalized.length === 0) return [];
 
-  const tags = buildClientTags(context);
+  const baseTags = buildClientTags(context);
   const results: Client[] = [];
 
   for (const traveler of normalized) {
     const name = normalizeClientName(traveler.name);
     const contact = normalizeClientContact(traveler.phone);
-    if (!name || !contact) continue;
+    if (!name) continue;
+
+    const tags = contact ? baseTags : mergeTags(baseTags, ["sin-telefono"]);
 
     const existing = await prisma.client.findFirst({
       where: {
@@ -655,6 +657,14 @@ export async function deleteTrip(id: string) {
   return true;
 }
 
+export async function deleteTripsByIds(ids: string[]) {
+  if (!ids.length) return 0;
+  const result = await prisma.trip.deleteMany({
+    where: { id: { in: ids } },
+  });
+  return result.count;
+}
+
 export async function getContracts() {
   const contracts = await prisma.contract.findMany({ orderBy: { createdAt: "desc" } });
   return contracts.map(mapContract);
@@ -828,6 +838,22 @@ export async function deleteContract(id: string) {
   if (!existing) return false;
   await prisma.contract.delete({ where: { id } });
   return true;
+}
+
+export async function deleteContractsByIds(ids: string[]) {
+  if (!ids.length) return 0;
+  const result = await prisma.contract.deleteMany({
+    where: { id: { in: ids } },
+  });
+  return result.count;
+}
+
+export async function deleteClientsByIds(ids: string[]) {
+  if (!ids.length) return 0;
+  const result = await prisma.client.deleteMany({
+    where: { id: { in: ids } },
+  });
+  return result.count;
 }
 
 function normalizePromotionStatus(status?: string): PromotionStatus {

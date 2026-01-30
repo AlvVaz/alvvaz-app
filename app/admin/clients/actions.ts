@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 
-import { createClient, deleteClient, parseTags, updateClient } from "@/lib/db";
+import {
+  createClient,
+  deleteClient,
+  deleteClientsByIds,
+  parseTags,
+  updateClient,
+} from "@/lib/db";
 
 export async function createClientAction(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
@@ -11,7 +17,7 @@ export async function createClientAction(formData: FormData) {
   const tags = parseTags(String(formData.get("tags") ?? ""));
   const notes = String(formData.get("notes") ?? "").trim();
 
-  if (!name || !contact) {
+  if (!name) {
     return;
   }
 
@@ -39,4 +45,13 @@ export async function deleteClientAction(formData: FormData) {
   if (!id) return;
   await deleteClient(id);
   revalidatePath("/admin/clients");
+}
+
+export async function bulkDeleteClientsAction(ids: string[]) {
+  if (!ids.length) {
+    return { ok: false, error: "Selecciona al menos un cliente." };
+  }
+  await deleteClientsByIds(ids);
+  revalidatePath("/admin/clients");
+  return { ok: true };
 }

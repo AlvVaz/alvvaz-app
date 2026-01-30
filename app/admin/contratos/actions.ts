@@ -6,6 +6,7 @@ import {
   createTrip,
   createContract,
   deleteContract,
+  deleteContractsByIds,
   getContracts,
   updateContract,
   syncClientsFromTravelers,
@@ -103,7 +104,14 @@ export async function createContractAction(
   });
 
   await updateContract(contract.id, { tripId: trip.id });
-  await syncClientsFromTravelers(travelers, {
+  const travelersForSync =
+    travelers.length > 0
+      ? travelers
+      : clientName
+      ? [{ name: clientName, phone: "", contract: contractNumber || "" }]
+      : [];
+
+  await syncClientsFromTravelers(travelersForSync, {
     source: "contract",
     destination,
     hotel,
@@ -186,7 +194,14 @@ export async function updateContractAction(
     // TODO: Auto-generate a trip once the contract is approved.
   }
 
-  await syncClientsFromTravelers(travelers, {
+  const travelersForSync =
+    travelers.length > 0
+      ? travelers
+      : clientName
+      ? [{ name: clientName, phone: "", contract: contractNumber || "" }]
+      : [];
+
+  await syncClientsFromTravelers(travelersForSync, {
     source: "contract",
     destination,
     hotel,
@@ -208,6 +223,15 @@ export async function deleteContractAction(formData: FormData) {
   revalidatePath("/admin/contratos");
 }
 
+export async function bulkDeleteContractsAction(ids: string[]) {
+  if (!ids.length) {
+    return { ok: false, error: "Selecciona al menos un contrato." };
+  }
+  await deleteContractsByIds(ids);
+  revalidatePath("/admin/contratos");
+  return { ok: true };
+}
+
 export async function syncClientsFromContractsAction(
   _prevState: { updatedAt: number; ok: boolean; error?: string }
 ) {
@@ -215,7 +239,13 @@ export async function syncClientsFromContractsAction(
     const contracts = await getContracts();
 
     for (const contract of contracts) {
-      await syncClientsFromTravelers(contract.travelers, {
+      const travelersForSync =
+        contract.travelers.length > 0
+          ? contract.travelers
+          : contract.clientName
+          ? [{ name: contract.clientName, phone: "", contract: contract.contractNumber || "" }]
+          : [];
+      await syncClientsFromTravelers(travelersForSync, {
         source: "contract",
         destination: contract.destination,
         hotel: contract.hotel,

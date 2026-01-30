@@ -1,12 +1,16 @@
-import Link from "next/link";
-
 import { SectionHeading } from "@/components/section-heading";
 import { Button } from "@/components/ui/button";
-import { formatTags, getClients, getContracts, getTrips } from "@/lib/db";
+import { getClients, getContracts, getTrips } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-import { createClientAction, deleteClientAction, updateClientAction } from "./actions";
+import {
+  createClientAction,
+  deleteClientAction,
+  updateClientAction,
+  bulkDeleteClientsAction,
+} from "./actions";
+import ClientsList from "./ClientsList";
 
 const statusOptions = [
   { value: "new", label: "Nuevo" },
@@ -15,7 +19,11 @@ const statusOptions = [
   { value: "archived", label: "Archivado" },
 ];
 
-export default async function ClientsPage() {
+type ClientsPageProps = {
+  searchParams?: { q?: string; missing?: string };
+};
+
+export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   const clients = await getClients();
   const contracts = await getContracts();
   const trips = await getTrips();
@@ -72,8 +80,8 @@ export default async function ClientsPage() {
     const href =
       contract.fileUrl || `/admin/contratos#contract-${contract.id}`;
     contract.travelers.forEach((traveler) => {
-      if (!traveler.name || !traveler.phone) return;
-      const key = buildKey(traveler.name, traveler.phone);
+      if (!traveler.name) return;
+      const key = buildKey(traveler.name, traveler.phone || "");
       pushHistory(key, {
         type: "contract",
         label,
@@ -89,8 +97,8 @@ export default async function ClientsPage() {
     const label = `Viaje · ${trip.destination}`;
     const href = `/admin/viajes#trip-${trip.id}`;
     trip.travelers.forEach((traveler) => {
-      if (!traveler.name || !traveler.phone) return;
-      const key = buildKey(traveler.name, traveler.phone);
+      if (!traveler.name) return;
+      const key = buildKey(traveler.name, traveler.phone || "");
       pushHistory(key, {
         type: "trip",
         label,
@@ -101,6 +109,21 @@ export default async function ClientsPage() {
     });
   });
 
+  const query = String(searchParams?.q ?? "").trim().toLowerCase();
+  const missingPhone = searchParams?.missing === "phone";
+
+  const filteredClients = clients.filter((client) => {
+    if (missingPhone && client.contact.trim()) return false;
+    if (!query) return true;
+    const matchesName = client.name.toLowerCase().includes(query);
+    const matchesTag = client.tags.some((tag) => tag.toLowerCase().includes(query));
+    return matchesName || matchesTag;
+  });
+
+  const historyByKey = Object.fromEntries(
+    Array.from(historyMap.entries()).map(([key, entries]) => [key, entries])
+  );
+
   return (
     <div className="space-y-10">
       <SectionHeading
@@ -108,6 +131,36 @@ export default async function ClientsPage() {
         subtitle="Registra viajeros, añade etiquetas y mantén un historial claro."
         kicker="CRM"
       />
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <form method="get" className="flex flex-wrap items-end gap-4">
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+              Buscar por nombre o etiqueta
+            </label>
+            <input
+              name="q"
+              defaultValue={searchParams?.q ?? ""}
+              placeholder="Cancún, familiar, Miguel..."
+              className="w-64 rounded-2xl border border-slate-200 px-4 py-2 text-sm"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+              Sin teléfono
+            </label>
+            <select
+              name="missing"
+              defaultValue={missingPhone ? "phone" : "all"}
+              className="w-44 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+            >
+              <option value="all">Todos</option>
+              <option value="phone">Sin teléfono</option>
+            </select>
+          </div>
+          <Button type="submit">Aplicar filtros</Button>
+        </form>
+      </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
         <details className="group">
@@ -193,161 +246,13 @@ export default async function ClientsPage() {
         </details>
       </section>
 
-      <section className="space-y-4">
-        <h3 className="font-display text-lg text-brand-950">Listado actual</h3>
-        {clients.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-brand-200 bg-white/60 p-6 text-sm text-slate-600">
-            Aún no hay clientes registrados.
-          </div>
-        ) : (
-          <div className="grid gap-6">
-            {clients.map((client) => {
-              const historyKey = buildKey(client.name, client.contact);
-              const history = (historyMap.get(historyKey) ?? [])
-                .slice()
-                .sort((a, b) => b.timestamp - a.timestamp);
-
-              return (
-                <details
-                  key={client.id}
-                  className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
-                >
-                  <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      <div>
-                        <p className="font-display text-lg text-brand-950">{client.name}</p>
-                        <p className="text-sm text-slate-600">{client.contact}</p>
-                      </div>
-                      <span className="rounded-full border border-brand-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
-                        {client.status}
-                      </span>
-                    </div>
-                    {client.tags.length > 0 ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {client.tags.slice(0, 6).map((tag) => (
-                          <span
-                            key={`${client.id}-${tag}`}
-                            className="rounded-full border border-brand-200 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                  </summary>
-
-                  <form
-                    action={updateClientAction}
-                    className="mt-6 grid gap-4 text-sm md:grid-cols-2"
-                  >
-                    <input type="hidden" name="id" value={client.id} />
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                        Nombre
-                      </label>
-                      <input
-                        name="name"
-                        defaultValue={client.name}
-                        className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                        Contacto
-                      </label>
-                      <input
-                        name="contact"
-                        defaultValue={client.contact}
-                        className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                        Etiquetas
-                      </label>
-                      <input
-                        name="tags"
-                        defaultValue={formatTags(client.tags)}
-                        className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                        Estado
-                      </label>
-                      <select
-                        name="status"
-                        defaultValue={client.status}
-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                      >
-                        {statusOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="md:col-span-2 space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                        Notas
-                      </label>
-                      <textarea
-                        name="notes"
-                        defaultValue={client.notes}
-                        className="min-h-[100px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
-                      />
-                    </div>
-                    <div className="md:col-span-2 flex flex-wrap items-center justify-end gap-3">
-                      <Button type="submit" variant="secondary">
-                        Guardar cambios
-                      </Button>
-                      <Button
-                        type="submit"
-                        formAction={deleteClientAction}
-                        variant="subtle"
-                        className="border border-rose-300 bg-rose-50 text-rose-700 shadow-sm hover:border-rose-400 hover:text-rose-800"
-                      >
-                        Eliminar
-                      </Button>
-                    </div>
-                  </form>
-
-                  <div className="mt-6 rounded-2xl border border-slate-200 bg-white/60 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                      Historial
-                    </p>
-                    {history.length === 0 ? (
-                      <p className="mt-2 text-sm text-slate-500">
-                        Aún no hay viajes o contratos asociados.
-                      </p>
-                    ) : (
-                      <ul className="mt-3 space-y-2 text-sm text-slate-600">
-                        {history.map((entry, index) => (
-                          <li
-                            key={`${client.id}-${entry.type}-${index}`}
-                            className="flex flex-wrap items-center justify-between gap-3"
-                          >
-                            <div>
-                              <p className="text-sm text-slate-700">{entry.label}</p>
-                              <p className="text-xs text-slate-500">{entry.date}</p>
-                            </div>
-                            <Link
-                              href={entry.href}
-                              className="rounded-full border border-brand-200 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700"
-                            >
-                              Ver
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </details>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      <ClientsList
+        clients={filteredClients}
+        historyByKey={historyByKey}
+        updateAction={updateClientAction}
+        deleteAction={deleteClientAction}
+        bulkDeleteAction={bulkDeleteClientsAction}
+      />
     </div>
   );
 }

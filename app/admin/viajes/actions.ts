@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 
-import { createTrip, deleteTrip, updateTrip, syncClientsFromTravelers } from "@/lib/db";
+import {
+  createTrip,
+  deleteTrip,
+  deleteTripsByIds,
+  updateTrip,
+  syncClientsFromTravelers,
+} from "@/lib/db";
 import type { TripTraveler } from "@/lib/db";
 
 function parseTravelers(raw: string): TripTraveler[] {
@@ -43,7 +49,14 @@ export async function createTripAction(formData: FormData) {
     travelers,
   });
 
-  await syncClientsFromTravelers(travelers, {
+  const travelersForSync =
+    travelers.length > 0
+      ? travelers
+      : clientName
+      ? [{ name: clientName, phone: "", contract: "" }]
+      : [];
+
+  await syncClientsFromTravelers(travelersForSync, {
     source: "trip",
     destination,
     hotel,
@@ -85,7 +98,14 @@ export async function updateTripAction(formData: FormData) {
   });
 
   revalidatePath("/admin/viajes");
-  await syncClientsFromTravelers(travelers, {
+  const travelersForSync =
+    travelers.length > 0
+      ? travelers
+      : clientName
+      ? [{ name: clientName, phone: "", contract: "" }]
+      : [];
+
+  await syncClientsFromTravelers(travelersForSync, {
     source: "trip",
     destination,
     hotel,
@@ -101,4 +121,13 @@ export async function deleteTripAction(formData: FormData) {
 
   await deleteTrip(id);
   revalidatePath("/admin/viajes");
+}
+
+export async function bulkDeleteTripsAction(ids: string[]) {
+  if (!ids.length) {
+    return { ok: false, error: "Selecciona al menos un viaje." };
+  }
+  await deleteTripsByIds(ids);
+  revalidatePath("/admin/viajes");
+  return { ok: true };
 }
