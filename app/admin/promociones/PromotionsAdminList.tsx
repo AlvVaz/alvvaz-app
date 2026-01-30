@@ -77,6 +77,10 @@ export function PromotionsAdminList({
   updateAction,
   deleteAction,
 }: PromotionsAdminListProps) {
+  const [toast, setToast] = useState<{
+    message: string;
+    tone: "success" | "error" | "info";
+  } | null>(null);
   const [itemsByStatus, setItemsByStatus] = useState(() =>
     groupPromotions(promotions)
   );
@@ -115,6 +119,11 @@ export function PromotionsAdminList({
       items: itemsByStatus[status],
     }));
   }, [itemsByStatus]);
+
+  const showToast = (message: string, tone: "success" | "error" | "info" = "success") => {
+    setToast({ message, tone });
+    window.setTimeout(() => setToast(null), 3200);
+  };
 
   return (
     <div className="space-y-10">
@@ -248,7 +257,22 @@ export function PromotionsAdminList({
                           }
                         />
                         <div className="flex flex-wrap items-center justify-end gap-3">
-                          <Button type="submit" variant="secondary">
+                          <Button
+                            type="button"
+                            variant="subtle"
+                            className="border border-sky-200 bg-sky-50 text-sky-700 shadow-sm hover:border-sky-300 hover:text-sky-800"
+                            onClick={(event) => {
+                              const details = event.currentTarget.closest("details");
+                              if (details) details.removeAttribute("open");
+                            }}
+                          >
+                            Cerrar
+                          </Button>
+                          <Button
+                            type="submit"
+                            variant="secondary"
+                            onClick={() => showToast("Cambios guardados.")}
+                          >
                             Guardar cambios
                           </Button>
                           <Button
@@ -256,6 +280,7 @@ export function PromotionsAdminList({
                             formAction={deleteAction}
                             variant="subtle"
                             className="border border-rose-300 bg-rose-50 text-rose-700 shadow-sm hover:border-rose-400 hover:text-rose-800"
+                            onClick={() => showToast("Promoción eliminada.", "info")}
                           >
                             Eliminar
                           </Button>
@@ -269,6 +294,20 @@ export function PromotionsAdminList({
           )}
         </section>
       ))}
+      {toast ? (
+        <div
+          className={cn(
+            "fixed bottom-6 right-6 z-50 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] shadow-sm",
+            toast.tone === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : toast.tone === "error"
+              ? "border-rose-200 bg-rose-50 text-rose-700"
+              : "border-sky-200 bg-sky-50 text-sky-700"
+          )}
+        >
+          {toast.message}
+        </div>
+      ) : null}
     </div>
   );
 }

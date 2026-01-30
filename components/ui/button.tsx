@@ -7,7 +7,7 @@ const baseStyles =
 
 const variants = {
   primary:
-    "bg-brand-950 text-white shadow-sm hover:bg-brand-900 focus-visible:outline-brand-500",
+    "bg-brand-950 text-white shadow-sm hover:bg-brand-800 hover:shadow-md hover:shadow-brand-900/30 focus-visible:outline-brand-500",
   secondary:
     "border border-brand-200 text-brand-900 hover:border-brand-400 hover:text-brand-950 focus-visible:outline-brand-500",
   subtle:
