@@ -209,6 +209,10 @@ function mapPromotion(promotion: {
     createdAt: Date;
   }[];
 }): Promotion {
+  const safeImages = (promotion.images ?? []).filter(
+    (image) => typeof image.fileUrl === "string" && image.fileUrl.length > 0
+  );
+
   return {
     ...promotion,
     title: promotion.title ?? "",
@@ -221,7 +225,7 @@ function mapPromotion(promotion: {
     itinerary: Array.isArray(promotion.itinerary) ? promotion.itinerary : [],
     activities: Array.isArray(promotion.activities) ? promotion.activities : [],
     tags: Array.isArray(promotion.tags) ? promotion.tags : [],
-    images: (promotion.images ?? []).map(mapPromotionImage),
+    images: safeImages.map(mapPromotionImage),
     createdAt: promotion.createdAt.toISOString(),
     updatedAt: promotion.updatedAt.toISOString(),
   };
