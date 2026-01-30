@@ -381,6 +381,11 @@ export async function getMagazineItems(issueId?: string) {
   return items.map(mapItem);
 }
 
+export async function getMagazineItemById(id: string) {
+  const item = await prisma.magazineItem.findUnique({ where: { id } });
+  return item ? mapItem(item) : null;
+}
+
 export async function getMagazinePages(issueId: string): Promise<MagazinePage[]> {
   const items = await getMagazineItems(issueId);
   return items
@@ -433,6 +438,20 @@ export async function deleteMagazineItem(id: string) {
   if (!existing) return false;
   await prisma.magazineItem.delete({ where: { id } });
   return true;
+}
+
+export async function reorderMagazineItems(
+  updates: Array<{ id: string; sortOrder: number }>
+) {
+  if (updates.length === 0) return;
+  await prisma.$transaction(
+    updates.map((update) =>
+      prisma.magazineItem.update({
+        where: { id: update.id },
+        data: { sortOrder: update.sortOrder },
+      })
+    )
+  );
 }
 
 function sortTripsByDeparture(a: Trip, b: Trip) {

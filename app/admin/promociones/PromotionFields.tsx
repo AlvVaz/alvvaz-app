@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { TagsInput } from "./TagsInput";
 
 import type { Promotion } from "@/lib/db";
@@ -5,9 +7,14 @@ import type { Promotion } from "@/lib/db";
 type PromotionFieldsProps = {
   defaults?: Partial<Promotion>;
   presetTags: string[];
+  afterDescription?: ReactNode;
 };
 
-export function PromotionFields({ defaults, presetTags }: PromotionFieldsProps) {
+export function PromotionFields({
+  defaults,
+  presetTags,
+  afterDescription,
+}: PromotionFieldsProps) {
   return (
     <div className="grid gap-4 text-sm md:grid-cols-2">
       <div className="space-y-2">
@@ -85,7 +92,7 @@ export function PromotionFields({ defaults, presetTags }: PromotionFieldsProps) 
             type="number"
             min={0}
             defaultValue={defaults?.priceFrom ?? ""}
-            placeholder="12900"
+            placeholder="MXN"
             className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
             required
           />
@@ -168,6 +175,7 @@ export function PromotionFields({ defaults, presetTags }: PromotionFieldsProps) 
           className="min-h-[120px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
       </div>
+      {afterDescription ? <div className="md:col-span-2">{afterDescription}</div> : null}
       <div className="md:col-span-2">
         <TagsInput
           name="tags"
@@ -182,7 +190,9 @@ export function PromotionFields({ defaults, presetTags }: PromotionFieldsProps) 
         <textarea
           name="includes"
           defaultValue={(defaults?.includes ?? []).join("\n")}
-          placeholder="Hospedaje\nTraslados\nDesayunos"
+          placeholder={`Hospedaje
+Traslados
+Desayunos`}
           className="min-h-[120px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
       </div>
@@ -193,7 +203,8 @@ export function PromotionFields({ defaults, presetTags }: PromotionFieldsProps) 
         <textarea
           name="excludes"
           defaultValue={(defaults?.excludes ?? []).join("\n")}
-          placeholder="Propinas\nSeguro de viaje"
+          placeholder={`Propinas
+Seguro de viaje`}
           className="min-h-[120px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
       </div>
@@ -204,7 +215,8 @@ export function PromotionFields({ defaults, presetTags }: PromotionFieldsProps) 
         <textarea
           name="itinerary"
           defaultValue={(defaults?.itinerary ?? []).join("\n")}
-          placeholder="Día 1 · Llegada y check-in\nDía 2 · Tour principal"
+          placeholder={`Día 1 · Llegada y check-in
+Día 2 · Tour principal`}
           className="min-h-[120px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
       </div>
@@ -215,7 +227,9 @@ export function PromotionFields({ defaults, presetTags }: PromotionFieldsProps) 
         <textarea
           name="activities"
           defaultValue={(defaults?.activities ?? []).join("\n")}
-          placeholder="Snorkel\nCena romántica\nSpa"
+          placeholder={`Snorkel
+Cena romántica
+Spa`}
           className="min-h-[120px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
       </div>

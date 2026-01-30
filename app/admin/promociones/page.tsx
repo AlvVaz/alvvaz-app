@@ -1,13 +1,8 @@
 import { SectionHeading } from "@/components/section-heading";
-import { Button } from "@/components/ui/button";
 import { getPromotions } from "@/lib/db";
 
-import {
-  createPromotionAction,
-  deletePromotionAction,
-  updatePromotionAction,
-} from "./actions";
-import { PromotionFields } from "./PromotionFields";
+import { deletePromotionAction, updatePromotionAction } from "./actions";
+import { NewPromotionForm } from "./NewPromotionForm";
 import { PromotionsAdminList } from "./PromotionsAdminList";
 
 export const dynamic = "force-dynamic";
@@ -53,12 +48,7 @@ export default async function PromocionesAdminPage() {
             </div>
           </summary>
           <div className="border-t border-slate-200 px-6 py-6">
-            <form action={createPromotionAction} className="space-y-6">
-              <PromotionFields presetTags={PRESET_TAGS} />
-              <div className="flex justify-end">
-                <Button type="submit">Crear promoción</Button>
-              </div>
-            </form>
+            <NewPromotionForm presetTags={PRESET_TAGS} />
           </div>
         </details>
       </section>

@@ -1,6 +1,5 @@
 "use client";
 
-import type { FormEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -48,8 +47,7 @@ export function PromotionImagesManager({
     input.files = dataTransfer.files;
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleUpload = async () => {
     const selectedFiles = files.filter((file) => file.size > 0);
 
     if (!promotionId || selectedFiles.length === 0) {
@@ -186,7 +184,7 @@ export function PromotionImagesManager({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="space-y-3">
         <input
           ref={fileInputRef}
           type="file"
@@ -239,11 +237,11 @@ export function PromotionImagesManager({
               <span className="text-xs font-semibold text-slate-600">{progress}%</span>
             </div>
           ) : null}
-          <Button type="submit" disabled={status === "uploading"}>
+          <Button type="button" onClick={handleUpload} disabled={status === "uploading"}>
             Subir imágenes
           </Button>
         </div>
-      </form>
+      </div>
     </div>
   );
 }

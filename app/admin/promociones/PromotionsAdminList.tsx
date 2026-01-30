@@ -20,22 +20,33 @@ type PromotionStatus = "live" | "paused" | "draft";
 
 const statusConfig: Record<
   PromotionStatus,
-  { label: string; badgeClass: string; sectionTitle: string }
+  {
+    label: string;
+    badgeClass: string;
+    sectionTitle: string;
+    cardClass: string;
+  }
 > = {
   live: {
     label: "Live",
     badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-700",
     sectionTitle: "Promociones en vivo",
+    cardClass:
+      "border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70 shadow-emerald-200/40",
   },
   paused: {
     label: "Pausado",
     badgeClass: "border-amber-200 bg-amber-50 text-amber-700",
     sectionTitle: "Promociones pausadas",
+    cardClass:
+      "border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-amber-100/70 shadow-amber-200/40",
   },
   draft: {
     label: "Borrador",
-    badgeClass: "border-rose-200 bg-rose-50 text-rose-700",
+    badgeClass: "border-sky-200 bg-sky-50 text-sky-700",
     sectionTitle: "Promociones en borrador",
+    cardClass:
+      "border-sky-200/80 bg-gradient-to-br from-sky-50 via-white to-sky-100/70 shadow-sky-200/40",
   },
 };
 
@@ -129,7 +140,10 @@ export function PromotionsAdminList({
                 return (
                   <details
                     key={promotion.id}
-                    className="rounded-3xl border border-slate-200 bg-white shadow-sm"
+                    className={cn(
+                      "rounded-3xl border bg-white shadow-sm transition-shadow",
+                      statusConfig[section.status].cardClass
+                    )}
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={() => handleDrop(section.status, promotion.id)}
                   >
@@ -222,14 +236,16 @@ export function PromotionsAdminList({
                         <PromotionFields
                           defaults={promotion}
                           presetTags={presetTags}
-                        />
-                        <PromotionImagesManager
-                          promotionId={promotion.id}
-                          images={promotion.images.map((image) => ({
-                            id: image.id,
-                            fileUrl: image.fileUrl,
-                            storagePath: image.storagePath,
-                          }))}
+                          afterDescription={
+                            <PromotionImagesManager
+                              promotionId={promotion.id}
+                              images={promotion.images.map((image) => ({
+                                id: image.id,
+                                fileUrl: image.fileUrl,
+                                storagePath: image.storagePath,
+                              }))}
+                            />
+                          }
                         />
                         <div className="flex flex-wrap items-center justify-end gap-3">
                           <Button type="submit" variant="secondary">

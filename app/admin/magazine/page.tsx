@@ -6,6 +6,7 @@ import { createIssueActionWithState, deleteIssueAction, updateIssueAction } from
 import { NewIssueForm } from "./NewIssueForm";
 import { UploadItemForm } from "./UploadItemForm";
 import IssueShareButton from "./IssueShareButton";
+import { MagazineItemsManager } from "./MagazineItemsManager";
 
 export const dynamic = "force-dynamic";
 
@@ -185,23 +186,7 @@ export default async function MagazineAdminPage() {
                     </form>
 
                     <div className="mt-6">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                        Archivos cargados
-                      </p>
-                      <ul className="mt-3 space-y-2 text-sm text-slate-600">
-                        {issueItems.length === 0 ? (
-                          <li>Sin archivos adjuntos.</li>
-                        ) : (
-                          issueItems.map((item) => (
-                            <li key={item.id} className="flex items-center justify-between">
-                              <span>{item.title || item.fileUrl}</span>
-                              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
-                                {item.kind}
-                              </span>
-                            </li>
-                          ))
-                        )}
-                      </ul>
+                      <MagazineItemsManager issueId={issue.id} items={issueItems} />
                     </div>
                   </div>
                 </details>
