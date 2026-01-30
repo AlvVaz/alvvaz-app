@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { createTrip, deleteTrip, updateTrip } from "@/lib/db";
+import { createTrip, deleteTrip, updateTrip, syncClientsFromTravelers } from "@/lib/db";
 import type { TripTraveler } from "@/lib/db";
 
 function parseTravelers(raw: string): TripTraveler[] {
@@ -43,8 +43,17 @@ export async function createTripAction(formData: FormData) {
     travelers,
   });
 
+  await syncClientsFromTravelers(travelers, {
+    source: "trip",
+    destination,
+    hotel,
+    supplier,
+    organizer,
+  });
+
   // TODO: Trigger WhatsApp reminders + CRM updates for upcoming trips.
   revalidatePath("/admin/viajes");
+  revalidatePath("/admin/clients");
 }
 
 export async function updateTripAction(formData: FormData) {
@@ -76,6 +85,14 @@ export async function updateTripAction(formData: FormData) {
   });
 
   revalidatePath("/admin/viajes");
+  await syncClientsFromTravelers(travelers, {
+    source: "trip",
+    destination,
+    hotel,
+    supplier,
+    organizer,
+  });
+  revalidatePath("/admin/clients");
 }
 
 export async function deleteTripAction(formData: FormData) {

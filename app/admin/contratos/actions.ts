@@ -6,7 +6,9 @@ import {
   createTrip,
   createContract,
   deleteContract,
+  getContracts,
   updateContract,
+  syncClientsFromTravelers,
   type TripTraveler,
 } from "@/lib/db";
 import type { ContractStatus } from "@/lib/db";
@@ -101,10 +103,19 @@ export async function createContractAction(
   });
 
   await updateContract(contract.id, { tripId: trip.id });
+  await syncClientsFromTravelers(travelers, {
+    source: "contract",
+    destination,
+    hotel,
+    supplier,
+    organizer,
+    agency,
+  });
 
   // TODO: Generate PDF from template and upload to storage.
   revalidatePath("/admin/contratos");
   revalidatePath("/admin/viajes");
+  revalidatePath("/admin/clients");
   return { submittedAt: Date.now() };
 }
 
@@ -175,7 +186,17 @@ export async function updateContractAction(
     // TODO: Auto-generate a trip once the contract is approved.
   }
 
+  await syncClientsFromTravelers(travelers, {
+    source: "contract",
+    destination,
+    hotel,
+    supplier,
+    organizer,
+    agency,
+  });
+
   revalidatePath("/admin/contratos");
+  revalidatePath("/admin/clients");
   return { submittedAt: Date.now() };
 }
 
@@ -185,4 +206,34 @@ export async function deleteContractAction(formData: FormData) {
 
   await deleteContract(id);
   revalidatePath("/admin/contratos");
+}
+
+export async function syncClientsFromContractsAction(
+  _prevState: { updatedAt: number; ok: boolean; error?: string }
+) {
+  try {
+    const contracts = await getContracts();
+
+    for (const contract of contracts) {
+      await syncClientsFromTravelers(contract.travelers, {
+        source: "contract",
+        destination: contract.destination,
+        hotel: contract.hotel,
+        supplier: contract.supplier,
+        organizer: contract.organizer,
+        agency: contract.agency,
+      });
+    }
+
+    revalidatePath("/admin/clients");
+    revalidatePath("/admin/contratos");
+
+    return { updatedAt: Date.now(), ok: true };
+  } catch (error) {
+    return {
+      updatedAt: Date.now(),
+      ok: false,
+      error: (error as Error).message || "No se pudo actualizar.",
+    };
+  }
 }

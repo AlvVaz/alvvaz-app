@@ -1,4 +1,5 @@
 import { SectionHeading } from "@/components/section-heading";
+import { Button } from "@/components/ui/button";
 import { getContracts } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
@@ -6,7 +7,12 @@ import { ContractForm } from "./ContractForm";
 import ContractsToastProvider from "./ContractsToastProvider";
 import ContractSummaryActions from "./ContractSummaryActions";
 import ContractStatusButtons from "./ContractStatusButtons";
-import { createContractAction, deleteContractAction, updateContractAction } from "./actions";
+import {
+  createContractAction,
+  deleteContractAction,
+  updateContractAction,
+} from "./actions";
+import { SyncClientsButton } from "./SyncClientsButton";
 
 export const dynamic = "force-dynamic";
 
@@ -35,11 +41,14 @@ export default async function ContratosAdminPage() {
   return (
     <ContractsToastProvider>
     <div className="space-y-10">
-      <SectionHeading
-        title="Contratos"
-        subtitle="Genera contratos, controla pendientes y crea viajes."
-        kicker="Admin"
-      />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <SectionHeading
+          title="Contratos"
+          subtitle="Genera contratos, controla pendientes y crea viajes."
+          kicker="Admin"
+        />
+        <SyncClientsButton />
+      </div>
 
       <section className="rounded-3xl border border-brand-200/70 bg-brand-100/70 shadow-sm">
         <details className="group">
@@ -83,6 +92,7 @@ export default async function ContratosAdminPage() {
             {pendingContracts.map((contract) => (
               <details
                 key={contract.id}
+                id={`contract-${contract.id}`}
                 className="rounded-3xl border border-transparent bg-transparent shadow-none"
               >
                 <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
@@ -180,6 +190,7 @@ export default async function ContratosAdminPage() {
             {approvedContracts.map((contract) => (
               <details
                 key={contract.id}
+                id={`contract-${contract.id}`}
                 className="rounded-3xl border border-transparent bg-transparent shadow-none"
               >
                 <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
@@ -263,6 +274,7 @@ export default async function ContratosAdminPage() {
             {canceledContracts.map((contract) => (
               <details
                 key={contract.id}
+                id={`contract-${contract.id}`}
                 className="rounded-3xl border border-transparent bg-transparent shadow-none"
               >
                 <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">

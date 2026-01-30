@@ -37,6 +37,100 @@ function normalizeTravelers(travelers?: TripTraveler[]) {
     .filter((traveler) => traveler.name || traveler.phone || traveler.contract);
 }
 
+function normalizeClientName(name: string) {
+  return name.trim().replace(/\s+/g, " ");
+}
+
+function normalizeClientContact(contact: string) {
+  return contact.trim();
+}
+
+function mergeTags(existing: string[], incoming: string[]) {
+  const map = new Map<string, string>();
+  [...existing, ...incoming]
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .forEach((tag) => {
+      const key = tag.toLowerCase();
+      if (!map.has(key)) map.set(key, tag);
+    });
+  return Array.from(map.values());
+}
+
+function buildClientTags(context: {
+  source: "contract" | "trip";
+  destination?: string | null;
+  hotel?: string | null;
+  supplier?: string | null;
+  organizer?: string | null;
+  agency?: string | null;
+}) {
+  const tags: string[] = [];
+  tags.push(context.source === "contract" ? "contrato" : "viaje");
+  if (context.destination) tags.push(context.destination);
+  if (context.hotel) tags.push(context.hotel);
+  if (context.supplier) tags.push(context.supplier);
+  if (context.organizer) tags.push(context.organizer);
+  if (context.agency) tags.push(context.agency);
+  return mergeTags([], tags);
+}
+
+export async function syncClientsFromTravelers(
+  travelers: TripTraveler[],
+  context: {
+    source: "contract" | "trip";
+    destination?: string | null;
+    hotel?: string | null;
+    supplier?: string | null;
+    organizer?: string | null;
+    agency?: string | null;
+  }
+) {
+  const normalized = normalizeTravelers(travelers);
+  if (normalized.length === 0) return [];
+
+  const tags = buildClientTags(context);
+  const results: Client[] = [];
+
+  for (const traveler of normalized) {
+    const name = normalizeClientName(traveler.name);
+    const contact = normalizeClientContact(traveler.phone);
+    if (!name || !contact) continue;
+
+    const existing = await prisma.client.findFirst({
+      where: {
+        contact,
+        name: { equals: name, mode: "insensitive" },
+      },
+    });
+
+    if (existing) {
+      const mergedTags = mergeTags(existing.tags ?? [], tags);
+      const updated = await prisma.client.update({
+        where: { id: existing.id },
+        data: {
+          tags: mergedTags,
+        },
+      });
+      results.push(mapClient(updated));
+      continue;
+    }
+
+    const created = await prisma.client.create({
+      data: {
+        name,
+        contact,
+        tags,
+        notes: "",
+        status: "active",
+      },
+    });
+    results.push(mapClient(created));
+  }
+
+  return results;
+}
+
 function mapClient(client: {
   id: string;
   name: string;

@@ -99,6 +99,7 @@ export default async function ViajesAdminPage() {
                   {monthTrips.map((trip) => (
                     <details
                       key={trip.id}
+                      id={`trip-${trip.id}`}
                       className="rounded-3xl border border-slate-200 bg-white shadow-sm"
                     >
                       <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
