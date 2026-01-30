@@ -761,6 +761,7 @@ export async function getPromotions(options?: {
 }
 
 export async function getPromotionBySlug(slug: string) {
+  if (!slug) return null;
   const promotion = await prisma.promotion.findUnique({
     where: { slug },
     include: { images: { orderBy: { sortOrder: "asc" } } },
