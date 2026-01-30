@@ -761,9 +761,10 @@ export async function getPromotions(options?: {
 }
 
 export async function getPromotionBySlug(slug: string) {
-  if (!slug) return null;
-  const promotion = await prisma.promotion.findUnique({
-    where: { slug },
+  const safeSlug = slug?.trim();
+  if (!safeSlug) return null;
+  const promotion = await prisma.promotion.findFirst({
+    where: { slug: { equals: safeSlug, mode: "insensitive" } },
     include: { images: { orderBy: { sortOrder: "asc" } } },
   });
   return promotion ? mapPromotion(promotion) : null;
