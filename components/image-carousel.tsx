@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -38,6 +38,7 @@ export function ImageCarousel({
   const [index, setIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(true);
   const length = images.length;
+  const navigationLock = useRef(false);
 
   const slideImages = useMemo(() => {
     if (length <= 1) return images;
@@ -58,7 +59,13 @@ export function ImageCarousel({
     if (!autoPlay || length <= 1) return;
 
     const id = window.setInterval(() => {
+      if (navigationLock.current) return;
+      navigationLock.current = true;
+      setIsTransitioning(true);
       setIndex((current) => current + 1);
+      window.setTimeout(() => {
+        navigationLock.current = false;
+      }, 350);
     }, interval);
 
     return () => window.clearInterval(id);
@@ -73,12 +80,23 @@ export function ImageCarousel({
 
   if (length === 0) return null;
 
+  const lockNavigation = () => {
+    if (navigationLock.current) return false;
+    navigationLock.current = true;
+    window.setTimeout(() => {
+      navigationLock.current = false;
+    }, 350);
+    return true;
+  };
+
   const handlePrev = () => {
+    if (!lockNavigation()) return;
     setIsTransitioning(true);
     setIndex((current) => current - 1);
   };
 
   const handleNext = () => {
+    if (!lockNavigation()) return;
     setIsTransitioning(true);
     setIndex((current) => current + 1);
   };
@@ -167,6 +185,7 @@ export function ImageCarousel({
               key={`dot-${dotIndex}`}
               type="button"
               onClick={() => {
+                if (!lockNavigation()) return;
                 setIsTransitioning(true);
                 setIndex(dotIndex + 1);
               }}
