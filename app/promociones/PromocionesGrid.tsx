@@ -110,9 +110,6 @@ export function PromocionesGrid({ promotions }: PromocionesGridProps) {
 
       <div className="flex items-center justify-between text-sm text-slate-600">
         <p>Mostrando {filtered.length} promociones</p>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          Curaduría AlvVaz
-        </p>
       </div>
 
       {filtered.length === 0 ? (
