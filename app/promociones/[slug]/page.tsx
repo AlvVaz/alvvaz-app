@@ -11,7 +11,7 @@ import { formatPriceMXN } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 type PromotionDetailPageProps = {
-  params: { slug: string };
+  params: { slug: string } | Promise<{ slug: string }>;
 };
 
 function buildWhatsAppMessage(title: string) {
@@ -21,7 +21,8 @@ function buildWhatsAppMessage(title: string) {
 export default async function PromotionDetailPage({
   params,
 }: PromotionDetailPageProps) {
-  const promotion = await getPromotionBySlug(params.slug);
+  const resolvedParams = await Promise.resolve(params);
+  const promotion = await getPromotionBySlug(resolvedParams.slug);
   if (!promotion || promotion.status !== "live") {
     notFound();
   }
