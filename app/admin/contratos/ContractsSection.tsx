@@ -23,6 +23,7 @@ type ContractsSectionProps = {
   ) => Promise<{ submittedAt: number }>;
   deleteAction?: (formData: FormData) => void;
   bulkDeleteAction: (ids: string[]) => Promise<{ ok: boolean; error?: string }>;
+  enableSort?: boolean;
 };
 
 const getStatusCardStyles = (status: string) => {
@@ -46,11 +47,38 @@ export default function ContractsSection({
   updateAction,
   deleteAction,
   bulkDeleteAction,
+  enableSort,
 }: ContractsSectionProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [sortMode, setSortMode] = useState("recent");
   const [isPending, startTransition] = useTransition();
   const { push: pushToast } = useContractsToast();
   const router = useRouter();
+
+  const sortedContracts = useMemo(() => {
+    const list = [...contracts];
+    const byName = (a: Contract, b: Contract) =>
+      a.clientName.localeCompare(b.clientName, "es", { sensitivity: "base" });
+    const byNumber = (a: Contract, b: Contract) => {
+      const aNum = Number(a.contractNumber ?? 0);
+      const bNum = Number(b.contractNumber ?? 0);
+      if (Number.isFinite(aNum) && Number.isFinite(bNum)) return aNum - bNum;
+      return String(a.contractNumber ?? "").localeCompare(String(b.contractNumber ?? ""));
+    };
+    switch (sortMode) {
+      case "name-asc":
+        return list.sort(byName);
+      case "name-desc":
+        return list.sort((a, b) => byName(b, a));
+      case "number-asc":
+        return list.sort(byNumber);
+      case "number-desc":
+        return list.sort((a, b) => byNumber(b, a));
+      case "recent":
+      default:
+        return list;
+    }
+  }, [contracts, sortMode]);
 
   const allSelected = useMemo(
     () => contracts.length > 0 && selectedIds.size === contracts.length,
@@ -100,6 +128,19 @@ export default function ContractsSection({
           <span className="inline-flex h-8 items-center rounded-full border border-brand-200 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
             {badgeLabel}
           </span>
+          {enableSort ? (
+            <select
+              value={sortMode}
+              onChange={(event) => setSortMode(event.target.value)}
+              className="h-8 rounded-full border border-brand-200 bg-white px-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700"
+            >
+              <option value="recent">Más reciente</option>
+              <option value="name-asc">Nombre A–Z</option>
+              <option value="name-desc">Nombre Z–A</option>
+              <option value="number-asc">Contrato ↑</option>
+              <option value="number-desc">Contrato ↓</option>
+            </select>
+          ) : null}
           <button
             type="button"
             onClick={toggleAll}
@@ -125,7 +166,7 @@ export default function ContractsSection({
         </div>
       ) : (
         <div className="grid gap-4">
-          {contracts.map((contract) => (
+          {sortedContracts.map((contract) => (
             <details
               key={contract.id}
               id={`contract-${contract.id}`}

@@ -100,6 +100,7 @@ export default async function ContratosAdminPage() {
         updateAction={updateContractAction}
         deleteAction={deleteContractAction}
         bulkDeleteAction={bulkDeleteContractsAction}
+        enableSort
       />
 
       <ContractsSection

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -17,9 +17,23 @@ export default function ImportContractsForm() {
   const [file, setFile] = useState<File | null>(null);
   const [year, setYear] = useState("2025");
   const [isUploading, setIsUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const { push: pushToast } = useContractsToast();
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!isUploading) return;
+    setProgress(12);
+    const timer = window.setInterval(() => {
+      setProgress((current) => {
+        if (current >= 88) return current;
+        return current + Math.max(2, Math.round((90 - current) * 0.2));
+      });
+    }, 400);
+    return () => window.clearInterval(timer);
+  }, [isUploading]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -28,6 +42,7 @@ export default function ImportContractsForm() {
       return;
     }
     setIsUploading(true);
+    setProgress(0);
     setSummary(null);
     try {
       const formData = new FormData();
@@ -47,6 +62,11 @@ export default function ImportContractsForm() {
       }
       setSummary(payload);
       pushToast(`Importados ${payload.created} contratos.`, "info");
+      setProgress(100);
+      setFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
       router.refresh();
     } catch {
       pushToast("No se pudo importar el archivo.", "error");
@@ -66,6 +86,7 @@ export default function ImportContractsForm() {
             type="file"
             accept=".xlsx,.xls,.csv"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            ref={fileInputRef}
             className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
           />
         </div>
@@ -90,6 +111,20 @@ export default function ImportContractsForm() {
           {isUploading ? "Importando..." : "Importar contratos"}
         </Button>
       </div>
+
+      {isUploading || progress > 0 ? (
+        <div className="space-y-2">
+          <div className="h-2 w-full rounded-full bg-slate-200">
+            <div
+              className="h-2 rounded-full bg-brand-600 transition-all"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="text-xs text-slate-500">
+            {progress >= 100 ? "Importación completada." : "Procesando archivo..."}
+          </p>
+        </div>
+      ) : null}
 
       {summary ? (
         <div className="rounded-2xl border border-brand-200 bg-white/70 p-4 text-sm text-slate-600">
