@@ -211,6 +211,16 @@ function mapPromotion(promotion: {
 }): Promotion {
   return {
     ...promotion,
+    title: promotion.title ?? "",
+    destinationCity: promotion.destinationCity ?? "",
+    destinationState: promotion.destinationState ?? "",
+    summary: promotion.summary ?? "",
+    description: promotion.description ?? null,
+    includes: Array.isArray(promotion.includes) ? promotion.includes : [],
+    excludes: Array.isArray(promotion.excludes) ? promotion.excludes : [],
+    itinerary: Array.isArray(promotion.itinerary) ? promotion.itinerary : [],
+    activities: Array.isArray(promotion.activities) ? promotion.activities : [],
+    tags: Array.isArray(promotion.tags) ? promotion.tags : [],
     images: (promotion.images ?? []).map(mapPromotionImage),
     createdAt: promotion.createdAt.toISOString(),
     updatedAt: promotion.updatedAt.toISOString(),
