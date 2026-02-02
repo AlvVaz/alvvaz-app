@@ -3,13 +3,22 @@
 import { useEffect, useMemo, useState } from "react";
 
 type AddAdminCardProps = {
-  isOwner: boolean;
+  canAddUsers: boolean;
   action: (formData: FormData) => void | Promise<void>;
+  didCreateAdmin?: boolean;
+  noticeMessage?: string;
 };
 
-export function AddAdminCard({ isOwner, action }: AddAdminCardProps) {
+export function AddAdminCard({
+  canAddUsers,
+  action,
+  didCreateAdmin = false,
+  noticeMessage = "",
+}: AddAdminCardProps) {
+  const [isOpen, setIsOpen] = useState(didCreateAdmin);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [role, setRole] = useState("admin");
   const [origin, setOrigin] = useState("");
   const [copied, setCopied] = useState(false);
@@ -19,6 +28,16 @@ export function AddAdminCard({ isOwner, action }: AddAdminCardProps) {
       setOrigin(window.location.origin);
     }
   }, []);
+
+  useEffect(() => {
+    if (didCreateAdmin) {
+      setIsOpen(true);
+      setUsername("");
+      setEmail("");
+      setPassword("");
+      setRole("admin");
+    }
+  }, [didCreateAdmin]);
 
   const identifier = username || email;
   const inviteLink = useMemo(() => {
@@ -39,7 +58,11 @@ export function AddAdminCard({ isOwner, action }: AddAdminCardProps) {
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-      <details className="group">
+      <details
+        className="group"
+        open={isOpen}
+        onToggle={(event) => setIsOpen(event.currentTarget.open)}
+      >
         <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -54,6 +77,11 @@ export function AddAdminCard({ isOwner, action }: AddAdminCardProps) {
           </div>
         </summary>
         <div className="border-t border-slate-200 px-6 py-5">
+          {noticeMessage ? (
+            <p className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              {noticeMessage}
+            </p>
+          ) : null}
           <form action={action} className="space-y-4">
             <label className="block space-y-2 text-sm font-semibold text-slate-700">
               Usuario
@@ -62,7 +90,7 @@ export function AddAdminCard({ isOwner, action }: AddAdminCardProps) {
                 type="text"
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
-                disabled={!isOwner}
+                disabled={!canAddUsers}
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200 disabled:cursor-not-allowed disabled:bg-slate-50"
               />
             </label>
@@ -73,7 +101,7 @@ export function AddAdminCard({ isOwner, action }: AddAdminCardProps) {
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                disabled={!isOwner}
+                disabled={!canAddUsers}
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200 disabled:cursor-not-allowed disabled:bg-slate-50"
               />
             </label>
@@ -83,7 +111,9 @@ export function AddAdminCard({ isOwner, action }: AddAdminCardProps) {
                 name="password"
                 type="password"
                 autoComplete="new-password"
-                disabled={!isOwner}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                disabled={!canAddUsers}
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200 disabled:cursor-not-allowed disabled:bg-slate-50"
               />
             </label>
@@ -93,7 +123,7 @@ export function AddAdminCard({ isOwner, action }: AddAdminCardProps) {
                 name="role"
                 value={role}
                 onChange={(event) => setRole(event.target.value)}
-                disabled={!isOwner}
+                disabled={!canAddUsers}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200 disabled:cursor-not-allowed disabled:bg-slate-50"
               >
                 <option value="admin">Admin</option>
@@ -107,7 +137,7 @@ export function AddAdminCard({ isOwner, action }: AddAdminCardProps) {
                 Link de invitación
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Preselecciona el usuario/correo en el login.
+                Comparte este enlace con tu equipo.
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <input
@@ -129,14 +159,14 @@ export function AddAdminCard({ isOwner, action }: AddAdminCardProps) {
 
             <button
               type="submit"
-              disabled={!isOwner}
+              disabled={!canAddUsers}
               className="inline-flex rounded-full bg-brand-600 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Agregar Admin
             </button>
-            {!isOwner ? (
+            {!canAddUsers ? (
               <p className="text-xs text-slate-500">
-                Solo el owner puede agregar admins.
+                Solo owner o tech pueden agregar usuarios.
               </p>
             ) : null}
           </form>

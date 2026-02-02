@@ -68,6 +68,8 @@ export async function POST(request: Request) {
           email,
           passwordHash,
           role: "owner",
+          lastLoginAt: new Date(),
+          lastPasswordResetAt: new Date(),
         },
       });
     } catch (error) {

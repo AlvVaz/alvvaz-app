@@ -58,6 +58,15 @@ export async function POST(request: Request) {
       );
     }
 
+    try {
+      await prisma.adminUser.update({
+        where: { id: admin.id },
+        data: { lastLoginAt: new Date() },
+      });
+    } catch (error) {
+      console.error("Failed to update last login:", error);
+    }
+
     const token = await signAdminToken({
       sub: admin.id,
       email: admin.email,

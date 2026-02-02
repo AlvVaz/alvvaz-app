@@ -6,6 +6,7 @@ import { Container } from "@/components/container";
 import { buttonLinkStyles } from "@/components/ui/button";
 import { AdminNav } from "@/app/admin/AdminNav";
 import { getAdminFromCookies } from "@/lib/auth/admin";
+import { LogoutOnClose } from "@/app/admin/LogoutOnClose";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const admin = await getAdminFromCookies();
@@ -30,6 +31,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                 {roleLabel}
               </span>
             ) : null}
+            {admin ? <LogoutOnClose /> : null}
             {admin ? (
               <Link href="/admin/settings" aria-label="Configuración">
                 <Image
