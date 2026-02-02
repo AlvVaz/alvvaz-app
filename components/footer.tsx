@@ -89,7 +89,15 @@ export function Footer() {
       <div className="border-t border-slate-100">
         <Container className="flex flex-col items-start justify-between gap-4 py-6 text-xs text-slate-500 md:flex-row md:items-center">
           <p>(c) 2024 AlvVaz. Todos los derechos reservados.</p>
-          <p>Aviso legal - Privacidad - Términos de servicio</p>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+            <span>Aviso legal - Privacidad - Términos de servicio</span>
+            <Link
+              href="/admin/login"
+              className="text-[11px] uppercase tracking-[0.2em] text-slate-400 transition-colors hover:text-brand-600"
+            >
+              Acceso interno
+            </Link>
+          </div>
         </Container>
       </div>
     </footer>
