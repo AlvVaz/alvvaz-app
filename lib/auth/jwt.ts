@@ -2,14 +2,6 @@ import { SignJWT, jwtVerify } from "jose";
 
 import { ADMIN_COOKIE_MAX_AGE } from "@/lib/auth/constants";
 
-const secret = process.env.ADMIN_JWT_SECRET;
-
-if (!secret) {
-  throw new Error("ADMIN_JWT_SECRET is not set.");
-}
-
-const secretKey = new TextEncoder().encode(secret);
-
 type AdminRole = "owner" | "admin";
 
 export type AdminTokenPayload = {
@@ -18,7 +10,16 @@ export type AdminTokenPayload = {
   role: AdminRole;
 };
 
+function getSecretKey() {
+  const secret = process.env.ADMIN_JWT_SECRET;
+  if (!secret) {
+    throw new Error("ADMIN_JWT_SECRET is not set.");
+  }
+  return new TextEncoder().encode(secret);
+}
+
 export async function signAdminToken(payload: AdminTokenPayload) {
+  const secretKey = getSecretKey();
   return new SignJWT({
     email: payload.email,
     role: payload.role,
@@ -32,6 +33,7 @@ export async function signAdminToken(payload: AdminTokenPayload) {
 }
 
 export async function verifyAdminToken(token: string): Promise<AdminTokenPayload> {
+  const secretKey = getSecretKey();
   const { payload } = await jwtVerify(token, secretKey);
 
   if (payload.type !== "admin") {

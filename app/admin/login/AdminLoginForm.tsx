@@ -35,10 +35,14 @@ export function AdminLoginForm({ hasUsers, serverError }: AdminLoginFormProps) {
         signal: controller.signal,
       });
 
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as
-          | { error?: string }
-          | null;
+      const contentType = response.headers.get("content-type") ?? "";
+      const payload = contentType.includes("application/json")
+        ? ((await response.json().catch(() => null)) as
+            | { error?: string; ok?: boolean }
+            | null)
+        : null;
+
+      if (!response.ok || payload?.error) {
         setState({
           error: payload?.error ?? "No se pudo iniciar sesión.",
           pending: false,
@@ -46,8 +50,15 @@ export function AdminLoginForm({ hasUsers, serverError }: AdminLoginFormProps) {
         return;
       }
 
-      router.replace("/admin");
-      router.refresh();
+      if (payload?.ok === false) {
+        setState({
+          error: "No se pudo iniciar sesión.",
+          pending: false,
+        });
+        return;
+      }
+
+      window.location.href = "/admin";
     } catch (error) {
       const message =
         error instanceof DOMException && error.name === "AbortError"
