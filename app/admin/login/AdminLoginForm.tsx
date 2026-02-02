@@ -60,6 +60,21 @@ export function AdminLoginForm({ hasUsers, serverError }: AdminLoginFormProps) {
         return;
       }
 
+      const sessionResponse = await fetch("/api/auth/session", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (!sessionResponse.ok) {
+        setState({
+          error:
+            "No se pudo crear la sesión (cookie bloqueada o no guardada).",
+          pending: false,
+        });
+        return;
+      }
+
       window.location.href = "/admin";
     } catch (error) {
       const message =
