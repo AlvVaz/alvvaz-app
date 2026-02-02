@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 const MIN_PASSWORD_LENGTH = 8;
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
@@ -92,6 +93,7 @@ export async function POST(request: Request) {
 
     const response = NextResponse.json({ ok: true, role: admin.role });
     response.cookies.set(ADMIN_COOKIE_NAME, token, adminCookieOptions);
+    response.headers.set("Cache-Control", "no-store");
     return response;
   } catch (error) {
     console.error("Admin setup failed:", error);

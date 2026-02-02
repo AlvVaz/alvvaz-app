@@ -67,9 +67,15 @@ export function AdminLoginForm({ hasUsers, serverError }: AdminLoginFormProps) {
       });
 
       if (!sessionResponse.ok) {
+        const sessionPayload = (await sessionResponse.json().catch(() => null)) as
+          | { reason?: string }
+          | null;
+        const reason = sessionPayload?.reason;
         setState({
           error:
-            "No se pudo crear la sesión (cookie bloqueada o no guardada).",
+            reason === "invalid_cookie"
+              ? "Sesión inválida (token rechazado)."
+              : "No se pudo crear la sesión (cookie bloqueada o no guardada).",
           pending: false,
         });
         return;

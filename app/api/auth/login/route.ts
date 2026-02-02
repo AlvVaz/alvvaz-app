@@ -6,6 +6,7 @@ import { verifyPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
@@ -65,6 +66,7 @@ export async function POST(request: Request) {
 
     const response = NextResponse.json({ ok: true, role: admin.role });
     response.cookies.set(ADMIN_COOKIE_NAME, token, adminCookieOptions);
+    response.headers.set("Cache-Control", "no-store");
     return response;
   } catch (error) {
     console.error("Admin login failed:", error);
