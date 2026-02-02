@@ -33,6 +33,8 @@ export function AdminLoginForm({ hasUsers, serverError }: AdminLoginFormProps) {
         method: "POST",
         body: formData,
         signal: controller.signal,
+        credentials: "include",
+        cache: "no-store",
       });
 
       const contentType = response.headers.get("content-type") ?? "";
