@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type AdminLoginFormProps = {
   hasUsers: boolean;
@@ -15,8 +15,17 @@ type FormState = {
 
 export function AdminLoginForm({ hasUsers, serverError }: AdminLoginFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [state, setState] = useState<FormState>({ error: "", pending: false });
   const [showPassword, setShowPassword] = useState(false);
+  const [identifier, setIdentifier] = useState(
+    searchParams?.get("identifier") ?? ""
+  );
+
+  useEffect(() => {
+    const nextIdentifier = searchParams?.get("identifier") ?? "";
+    setIdentifier(nextIdentifier);
+  }, [searchParams]);
 
   const endpoint = hasUsers ? "/api/auth/login" : "/api/auth/setup";
 
@@ -124,6 +133,8 @@ export function AdminLoginForm({ hasUsers, serverError }: AdminLoginFormProps) {
                 type="text"
                 autoComplete="username"
                 required
+                value={identifier}
+                onChange={(event) => setIdentifier(event.target.value)}
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200"
               />
             </label>

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 import { Container } from "@/components/container";
 import { buttonLinkStyles } from "@/components/ui/button";
@@ -8,7 +9,13 @@ import { getAdminFromCookies } from "@/lib/auth/admin";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const admin = await getAdminFromCookies();
-  const roleLabel = admin?.role === "owner" ? "Owner" : admin ? "Admin" : null;
+  const roleLabel = admin
+    ? admin.role === "owner"
+      ? "Owner"
+      : admin.role === "tech"
+      ? "Tech"
+      : "Admin"
+    : null;
 
   return (
     <div className="min-h-screen bg-sand">
@@ -17,25 +24,23 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           <div className="flex items-center gap-4">
             {admin ? <AdminNav /> : null}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-3">
             {roleLabel ? (
-              <span className="rounded-full border border-brand-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+              <span className="inline-flex shrink-0 items-center rounded-full border border-brand-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
                 {roleLabel}
               </span>
             ) : null}
             {admin ? (
-              <form action="/api/auth/logout" method="post">
-                <button
-                  type="submit"
-                  className={buttonLinkStyles({ variant: "subtle" })}
-                >
-                  Salir
-                </button>
-              </form>
+              <Link href="/admin/settings" aria-label="Configuración">
+                <Image
+                  src="/profile.png"
+                  alt="Perfil"
+                  width={20}
+                  height={20}
+                  className="h-5 w-5 object-contain"
+                />
+              </Link>
             ) : null}
-            <Link href="/" className={buttonLinkStyles({ variant: "secondary" })}>
-              Volver al sitio
-            </Link>
           </div>
         </Container>
       </header>

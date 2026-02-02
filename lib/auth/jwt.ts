@@ -2,7 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 
 import { ADMIN_COOKIE_MAX_AGE } from "@/lib/auth/constants";
 
-type AdminRole = "owner" | "admin";
+type AdminRole = "owner" | "admin" | "tech";
 
 export type AdminTokenPayload = {
   sub: string;
@@ -49,7 +49,7 @@ export async function verifyAdminToken(token: string): Promise<AdminTokenPayload
     throw new Error("Invalid token payload.");
   }
 
-  if (role !== "owner" && role !== "admin") {
+  if (role !== "owner" && role !== "admin" && role !== "tech") {
     throw new Error("Invalid role.");
   }
 

@@ -20,6 +20,8 @@ export default async function ViajesAdminPage({ searchParams }: ViajesAdminPageP
 
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const currentYear = now.getFullYear();
+  const collapsedYear = 2025;
 
   const resolveTripYear = (trip: Trip) => {
     const base = trip.departureDate || trip.returnDate || trip.createdAt;
@@ -78,6 +80,86 @@ export default async function ViajesAdminPage({ searchParams }: ViajesAdminPageP
 
   const showUpcoming = selectedStatus === "all" || selectedStatus === "upcoming";
   const showCompleted = selectedStatus === "all" || selectedStatus === "completed";
+  const groupByYear = selectedYear === "all";
+
+  const groupTripsByYear = (items: Trip[]) =>
+    Array.from(
+      items.reduce((map, trip) => {
+        const year = resolveTripYear(trip);
+        if (!year) return map;
+        const bucket = map.get(year);
+        if (bucket) {
+          bucket.push(trip);
+        } else {
+          map.set(year, [trip]);
+        }
+        return map;
+      }, new Map<number, Trip[]>())
+    ).sort(([a], [b]) => b - a);
+
+  const renderYearSections = (
+    items: Trip[],
+    title: string,
+    emptyMessage: string
+  ) => {
+    if (!items.length) {
+      return (
+        <div className="rounded-3xl border border-dashed border-brand-200 bg-white/60 p-6 text-sm text-slate-600">
+          {emptyMessage}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {groupTripsByYear(items).map(([year, tripsForYear]) => {
+          const yearGroups = groupTrips(tripsForYear);
+          const section = (
+            <TripsSection
+              title={`${title} ${year}`}
+              emptyMessage={emptyMessage}
+              groups={yearGroups}
+              bulkDeleteAction={bulkDeleteTripsAction}
+              updateAction={updateTripAction}
+              deleteAction={deleteTripAction}
+            />
+          );
+
+          if (year === collapsedYear && year !== currentYear) {
+            return (
+              <section
+                key={`${title}-${year}`}
+                className="rounded-3xl border border-slate-200 bg-white shadow-sm"
+              >
+                <details className="group">
+                  <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="font-display text-lg text-brand-950">
+                          {title} {year}
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-600">
+                          Viajes agrupados por mes.
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-brand-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+                        {tripsForYear.length} viajes
+                      </span>
+                    </div>
+                  </summary>
+                  <div className="border-t border-slate-200 px-6 py-6">
+                    {section}
+                  </div>
+                </details>
+              </section>
+            );
+          }
+
+          return <div key={`${title}-${year}`}>{section}</div>;
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-10">
@@ -145,27 +227,41 @@ export default async function ViajesAdminPage({ searchParams }: ViajesAdminPageP
         </details>
       </section>
 
-      {showUpcoming && (
-        <TripsSection
-          title="Próximos viajes"
-          emptyMessage="No hay viajes programados todavía."
-          groups={upcomingGroups}
-          bulkDeleteAction={bulkDeleteTripsAction}
-          updateAction={updateTripAction}
-          deleteAction={deleteTripAction}
-        />
-      )}
+      {showUpcoming &&
+        (groupByYear ? (
+          renderYearSections(
+            upcomingTrips,
+            "Próximos viajes",
+            "No hay viajes programados todavía."
+          )
+        ) : (
+          <TripsSection
+            title="Próximos viajes"
+            emptyMessage="No hay viajes programados todavía."
+            groups={upcomingGroups}
+            bulkDeleteAction={bulkDeleteTripsAction}
+            updateAction={updateTripAction}
+            deleteAction={deleteTripAction}
+          />
+        ))}
 
-      {showCompleted && (
-        <TripsSection
-          title="Viajes completados"
-          emptyMessage="Aún no hay viajes completados para este filtro."
-          groups={completedGroups}
-          bulkDeleteAction={bulkDeleteTripsAction}
-          updateAction={updateTripAction}
-          deleteAction={deleteTripAction}
-        />
-      )}
+      {showCompleted &&
+        (groupByYear ? (
+          renderYearSections(
+            completedTrips,
+            "Viajes completados",
+            "Aún no hay viajes completados para este filtro."
+          )
+        ) : (
+          <TripsSection
+            title="Viajes completados"
+            emptyMessage="Aún no hay viajes completados para este filtro."
+            groups={completedGroups}
+            bulkDeleteAction={bulkDeleteTripsAction}
+            updateAction={updateTripAction}
+            deleteAction={deleteTripAction}
+          />
+        ))}
     </div>
   );
 }

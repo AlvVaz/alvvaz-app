@@ -3,7 +3,7 @@ import { getContracts } from "@/lib/db";
 
 import { ContractForm } from "./ContractForm";
 import ContractsToastProvider from "./ContractsToastProvider";
-import ContractsSection from "./ContractsSection";
+import ContractsPanel from "./ContractsPanel";
 import ImportContractsForm from "./ImportContractsForm";
 import {
   createContractAction,
@@ -17,12 +17,6 @@ export const dynamic = "force-dynamic";
 
 export default async function ContratosAdminPage() {
   const contracts = await getContracts();
-
-  const approvedContracts = contracts.filter(
-    (contract) => contract.status === "paid" || contract.status === "signed"
-  );
-  const pendingContracts = contracts.filter((contract) => contract.status === "pending");
-  const canceledContracts = contracts.filter((contract) => contract.status === "canceled");
 
   return (
     <ContractsToastProvider>
@@ -81,33 +75,8 @@ export default async function ContratosAdminPage() {
           </div>
         </details>
       </section>
-
-      <ContractsSection
-        title="Contratos pendientes"
-        badgeLabel={`${pendingContracts.length} pendientes`}
-        emptyMessage="No hay contratos pendientes por revisar."
-        contracts={pendingContracts}
-        updateAction={updateContractAction}
-        deleteAction={deleteContractAction}
-        bulkDeleteAction={bulkDeleteContractsAction}
-      />
-
-      <ContractsSection
-        title="Contratos aprobados"
-        badgeLabel={`${approvedContracts.length} aprobados`}
-        emptyMessage="Aún no hay contratos aprobados."
-        contracts={approvedContracts}
-        updateAction={updateContractAction}
-        deleteAction={deleteContractAction}
-        bulkDeleteAction={bulkDeleteContractsAction}
-        enableSort
-      />
-
-      <ContractsSection
-        title="Contratos cancelados"
-        badgeLabel={`${canceledContracts.length} cancelados`}
-        emptyMessage="No hay contratos cancelados."
-        contracts={canceledContracts}
+      <ContractsPanel
+        contracts={contracts}
         updateAction={updateContractAction}
         deleteAction={deleteContractAction}
         bulkDeleteAction={bulkDeleteContractsAction}

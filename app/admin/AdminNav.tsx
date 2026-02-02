@@ -7,9 +7,9 @@ const navItems = [
   { label: "Resumen", href: "/admin" },
   { label: "Clientes", href: "/admin/clients" },
   { label: "Viajes", href: "/admin/viajes" },
-  { label: "Revista", href: "/admin/magazine" },
-  { label: "Promociones", href: "/admin/promociones" },
   { label: "Contratos", href: "/admin/contratos" },
+  { label: "Promociones", href: "/admin/promociones" },
+  { label: "Revista", href: "/admin/magazine" },
 ];
 
 function isActivePath(pathname: string, href: string) {
