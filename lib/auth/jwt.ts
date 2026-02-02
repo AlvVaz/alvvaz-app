@@ -20,6 +20,7 @@ function getSecretKey() {
 
 export async function signAdminToken(payload: AdminTokenPayload) {
   const secretKey = getSecretKey();
+  const expiresAt = Math.floor(Date.now() / 1000) + ADMIN_COOKIE_MAX_AGE;
   return new SignJWT({
     email: payload.email,
     role: payload.role,
@@ -28,7 +29,7 @@ export async function signAdminToken(payload: AdminTokenPayload) {
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(payload.sub)
     .setIssuedAt()
-    .setExpirationTime(ADMIN_COOKIE_MAX_AGE)
+    .setExpirationTime(expiresAt)
     .sign(secretKey);
 }
 
