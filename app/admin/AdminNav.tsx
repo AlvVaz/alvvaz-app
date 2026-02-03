@@ -3,13 +3,23 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+type AdminRole = "owner" | "admin" | "tech";
+
 const navItems = [
-  { label: "Resumen", href: "/admin" },
-  { label: "Clientes", href: "/admin/clients" },
-  { label: "Viajes", href: "/admin/viajes" },
-  { label: "Contratos", href: "/admin/contratos" },
-  { label: "Promociones", href: "/admin/promociones" },
-  { label: "Revista", href: "/admin/magazine" },
+  { label: "Resumen", href: "/admin", roles: ["owner", "tech"] },
+  { label: "Clientes", href: "/admin/clients", roles: ["owner", "tech"] },
+  { label: "Viajes", href: "/admin/viajes", roles: ["owner", "tech"] },
+  {
+    label: "Contratos",
+    href: "/admin/contratos",
+    roles: ["owner", "tech", "admin"],
+  },
+  {
+    label: "Promociones",
+    href: "/admin/promociones",
+    roles: ["owner", "tech"],
+  },
+  { label: "Revista", href: "/admin/magazine", roles: ["owner", "tech", "admin"] },
 ];
 
 function isActivePath(pathname: string, href: string) {
@@ -19,12 +29,15 @@ function isActivePath(pathname: string, href: string) {
   return pathname.startsWith(href);
 }
 
-export function AdminNav() {
+export function AdminNav({ role }: { role?: AdminRole }) {
   const pathname = usePathname();
+  const visibleItems = role
+    ? navItems.filter((item) => item.roles.includes(role))
+    : navItems;
 
   return (
     <nav className="hidden items-center gap-4 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 md:flex">
-      {navItems.map((item) => {
+      {visibleItems.map((item) => {
         const isActive = pathname ? isActivePath(pathname, item.href) : false;
         return (
           <Link

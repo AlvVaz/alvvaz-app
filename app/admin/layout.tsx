@@ -22,7 +22,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       <header className="border-b border-slate-200 bg-white/90">
         <Container className="flex items-center justify-between py-4">
           <div className="flex items-center gap-4">
-            {admin ? <AdminNav /> : null}
+            {admin ? <AdminNav role={admin.role} /> : null}
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3">
             {roleLabel ? (
@@ -30,7 +30,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                 {roleLabel}
               </span>
             ) : null}
-            {admin ? (
+            {admin && admin.role !== "admin" ? (
               <Link href="/admin/settings" aria-label="Configuración">
                 <Image
                   src="/profile.png"

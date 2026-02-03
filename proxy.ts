@@ -4,6 +4,23 @@ import { ADMIN_COOKIE_NAME } from "@/lib/auth/constants";
 import { verifyAdminToken } from "@/lib/auth/jwt";
 
 const ADMIN_LOGIN_PATH = "/admin/login";
+const ADMIN_ALLOWED_ADMIN_ROUTES = ["/admin/contratos", "/admin/magazine"];
+const ADMIN_ALLOWED_ADMIN_APIS = ["/api/admin/contracts", "/api/admin/magazine"];
+
+function isAllowedForAdmin(pathname: string) {
+  if (pathname === "/admin") return false;
+  if (pathname.startsWith("/admin")) {
+    return ADMIN_ALLOWED_ADMIN_ROUTES.some(
+      (route) => pathname === route || pathname.startsWith(`${route}/`)
+    );
+  }
+  if (pathname.startsWith("/api/admin")) {
+    return ADMIN_ALLOWED_ADMIN_APIS.some(
+      (route) => pathname === route || pathname.startsWith(`${route}/`)
+    );
+  }
+  return true;
+}
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -27,7 +44,13 @@ export async function proxy(request: NextRequest) {
   }
 
   try {
-    await verifyAdminToken(token);
+    const admin = await verifyAdminToken(token);
+    if (admin.role === "admin" && !isAllowedForAdmin(pathname)) {
+      if (isAdminApi) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      return NextResponse.redirect(new URL("/admin/contratos", request.url));
+    }
     return NextResponse.next();
   } catch {
     if (isAdminApi) {

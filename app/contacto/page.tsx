@@ -72,16 +72,23 @@ export default function ContactoPage() {
                 <p className="text-sm text-slate-600 break-words">
                   Col. Industrial Aviacion, San Luis Potosi, Mexico
                 </p>
-                <div className="relative mt-3 h-32 w-full overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-brand-200 via-white to-white">
-                  <div className="absolute left-5 top-6 h-0.5 w-20 bg-brand-200/70" />
-                  <div className="absolute right-6 top-10 h-0.5 w-16 bg-brand-200/70" />
-                  <div className="absolute left-8 bottom-8 h-0.5 w-24 bg-brand-200/70" />
-                  <div className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border border-brand-400/70" />
-                  <div className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-600 shadow-sm" />
-                  <span className="sr-only">
-                    Mapa de ubicación en San Luis Potosi
-                  </span>
+                <div className="mt-3 h-40 w-full overflow-hidden rounded-2xl border border-slate-200">
+                  <iframe
+                    title="Mapa de ubicación AlvVaz"
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3694.803924783!2d-100.9931872!3d22.171534499999996!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x842a9f4360346189%3A0x7689f134548d99a!2sAgencia%20AlvVaz!5e0!3m2!1ses-419!2sca!4v1770145890000!5m2!1ses-419!2sca"
+                    className="h-full w-full"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
                 </div>
+                <a
+                  href="https://www.google.com/maps/search/?api=1&query=22.1715345,-100.9931872"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex text-xs font-semibold uppercase tracking-[0.2em] text-brand-600 transition hover:text-brand-700"
+                >
+                  Ver en Google Maps
+                </a>
               </div>
             </div>
           </div>

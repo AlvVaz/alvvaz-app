@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { ImageCarousel } from "@/components/image-carousel";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +56,35 @@ type PromocionesGridProps = {
 };
 
 export function PromocionesGrid({ promotions }: PromocionesGridProps) {
+  const [origin, setOrigin] = useState("");
+  const [shareOpenId, setShareOpenId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setOrigin(window.location.origin);
+    }
+  }, []);
+
+  const handleShare = async (
+    promo: Promotion,
+    shareUrl: string
+  ) => {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({
+          title: promo.title,
+          text: `Mira esta promoción: ${promo.title}`,
+          url: shareUrl,
+        });
+        return;
+      } catch {
+        return;
+      }
+    }
+
+    setShareOpenId((current) => (current === promo.id ? null : promo.id));
+  };
   const categoryOptions = useMemo(() => {
     const categories = Array.from(
       new Set(promotions.map((promo) => promo.category).filter(Boolean))
@@ -123,6 +152,15 @@ export function PromocionesGrid({ promotions }: PromocionesGridProps) {
               src: image.fileUrl,
               alt: `${promo.title} ${index + 1}`,
             }));
+            const shareUrl = origin
+              ? `${origin}/promociones/${promo.slug}`
+              : `/promociones/${promo.slug}`;
+            const encodedUrl = encodeURIComponent(shareUrl);
+            const whatsappHref = `https://wa.me/?text=${encodeURIComponent(
+              `${promo.title} - ${shareUrl}`
+            )}`;
+            const facebookHref = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+            const isShareOpen = shareOpenId === promo.id;
 
             return (
               <article
@@ -144,34 +182,90 @@ export function PromocionesGrid({ promotions }: PromocionesGridProps) {
                 ) : (
                   <div className="mb-4 h-32 w-full rounded-2xl bg-gradient-to-br from-brand-200 via-white to-white" />
                 )}
-                <div className="flex flex-wrap gap-2">
-                  {promo.tags.map((tag) => (
-                    <Badge key={`${promo.id}-${tag}`}>{tag}</Badge>
-                  ))}
-                </div>
-                <h3 className="mt-4 font-display text-xl text-brand-950">
-                  {promo.title}
-                </h3>
-                <p className="mt-2 text-sm text-slate-600">
-                  {promo.destinationCity}, {promo.destinationState}
-                </p>
-                <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
-                  <span>{promo.durationDays} días</span>
-                  <span className="font-semibold text-brand-700">
-                    Desde {formatPriceMXN(promo.priceFrom)}
-                  </span>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Badge>{promo.category}</Badge>
-                  <Badge>{promo.budget}</Badge>
-                </div>
-                <div className="mt-6">
-                  <Link
-                    href={`/promociones/${promo.slug}`}
-                    className={buttonLinkStyles({ variant: "secondary" })}
-                  >
-                    Ver detalle
-                  </Link>
+                <div className="flex flex-1 flex-col">
+                  <div className="flex flex-wrap gap-2">
+                    {promo.tags.map((tag) => (
+                      <Badge key={`${promo.id}-${tag}`}>{tag}</Badge>
+                    ))}
+                  </div>
+                  <h3 className="mt-4 font-display text-xl text-brand-950">
+                    {promo.title}
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-600">
+                    {promo.destinationCity}, {promo.destinationState}
+                  </p>
+                  <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
+                    <span>{promo.durationDays} días</span>
+                    <span className="font-semibold text-brand-700">
+                      Desde {formatPriceMXN(promo.priceFrom)}
+                    </span>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Badge>{promo.category}</Badge>
+                    <Badge>{promo.budget}</Badge>
+                  </div>
+                  <div className="mt-auto pt-6">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Link
+                        href={`/promociones/${promo.slug}`}
+                        className={buttonLinkStyles({ variant: "secondary" })}
+                      >
+                        Ver detalle
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleShare(promo, shareUrl)}
+                        className={buttonLinkStyles({ variant: "secondary" })}
+                      >
+                        Enviar
+                      </button>
+                    </div>
+                    {isShareOpen ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <a
+                          href={whatsappHref}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={cn(
+                            "rounded-full border border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600 transition",
+                            "hover:border-brand-400 hover:text-brand-700"
+                          )}
+                        >
+                          WhatsApp
+                        </a>
+                        <a
+                          href={facebookHref}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={cn(
+                            "rounded-full border border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600 transition",
+                            "hover:border-brand-400 hover:text-brand-700"
+                          )}
+                        >
+                          Facebook
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!shareUrl || !navigator?.clipboard) return;
+                            navigator.clipboard
+                              .writeText(shareUrl)
+                              .then(() => {
+                                setCopiedId(promo.id);
+                                window.setTimeout(() => setCopiedId(null), 1500);
+                              })
+                              .catch(() => undefined);
+                          }}
+                          className={cn(
+                            "rounded-full border border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600 transition",
+                            "hover:border-brand-400 hover:text-brand-700"
+                          )}
+                        >
+                          {copiedId === promo.id ? "Copiado" : "Copiar"}
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               </article>
             );
