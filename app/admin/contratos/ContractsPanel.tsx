@@ -80,13 +80,21 @@ export default function ContractsPanel({
     });
   }, [contracts, hasFilters, normalizedContact, normalizedId, normalizedName]);
 
-  const approvedContracts = filteredContracts.filter(
+  const is2025 = (contract: Contract) => {
+    const year = new Date(contract.createdAt).getFullYear();
+    return year === 2025;
+  };
+
+  const contracts2025 = filteredContracts.filter(is2025);
+  const non2025Contracts = filteredContracts.filter((contract) => !is2025(contract));
+
+  const approvedContracts = non2025Contracts.filter(
     (contract) => contract.status === "paid" || contract.status === "signed"
   );
-  const pendingContracts = filteredContracts.filter(
+  const pendingContracts = non2025Contracts.filter(
     (contract) => contract.status === "pending"
   );
-  const canceledContracts = filteredContracts.filter(
+  const canceledContracts = non2025Contracts.filter(
     (contract) => contract.status === "canceled"
   );
 
@@ -155,6 +163,42 @@ export default function ContractsPanel({
           Mostrando {filteredContracts.length} de {contracts.length} contratos.
         </p>
       </section>
+
+      {contracts2025.length > 0 ? (
+        <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <details className="group">
+            <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-display text-lg text-brand-950">
+                    Contratos 2025
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Contratos creados en 2025.
+                  </p>
+                </div>
+                <span className="inline-flex h-8 items-center rounded-full border border-brand-200 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+                  {contracts2025.length} contratos
+                </span>
+              </div>
+            </summary>
+            <div className="border-t border-slate-200 px-6 py-4">
+              <ContractsSection
+                title="Contratos 2025"
+                badgeLabel={`${contracts2025.length} contratos`}
+                emptyMessage="No hay contratos del 2025."
+                contracts={contracts2025}
+                updateAction={updateAction}
+                deleteAction={deleteAction}
+                bulkDeleteAction={bulkDeleteAction}
+                enableSort
+                hideTitle
+                hideBadge
+              />
+            </div>
+          </details>
+        </section>
+      ) : null}
 
       <ContractsSection
         title="Contratos pendientes"

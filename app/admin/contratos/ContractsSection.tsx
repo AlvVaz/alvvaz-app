@@ -24,6 +24,8 @@ type ContractsSectionProps = {
   deleteAction?: (formData: FormData) => void;
   bulkDeleteAction: (ids: string[]) => Promise<{ ok: boolean; error?: string }>;
   enableSort?: boolean;
+  hideTitle?: boolean;
+  hideBadge?: boolean;
 };
 
 const getStatusCardStyles = (status: string) => {
@@ -48,6 +50,8 @@ export default function ContractsSection({
   deleteAction,
   bulkDeleteAction,
   enableSort,
+  hideTitle = false,
+  hideBadge = false,
 }: ContractsSectionProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sortMode, setSortMode] = useState("recent");
@@ -123,11 +127,21 @@ export default function ContractsSection({
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="font-display text-lg text-brand-950">{title}</h3>
+        {!hideTitle || !hideBadge ? (
+          <div className="flex flex-wrap items-center gap-3">
+            {!hideTitle ? (
+              <h3 className="font-display text-lg text-brand-950">{title}</h3>
+            ) : null}
+            {!hideBadge ? (
+              <span className="inline-flex h-8 items-center rounded-full border border-brand-200 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+                {badgeLabel}
+              </span>
+            ) : null}
+          </div>
+        ) : (
+          <span />
+        )}
         <div className="flex flex-wrap items-center gap-3">
-          <span className="inline-flex h-8 items-center rounded-full border border-brand-200 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
-            {badgeLabel}
-          </span>
           {enableSort ? (
             <select
               value={sortMode}
