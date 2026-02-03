@@ -13,17 +13,14 @@ export async function createIssueAction(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const publishedAtRaw = String(formData.get("publishedAt") ?? "").trim();
-  const thumbnailUrlRaw = String(formData.get("thumbnailUrl") ?? "").trim();
 
   if (!title) return;
   const publishedAt = publishedAtRaw ? new Date(publishedAtRaw).toISOString() : null;
-  const thumbnailUrl = thumbnailUrlRaw ? thumbnailUrlRaw : null;
 
   const issue = await createMagazineIssue({
     title,
     description,
     publishedAt,
-    thumbnailUrl,
   });
   revalidatePath("/admin/magazine");
   revalidatePath("/magazine");
@@ -45,16 +42,13 @@ export async function updateIssueAction(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const publishedAtRaw = String(formData.get("publishedAt") ?? "").trim();
-  const thumbnailUrlRaw = String(formData.get("thumbnailUrl") ?? "").trim();
   const publishedAt = publishedAtRaw ? new Date(publishedAtRaw).toISOString() : null;
-  const thumbnailUrl = thumbnailUrlRaw ? thumbnailUrlRaw : null;
 
   const existing = await getMagazineIssueById(id);
   const updated = await updateMagazineIssue(id, {
     title,
     description,
     publishedAt,
-    thumbnailUrl,
   });
   revalidatePath("/admin/magazine");
   revalidatePath("/magazine");

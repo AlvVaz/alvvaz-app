@@ -538,7 +538,7 @@ export async function createMagazineItem(input: {
 }) {
   const issueExists = await prisma.magazineIssue.findUnique({
     where: { id: input.issueId },
-    select: { id: true },
+    select: { id: true, thumbnailUrl: true },
   });
   if (!issueExists) {
     throw new Error("Issue not found");
@@ -558,6 +558,13 @@ export async function createMagazineItem(input: {
       metadata: (input.metadata ?? {}) as Prisma.InputJsonValue,
     },
   });
+
+  if (input.kind === "IMAGE" && !issueExists.thumbnailUrl) {
+    await prisma.magazineIssue.update({
+      where: { id: input.issueId },
+      data: { thumbnailUrl: input.fileUrl },
+    });
+  }
 
   return mapItem(item);
 }
