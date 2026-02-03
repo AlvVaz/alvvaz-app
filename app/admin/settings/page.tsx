@@ -72,6 +72,7 @@ export default async function AdminSettingsPage({
   const error = searchParams?.error ? ERROR_COPY[searchParams.error] : "";
   const isOwner = admin.role === "owner";
   const isTech = admin.role === "tech";
+  const isAdmin = admin.role === "admin";
   const showAudit = isOwner;
 
   const formatAuditDate = (value: Date | null) =>
@@ -343,120 +344,129 @@ export default async function AdminSettingsPage({
             </button>
           </form>
 
-          <div className="mt-8 border-t border-slate-200 pt-6">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Usuarios del panel
-            </h3>
-            <p className="mt-2 text-sm text-slate-600">
-              Lista de accesos actuales.
-            </p>
-            <div className="mt-4 space-y-3">
-              {adminUsers.map((user) => {
-                const isSelf = user.id === admin.sub;
-                const canEditRole =
-                  (isOwner || isTech) &&
-                  !isSelf &&
-                  (isOwner || user.role !== "owner");
+          {!isAdmin ? (
+            <div className="mt-8 border-t border-slate-200 pt-6">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Usuarios del panel
+              </h3>
+              <p className="mt-2 text-sm text-slate-600">
+                Lista de accesos actuales.
+              </p>
+              <div className="mt-4 space-y-3">
+                {adminUsers.map((user) => {
+                  const isSelf = user.id === admin.sub;
+                  const canEditRole =
+                    (isOwner || isTech) &&
+                    !isSelf &&
+                    (isOwner || user.role !== "owner");
 
-                return (
-                  <div
-                    key={user.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 px-4 py-2"
-                  >
-                    <div className="min-w-[180px]">
-                      <p className="text-sm font-semibold text-slate-900">
-                        {user.username || "Sin usuario"}
-                      </p>
-                      <p className="text-xs text-slate-500">{user.email}</p>
-                      {(showAudit || isOwner || isTech) ? (
-                        <details className="mt-2 text-xs text-slate-500">
-                          <summary className="cursor-pointer font-semibold text-slate-500">
-                            Ver detalles
-                          </summary>
-                          <div className="mt-2 space-y-1">
-                            <p>Creado: {formatAuditDate(user.createdAt)}</p>
-                            <p>Actualizado: {formatAuditDate(user.updatedAt)}</p>
-                            {showAudit ? (
-                              <>
-                                <p>
-                                  Último acceso:{" "}
-                                  {formatAuditDate(user.lastLoginAt)}
-                                </p>
-                                <p>
-                                  Último cambio de contraseña:{" "}
-                                  {formatAuditDate(user.lastPasswordResetAt)}
-                                </p>
-                              </>
-                            ) : null}
-                          </div>
-                        </details>
+                  return (
+                    <div
+                      key={user.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 px-4 py-2"
+                    >
+                      <div className="min-w-[180px]">
+                        <p className="text-sm font-semibold text-slate-900">
+                          {user.username || "Sin usuario"}
+                        </p>
+                        <p className="text-xs text-slate-500">{user.email}</p>
+                        {(showAudit || isOwner || isTech) ? (
+                          <details className="mt-2 text-xs text-slate-500">
+                            <summary className="cursor-pointer font-semibold text-slate-500">
+                              Ver detalles
+                            </summary>
+                            <div className="mt-2 space-y-1">
+                              <p>Creado: {formatAuditDate(user.createdAt)}</p>
+                              <p>Actualizado: {formatAuditDate(user.updatedAt)}</p>
+                              {showAudit ? (
+                                <>
+                                  <p>
+                                    Último acceso:{" "}
+                                    {formatAuditDate(user.lastLoginAt)}
+                                  </p>
+                                  <p>
+                                    Último cambio de contraseña:{" "}
+                                    {formatAuditDate(user.lastPasswordResetAt)}
+                                  </p>
+                                </>
+                              ) : null}
+                            </div>
+                          </details>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <form
+                          action={updateRole}
+                          className="flex items-center gap-2"
+                        >
+                          <input type="hidden" name="userId" value={user.id} />
+                          <select
+                            name="role"
+                            defaultValue={user.role}
+                            disabled={!canEditRole}
+                            className="rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 shadow-sm outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                          >
+                            <option value="owner">Owner</option>
+                            <option value="admin">Admin</option>
+                            <option value="tech">Tech</option>
+                          </select>
+                          <button
+                            type="submit"
+                            disabled={!canEditRole}
+                            className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Guardar
+                          </button>
+                        </form>
+                        <form action={deleteUser}>
+                          <input type="hidden" name="userId" value={user.id} />
+                          <button
+                            type="submit"
+                            disabled={!canEditRole}
+                            className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-rose-600 transition hover:border-rose-300 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Eliminar
+                          </button>
+                        </form>
+                      </div>
+                      {!canEditRole ? (
+                        <span className="w-full text-[11px] text-slate-400">
+                          Solo owner o tech pueden eliminar.
+                        </span>
                       ) : null}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <form action={updateRole} className="flex items-center gap-2">
-                        <input type="hidden" name="userId" value={user.id} />
-                        <select
-                          name="role"
-                          defaultValue={user.role}
-                          disabled={!canEditRole}
-                          className="rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 shadow-sm outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                        >
-                          <option value="owner">Owner</option>
-                          <option value="admin">Admin</option>
-                          <option value="tech">Tech</option>
-                        </select>
-                        <button
-                          type="submit"
-                          disabled={!canEditRole}
-                          className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Guardar
-                        </button>
-                      </form>
-                      <form action={deleteUser}>
-                        <input type="hidden" name="userId" value={user.id} />
-                        <button
-                          type="submit"
-                          disabled={!canEditRole}
-                          className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-rose-600 transition hover:border-rose-300 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Eliminar
-                        </button>
-                      </form>
-                    </div>
-                    {!canEditRole ? (
-                      <span className="w-full text-[11px] text-slate-400">
-                        Solo owner o tech pueden eliminar.
-                      </span>
-                    ) : null}
-                  </div>
-                );
-              })}
-              {adminUsers.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                  No hay usuarios registrados.
-                </p>
-              ) : null}
+                  );
+                })}
+                {adminUsers.length === 0 ? (
+                  <p className="text-sm text-slate-500">
+                    No hay usuarios registrados.
+                  </p>
+                ) : null}
+              </div>
             </div>
-          </div>
+          ) : null}
         </section>
 
         <section className="space-y-6">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Número de usuarios
-            </p>
-            <p className="mt-2 text-3xl font-semibold text-brand-950">
-              {adminCount}
-            </p>
-          </div>
+          {!isAdmin ? (
+            <>
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Número de usuarios
+                </p>
+                <p className="mt-2 text-3xl font-semibold text-brand-950">
+                  {adminCount}
+                </p>
+              </div>
 
-          <AddAdminCard
-            canAddUsers={isOwner || isTech}
-            action={createAdmin}
-            didCreateAdmin={noticeKey === "admin_created"}
-            noticeMessage={noticeKey === "admin_created" ? notice : ""}
-          />
+              <AddAdminCard
+                canAddUsers={isOwner || isTech}
+                action={createAdmin}
+                didCreateAdmin={noticeKey === "admin_created"}
+                noticeMessage={noticeKey === "admin_created" ? notice : ""}
+              />
+            </>
+          ) : null}
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-900">Cerrar sesión</h2>
