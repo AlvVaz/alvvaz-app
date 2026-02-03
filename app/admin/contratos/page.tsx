@@ -1,5 +1,6 @@
 import { SectionHeading } from "@/components/section-heading";
 import { getContracts } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 import { ContractForm } from "./ContractForm";
 import ContractsToastProvider from "./ContractsToastProvider";
@@ -17,6 +18,13 @@ export const dynamic = "force-dynamic";
 
 export default async function ContratosAdminPage() {
   const contracts = await getContracts();
+  const adminUsers = await prisma.adminUser.findMany({
+    orderBy: [{ username: "asc" }, { email: "asc" }],
+  });
+  const organizerOptions = adminUsers.map((user) => ({
+    value: user.username || user.email,
+    label: `${user.username || user.email} (${user.role})`,
+  }));
 
   return (
     <ContractsToastProvider>
@@ -50,6 +58,7 @@ export default async function ContratosAdminPage() {
               action={createContractAction}
               submitLabel="Crear contrato"
               resetOnSubmit
+              organizerOptions={organizerOptions}
             />
           </div>
         </details>
@@ -80,6 +89,7 @@ export default async function ContratosAdminPage() {
         updateAction={updateContractAction}
         deleteAction={deleteContractAction}
         bulkDeleteAction={bulkDeleteContractsAction}
+        organizerOptions={organizerOptions}
       />
     </div>
     </ContractsToastProvider>

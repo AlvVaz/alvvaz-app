@@ -14,6 +14,7 @@ type ContractsPanelProps = {
   ) => Promise<{ submittedAt: number }>;
   deleteAction?: (formData: FormData) => void;
   bulkDeleteAction: (ids: string[]) => Promise<{ ok: boolean; error?: string }>;
+  organizerOptions?: { value: string; label: string }[];
 };
 
 const normalize = (value: string) => value.trim().toLowerCase();
@@ -29,6 +30,7 @@ export default function ContractsPanel({
   updateAction,
   deleteAction,
   bulkDeleteAction,
+  organizerOptions = [],
 }: ContractsPanelProps) {
   const [filters, setFilters] = useState({
     id: "",
@@ -211,6 +213,7 @@ export default function ContractsPanel({
                 updateAction={updateAction}
                 deleteAction={deleteAction}
                 bulkDeleteAction={bulkDeleteAction}
+                organizerOptions={organizerOptions}
                 enableSort
                 hideTitle
                 hideBadge
@@ -228,6 +231,7 @@ export default function ContractsPanel({
         updateAction={updateAction}
         deleteAction={deleteAction}
         bulkDeleteAction={bulkDeleteAction}
+        organizerOptions={organizerOptions}
       />
 
       <ContractsSection
@@ -238,6 +242,7 @@ export default function ContractsPanel({
         updateAction={updateAction}
         deleteAction={deleteAction}
         bulkDeleteAction={bulkDeleteAction}
+        organizerOptions={organizerOptions}
         enableSort
       />
 
@@ -249,6 +254,7 @@ export default function ContractsPanel({
         updateAction={updateAction}
         deleteAction={deleteAction}
         bulkDeleteAction={bulkDeleteAction}
+        organizerOptions={organizerOptions}
       />
     </>
   );

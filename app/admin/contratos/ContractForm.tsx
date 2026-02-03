@@ -17,6 +17,7 @@ type ContractFormProps = {
   initialContract?: Contract;
   submitLabel: string;
   resetOnSubmit?: boolean;
+  organizerOptions?: { value: string; label: string }[];
 };
 
 const emptyTraveler: TripTraveler = { name: "", phone: "", contract: "" };
@@ -61,6 +62,7 @@ export function ContractForm({
   initialContract,
   submitLabel,
   resetOnSubmit = false,
+  organizerOptions = [],
 }: ContractFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -97,6 +99,31 @@ export function ContractForm({
     initialContract?.balanceDue ?? ""
   );
   const [isBalanceAuto, setIsBalanceAuto] = useState(true);
+
+  const organizerChoices = useMemo(() => {
+    const seen = new Set<string>();
+    const options = organizerOptions
+      .map((option) => ({
+        value: option.value.trim(),
+        label: option.label.trim(),
+      }))
+      .filter((option) => option.value)
+      .filter((option) => {
+        if (seen.has(option.value)) return false;
+        seen.add(option.value);
+        return true;
+      });
+
+    const currentOrganizer = initialContract?.organizer?.trim();
+    if (currentOrganizer && !seen.has(currentOrganizer)) {
+      options.unshift({
+        value: currentOrganizer,
+        label: `${currentOrganizer} (actual)`,
+      });
+    }
+
+    return options;
+  }, [initialContract?.organizer, organizerOptions]);
 
   const normalizedTravelers = useMemo(
     () =>
@@ -458,12 +485,27 @@ export function ContractForm({
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
           Quién organizó / vendió
         </label>
-        <input
-          name="organizer"
-          defaultValue={initialContract?.organizer ?? ""}
-          placeholder="Asesor o agencia"
-          className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
-        />
+        {organizerChoices.length > 0 ? (
+          <select
+            name="organizer"
+            defaultValue={initialContract?.organizer ?? ""}
+            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+          >
+            <option value="">Selecciona un usuario</option>
+            {organizerChoices.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            name="organizer"
+            defaultValue={initialContract?.organizer ?? ""}
+            placeholder="Asesor o agencia"
+            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+          />
+        )}
       </div>
 
       <div className="space-y-2">

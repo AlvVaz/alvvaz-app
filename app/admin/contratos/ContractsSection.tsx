@@ -26,6 +26,7 @@ type ContractsSectionProps = {
   enableSort?: boolean;
   hideTitle?: boolean;
   hideBadge?: boolean;
+  organizerOptions?: { value: string; label: string }[];
 };
 
 const getStatusCardStyles = (status: string) => {
@@ -52,6 +53,7 @@ export default function ContractsSection({
   enableSort,
   hideTitle = false,
   hideBadge = false,
+  organizerOptions = [],
 }: ContractsSectionProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sortMode, setSortMode] = useState("recent");
@@ -271,6 +273,7 @@ export default function ContractsSection({
                   deleteAction={deleteAction}
                   initialContract={contract}
                   submitLabel="Guardar cambios"
+                  organizerOptions={organizerOptions}
                 />
               </div>
             </details>
