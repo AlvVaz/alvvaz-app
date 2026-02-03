@@ -419,8 +419,23 @@ function sortByDateDesc(a: string | null, b: string | null) {
 export async function getMagazineIssues() {
   const issues = await prisma.magazineIssue.findMany({
     orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+    include: {
+      items: {
+        where: { kind: "IMAGE" },
+        orderBy: { sortOrder: "asc" },
+        take: 1,
+        select: { fileUrl: true },
+      },
+    },
   });
-  return issues.map(mapIssue);
+  return issues.map((issue) => {
+    const mapped = mapIssue(issue);
+    const fallback = issue.items?.[0]?.fileUrl ?? null;
+    return {
+      ...mapped,
+      thumbnailUrl: mapped.thumbnailUrl ?? fallback,
+    };
+  });
 }
 
 export async function getMagazineIssueBySlug(slug: string) {
