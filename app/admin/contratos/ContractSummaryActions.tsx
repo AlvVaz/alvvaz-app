@@ -45,13 +45,54 @@ export default function ContractSummaryActions({
       if (!response.ok) {
         throw new Error("No se pudo generar el PDF.");
       }
-      await response.json();
-      const origin = window.location.origin;
-      const shareUrl = `${origin}/contratos/${contractId}/pdf`;
-      const message = `Hola, aquí está tu contrato: ${shareUrl}`;
+      const payload = await response.json();
+      const signedUrl = payload?.signedUrl as string | undefined;
+      if (!signedUrl) {
+        throw new Error("No se pudo obtener el PDF.");
+      }
+
+      const fileResponse = await fetch(signedUrl);
+      if (!fileResponse.ok) {
+        throw new Error("No se pudo descargar el PDF.");
+      }
+      const blob = await fileResponse.blob();
+      const file = new File([blob], `${buildFileName()}.pdf`, {
+        type: blob.type || "application/pdf",
+      });
+
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.canShare &&
+        navigator.canShare({ files: [file] })
+      ) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: contractTitle || "Contrato",
+            text: "Contrato adjunto",
+          });
+          pushToast("PDF listo para enviar.");
+          return;
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") {
+            return;
+          }
+        }
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${buildFileName()}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      const message = `Adjunto contrato ${contractTitle}.`;
       const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
       window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-      pushToast("PDF enviado.");
+      pushToast("PDF descargado. Adjunta el archivo en WhatsApp.");
     } catch {
       pushToast("No se pudo enviar el PDF.", "error");
     } finally {

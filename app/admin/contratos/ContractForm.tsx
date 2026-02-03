@@ -101,6 +101,16 @@ export function ContractForm({
   );
   const [isBalanceAuto, setIsBalanceAuto] = useState(true);
 
+  const buildFileName = () => {
+    const baseTitle =
+      initialContract?.title || initialContract?.clientName || "Contrato";
+    const suffix = initialContract?.contractNumber
+      ? `- ${initialContract.contractNumber}`
+      : "";
+    const raw = `${baseTitle} ${suffix}`.trim();
+    return raw.replace(/[^\w\s-]/g, "").replace(/\s+/g, " ").trim() || "Contrato";
+  };
+
   const organizerChoices = useMemo(() => {
     const seen = new Set<string>();
     const options = organizerOptions
@@ -362,14 +372,64 @@ export function ContractForm({
     setIsSendingPdf(true);
     setPdfError(null);
     try {
-      const origin = window.location.origin;
-      const shareUrl = `${origin}/contratos/${initialContract.id}/pdf`;
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(shareUrl);
+      const response = await fetch(`/api/admin/contracts/${initialContract.id}/pdf`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        setPdfError(payload.error || "No se pudo generar el PDF.");
+        return;
       }
-      const message = `Hola, aquí está tu contrato: ${shareUrl}`;
+      const payload = await response.json();
+      const signedUrl = payload?.signedUrl as string | undefined;
+      if (!signedUrl) {
+        setPdfError("No se pudo obtener el PDF.");
+        return;
+      }
+
+      const fileResponse = await fetch(signedUrl);
+      if (!fileResponse.ok) {
+        setPdfError("No se pudo descargar el PDF.");
+        return;
+      }
+      const blob = await fileResponse.blob();
+      const file = new File([blob], `${buildFileName()}.pdf`, {
+        type: blob.type || "application/pdf",
+      });
+
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.canShare &&
+        navigator.canShare({ files: [file] })
+      ) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: initialContract.title || "Contrato",
+            text: "Contrato adjunto",
+          });
+          pushToast("PDF listo para enviar.");
+          return;
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") {
+            return;
+          }
+        }
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${buildFileName()}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      const message = `Adjunto contrato ${initialContract.title || ""}.`;
       const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
       window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      pushToast("PDF descargado. Adjunta el archivo en WhatsApp.");
     } catch (error) {
       setPdfError("No se pudo preparar el envío.");
     } finally {
