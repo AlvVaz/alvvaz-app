@@ -80,10 +80,30 @@ export default function ContractsPanel({
     });
   }, [contracts, hasFilters, normalizedContact, normalizedId, normalizedName]);
 
-  const is2025 = (contract: Contract) => {
-    const year = new Date(contract.createdAt).getFullYear();
-    return year === 2025;
+  const resolveContractYear = (contract: Contract) => {
+    const number = String(contract.contractNumber ?? "");
+    if (/^2025/.test(number)) {
+      return 2025;
+    }
+
+    const dateCandidates = [
+      contract.reservationDate,
+      contract.departureDate,
+      contract.createdAt,
+    ];
+
+    for (const candidate of dateCandidates) {
+      if (!candidate) continue;
+      const parsed = new Date(candidate);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.getFullYear();
+      }
+    }
+
+    return null;
   };
+
+  const is2025 = (contract: Contract) => resolveContractYear(contract) === 2025;
 
   const contracts2025 = filteredContracts.filter(is2025);
   const non2025Contracts = filteredContracts.filter((contract) => !is2025(contract));
