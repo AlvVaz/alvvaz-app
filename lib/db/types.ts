@@ -17,6 +17,8 @@ export type MagazineIssue = {
   title: string;
   description: string;
   publishedAt: string | null;
+  thumbnailUrl: string | null;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 };

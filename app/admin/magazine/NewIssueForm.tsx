@@ -50,6 +50,17 @@ export function NewIssueForm({ action }: NewIssueFormProps) {
         </div>
         <div className="md:col-span-2 space-y-2">
           <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+            Miniatura (URL)
+          </label>
+          <input
+            name="thumbnailUrl"
+            type="url"
+            placeholder="https://..."
+            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+          />
+        </div>
+        <div className="md:col-span-2 space-y-2">
+          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
             Descripción
           </label>
           <textarea

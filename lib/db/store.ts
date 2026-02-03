@@ -156,6 +156,8 @@ function mapIssue(issue: {
   title: string;
   description: string;
   publishedAt: string | null;
+  thumbnailUrl: string | null;
+  sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
 }): MagazineIssue {
@@ -415,8 +417,10 @@ function sortByDateDesc(a: string | null, b: string | null) {
 }
 
 export async function getMagazineIssues() {
-  const issues = await prisma.magazineIssue.findMany();
-  return issues.map(mapIssue).sort((a, b) => sortByDateDesc(a.publishedAt, b.publishedAt));
+  const issues = await prisma.magazineIssue.findMany({
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+  });
+  return issues.map(mapIssue);
 }
 
 export async function getMagazineIssueBySlug(slug: string) {
@@ -433,16 +437,27 @@ export async function createMagazineIssue(input: {
   title: string;
   description?: string;
   publishedAt?: string | null;
+  thumbnailUrl?: string | null;
 }) {
   const baseSlug = slugify(input.title) || `issue-${Date.now()}`;
   const slug = await uniqueSlug(baseSlug);
-  const issue = await prisma.magazineIssue.create({
-    data: {
-      slug,
-      title: input.title,
-      description: input.description ?? "",
-      publishedAt: input.publishedAt ?? null,
-    },
+  const thumbnailUrl = input.thumbnailUrl?.trim() || null;
+  const issue = await prisma.$transaction(async (tx) => {
+    await tx.magazineIssue.updateMany({
+      data: {
+        sortOrder: { increment: 1 },
+      },
+    });
+    return tx.magazineIssue.create({
+      data: {
+        slug,
+        title: input.title,
+        description: input.description ?? "",
+        publishedAt: input.publishedAt ?? null,
+        thumbnailUrl,
+        sortOrder: 0,
+      },
+    });
   });
   return mapIssue(issue);
 }
@@ -453,6 +468,7 @@ export async function updateMagazineIssue(
     title: string;
     description: string;
     publishedAt: string | null;
+    thumbnailUrl: string | null;
   }>
 ) {
   const existing = await prisma.magazineIssue.findUnique({ where: { id } });
@@ -470,6 +486,9 @@ export async function updateMagazineIssue(
       ...(updates.title !== undefined ? { title: updates.title } : {}),
       ...(updates.description !== undefined ? { description: updates.description } : {}),
       ...(updates.publishedAt !== undefined ? { publishedAt: updates.publishedAt } : {}),
+      ...(updates.thumbnailUrl !== undefined
+        ? { thumbnailUrl: updates.thumbnailUrl }
+        : {}),
       ...(slug !== existing.slug ? { slug } : {}),
     },
   });
@@ -557,6 +576,20 @@ export async function reorderMagazineItems(
   await prisma.$transaction(
     updates.map((update) =>
       prisma.magazineItem.update({
+        where: { id: update.id },
+        data: { sortOrder: update.sortOrder },
+      })
+    )
+  );
+}
+
+export async function reorderMagazineIssues(
+  updates: Array<{ id: string; sortOrder: number }>
+) {
+  if (updates.length === 0) return;
+  await prisma.$transaction(
+    updates.map((update) =>
+      prisma.magazineIssue.update({
         where: { id: update.id },
         data: { sortOrder: update.sortOrder },
       })

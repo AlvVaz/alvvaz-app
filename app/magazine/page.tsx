@@ -40,6 +40,14 @@ export default async function MagazinePage() {
                   className="flex h-full flex-col justify-between rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
                 >
                   <div className="space-y-3">
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                      <img
+                        src={issue.thumbnailUrl || "/magazine/placeholders/01.svg"}
+                        alt={`Miniatura de ${issue.title}`}
+                        className="h-44 w-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
                     <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
                       <span>Edición</span>
                       <span>
