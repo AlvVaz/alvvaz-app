@@ -4,7 +4,11 @@ import { ADMIN_COOKIE_NAME } from "@/lib/auth/constants";
 import { verifyAdminToken } from "@/lib/auth/jwt";
 
 const ADMIN_LOGIN_PATH = "/admin/login";
-const ADMIN_ALLOWED_ADMIN_ROUTES = ["/admin/contratos", "/admin/magazine"];
+const ADMIN_ALLOWED_ADMIN_ROUTES = [
+  "/admin/contratos",
+  "/admin/magazine",
+  "/admin/settings",
+];
 const ADMIN_ALLOWED_ADMIN_APIS = ["/api/admin/contracts", "/api/admin/magazine"];
 
 function isAllowedForAdmin(pathname: string) {

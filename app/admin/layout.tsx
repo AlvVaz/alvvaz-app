@@ -30,7 +30,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                 {roleLabel}
               </span>
             ) : null}
-            {admin && admin.role !== "admin" ? (
+            {admin ? (
               <Link href="/admin/settings" aria-label="Configuración">
                 <Image
                   src="/profile.png"

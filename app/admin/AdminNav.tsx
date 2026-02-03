@@ -20,6 +20,11 @@ const navItems = [
     roles: ["owner", "tech"],
   },
   { label: "Revista", href: "/admin/magazine", roles: ["owner", "tech", "admin"] },
+  {
+    label: "Ajustes",
+    href: "/admin/settings",
+    roles: ["owner", "tech", "admin"],
+  },
 ];
 
 function isActivePath(pathname: string, href: string) {
