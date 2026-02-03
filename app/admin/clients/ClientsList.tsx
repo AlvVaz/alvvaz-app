@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import type { Client } from "@/lib/db";
 import { formatTags } from "@/lib/db/utils";
 import { Button } from "@/components/ui/button";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 type HistoryEntry = {
   type: "contract" | "trip";
@@ -203,17 +204,11 @@ export default function ClientsList({
                     <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
                       Estado
                     </label>
-                    <select
+                    <ThemedSelect
                       name="status"
                       defaultValue={client.status}
-                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                    >
-                      {statusOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
+                      options={statusOptions}
+                    />
                   </div>
                   <div className="md:col-span-2 space-y-2">
                     <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">

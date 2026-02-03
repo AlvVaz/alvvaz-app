@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { TagsInput } from "./TagsInput";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 import type { Promotion } from "@/lib/db";
 
@@ -101,15 +102,15 @@ export function PromotionFields({
           <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
             Estado de publicación
           </label>
-          <select
+          <ThemedSelect
             name="status"
             defaultValue={defaults?.status ?? "draft"}
-            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-          >
-            <option value="live">Live</option>
-            <option value="paused">Pausado</option>
-            <option value="draft">Borrador</option>
-          </select>
+            options={[
+              { value: "live", label: "Live" },
+              { value: "paused", label: "Pausado" },
+              { value: "draft", label: "Borrador" },
+            ]}
+          />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">

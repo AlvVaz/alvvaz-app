@@ -1,5 +1,6 @@
 import { SectionHeading } from "@/components/section-heading";
 import { Button } from "@/components/ui/button";
+import { ThemedSelect } from "@/components/ui/themed-select";
 import { getTrips } from "@/lib/db";
 import type { Trip } from "@/lib/db";
 
@@ -175,32 +176,33 @@ export default async function ViajesAdminPage({ searchParams }: ViajesAdminPageP
             <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
               Año
             </label>
-            <select
+            <ThemedSelect
               name="year"
               defaultValue={selectedYear}
-              className="w-48 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
-            >
-              <option value="all">Todos</option>
-              {years.map((year) => (
-                <option key={year} value={year.toString()}>
-                  {year}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: "all", label: "Todos" },
+                ...years.map((year) => ({
+                  value: year.toString(),
+                  label: year.toString(),
+                })),
+              ]}
+              className="w-48"
+            />
           </div>
           <div className="space-y-2">
             <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
               Estado
             </label>
-            <select
+            <ThemedSelect
               name="status"
               defaultValue={selectedStatus}
-              className="w-48 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
-            >
-              <option value="all">Todos</option>
-              <option value="upcoming">Próximos</option>
-              <option value="completed">Completados</option>
-            </select>
+              options={[
+                { value: "all", label: "Todos" },
+                { value: "upcoming", label: "Próximos" },
+                { value: "completed", label: "Completados" },
+              ]}
+              className="w-48"
+            />
           </div>
           <Button type="submit">Aplicar filtros</Button>
         </form>

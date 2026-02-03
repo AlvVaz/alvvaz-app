@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getAdminFromCookies } from "@/lib/auth/admin";
 import { hashPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/prisma";
+import { ThemedSelect } from "@/components/ui/themed-select";
 import { AddAdminCard } from "./AddAdminCard";
 
 type SettingsPageProps = {
@@ -400,16 +401,19 @@ export default async function AdminSettingsPage({
                           className="flex items-center gap-2"
                         >
                           <input type="hidden" name="userId" value={user.id} />
-                          <select
+                          <ThemedSelect
                             name="role"
                             defaultValue={user.role}
                             disabled={!canEditRole}
-                            className="rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 shadow-sm outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                          >
-                            <option value="owner">Owner</option>
-                            <option value="admin">Admin</option>
-                            <option value="tech">Tech</option>
-                          </select>
+                            options={[
+                              { value: "owner", label: "Owner" },
+                              { value: "admin", label: "Admin" },
+                              { value: "tech", label: "Tech" },
+                            ]}
+                            className="min-w-[140px]"
+                            buttonClassName="rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 shadow-sm"
+                            selectClassName="rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700"
+                          />
                           <button
                             type="submit"
                             disabled={!canEditRole}

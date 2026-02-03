@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { ThemedSelect } from "@/components/ui/themed-select";
 type AddAdminCardProps = {
   canAddUsers: boolean;
   action: (formData: FormData) => void | Promise<void>;
@@ -173,17 +174,17 @@ export function AddAdminCard({
             </label>
             <label className="block space-y-2 text-sm font-semibold text-slate-700">
               Rol
-              <select
+              <ThemedSelect
                 name="role"
                 value={role}
-                onChange={(event) => setRole(event.target.value)}
+                onChange={setRole}
                 disabled={!canAddUsers}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200 disabled:cursor-not-allowed disabled:bg-slate-50"
-              >
-                <option value="admin">Admin</option>
-                <option value="tech">Tech</option>
-                <option value="owner">Owner</option>
-              </select>
+                options={[
+                  { value: "admin", label: "Admin" },
+                  { value: "tech", label: "Tech" },
+                  { value: "owner", label: "Owner" },
+                ]}
+              />
             </label>
 
             <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3">

@@ -4,6 +4,7 @@ import type { ChangeEvent, FormEvent } from "react";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ThemedSelect } from "@/components/ui/themed-select";
 import { cn } from "@/lib/utils";
 
 type ReservacionesFormProps = {
@@ -63,8 +64,7 @@ export function ReservacionesForm({ initialDestino }: ReservacionesFormProps) {
     setErrors((prev) => ({ ...prev, [name]: undefined }));
   };
 
-  const handleSelect = (event: ChangeEvent<HTMLSelectElement>) => {
-    const { name, value } = event.target;
+  const handleSelectValue = (name: keyof FormState, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -260,16 +260,16 @@ export function ReservacionesForm({ initialDestino }: ReservacionesFormProps) {
           <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
             Presupuesto
           </label>
-          <select
+          <ThemedSelect
             name="presupuesto"
             value={formData.presupuesto}
-            onChange={handleSelect}
-            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 transition-colors duration-200 focus:border-brand-400 focus:outline-none"
-          >
-            <option>Económico</option>
-            <option>Estándar</option>
-            <option>Premium</option>
-          </select>
+            onChange={(value) => handleSelectValue("presupuesto", value)}
+            options={[
+              { value: "Económico", label: "Económico" },
+              { value: "Estándar", label: "Estándar" },
+              { value: "Premium", label: "Premium" },
+            ]}
+          />
         </div>
 
         <div className="md:col-span-2 space-y-2">

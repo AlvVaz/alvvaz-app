@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import type { Contract } from "@/lib/db";
 import { Button } from "@/components/ui/button";
+import { ThemedSelect } from "@/components/ui/themed-select";
 import { cn } from "@/lib/utils";
 
 import { ContractForm } from "./ContractForm";
@@ -145,17 +146,20 @@ export default function ContractsSection({
         )}
         <div className="flex flex-wrap items-center gap-3">
           {enableSort ? (
-            <select
+            <ThemedSelect
               value={sortMode}
-              onChange={(event) => setSortMode(event.target.value)}
-              className="h-8 rounded-full border border-brand-200 bg-white px-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700"
-            >
-              <option value="recent">Más reciente</option>
-              <option value="name-asc">Nombre A–Z</option>
-              <option value="name-desc">Nombre Z–A</option>
-              <option value="number-asc">Contrato ↑</option>
-              <option value="number-desc">Contrato ↓</option>
-            </select>
+              onChange={setSortMode}
+              options={[
+                { value: "recent", label: "Más reciente" },
+                { value: "name-asc", label: "Nombre A–Z" },
+                { value: "name-desc", label: "Nombre Z–A" },
+                { value: "number-asc", label: "Contrato ↑" },
+                { value: "number-desc", label: "Contrato ↓" },
+              ]}
+              className="min-w-[180px]"
+              buttonClassName="h-8 rounded-full border border-brand-200 bg-white px-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 shadow-none"
+              selectClassName="h-8 rounded-full border border-brand-200 bg-white px-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700"
+            />
           ) : null}
           <button
             type="button"

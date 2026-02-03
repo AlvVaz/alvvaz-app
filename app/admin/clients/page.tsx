@@ -1,5 +1,6 @@
 import { SectionHeading } from "@/components/section-heading";
 import { Button } from "@/components/ui/button";
+import { ThemedSelect } from "@/components/ui/themed-select";
 import { getClients, getContracts, getTrips } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -149,14 +150,15 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
             <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
               Sin teléfono
             </label>
-            <select
+            <ThemedSelect
               name="missing"
               defaultValue={missingPhone ? "phone" : "all"}
-              className="w-44 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
-            >
-              <option value="all">Todos</option>
-              <option value="phone">Sin teléfono</option>
-            </select>
+              options={[
+                { value: "all", label: "Todos" },
+                { value: "phone", label: "Sin teléfono" },
+              ]}
+              className="w-44"
+            />
           </div>
           <Button type="submit">Aplicar filtros</Button>
         </form>
@@ -216,17 +218,11 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
             <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
               Estado
             </label>
-            <select
+            <ThemedSelect
               name="status"
               defaultValue="new"
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-            >
-              {statusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              options={statusOptions}
+            />
           </div>
           <div className="md:col-span-2 space-y-2">
             <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">

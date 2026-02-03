@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ThemedSelect } from "@/components/ui/themed-select";
 import { supabaseClient } from "@/lib/supabase/client";
 
 type IssueOption = {
@@ -145,18 +146,15 @@ export function UploadItemForm({ issues }: { issues: IssueOption[] }) {
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
           Issue destino
         </label>
-        <select
+        <ThemedSelect
           name="issueId"
           required
-          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-        >
-          <option value="">Selecciona una edición</option>
-          {issues.map((issue) => (
-            <option key={issue.id} value={issue.id}>
-              {issue.title}
-            </option>
-          ))}
-        </select>
+          placeholder="Selecciona una edición"
+          options={issues.map((issue) => ({
+            value: issue.id,
+            label: issue.title,
+          }))}
+        />
       </div>
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">

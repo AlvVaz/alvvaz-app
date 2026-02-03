@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import type { Contract, TripTraveler } from "@/lib/db";
 import { Button } from "@/components/ui/button";
+import { ThemedSelect } from "@/components/ui/themed-select";
 import { useContractsToast } from "./ContractsToastProvider";
 
 type ContractFormProps = {
@@ -431,17 +432,17 @@ export function ContractForm({
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
           Agencia
         </label>
-        <select
+        <ThemedSelect
           name="agency"
           defaultValue={initialContract?.agency ?? ""}
-          className="admin-select w-full rounded-2xl border border-brand-200 bg-gradient-to-b from-white to-brand-50/40 px-4 py-3 text-sm text-brand-900 shadow-sm outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200"
-        >
-          <option value="" disabled>
-            Selecciona una agencia
-          </option>
-          <option value="AlvVaz Aviación">AlvVaz Aviación</option>
-          <option value="AlvVaz Oriente">AlvVaz Oriente</option>
-        </select>
+          placeholder="Selecciona una agencia"
+          options={[
+            { value: "AlvVaz Aviación", label: "AlvVaz Aviación" },
+            { value: "AlvVaz Oriente", label: "AlvVaz Oriente" },
+          ]}
+          buttonClassName="admin-select w-full rounded-2xl border border-brand-200 bg-gradient-to-b from-white to-brand-50/40 px-4 py-3 text-sm text-brand-900 shadow-sm"
+          selectClassName="admin-select w-full rounded-2xl border border-brand-200 bg-gradient-to-b from-white to-brand-50/40 px-4 py-3 text-sm text-brand-900 shadow-sm"
+        />
       </div>
 
       <div className="space-y-2">
@@ -486,18 +487,12 @@ export function ContractForm({
           Quién organizó / vendió
         </label>
         {organizerChoices.length > 0 ? (
-          <select
+          <ThemedSelect
             name="organizer"
             defaultValue={initialContract?.organizer ?? ""}
-            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-          >
-            <option value="">Selecciona un usuario</option>
-            {organizerChoices.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            placeholder="Selecciona un usuario"
+            options={organizerChoices}
+          />
         ) : (
           <input
             name="organizer"
