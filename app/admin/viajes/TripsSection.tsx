@@ -90,6 +90,43 @@ export default function TripsSection({
     return "Sin fechas";
   };
 
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  const getTripDates = (trip: Trip) => {
+    const departure = trip.departureDate ? toLocalDate(trip.departureDate) : null;
+    const returnDate = trip.returnDate ? toLocalDate(trip.returnDate) : null;
+    return { departure, returnDate };
+  };
+
+  const getDaysUntil = (date: Date) =>
+    Math.ceil((date.getTime() - startOfToday.getTime()) / msPerDay);
+
+  const getProgressTone = (daysUntil: number | null, completed: boolean) => {
+    if (completed) return "emerald";
+    if (daysUntil === null) return "slate";
+    if (daysUntil < 7) return "amber";
+    if (daysUntil <= 30) return "brand";
+    return "slate";
+  };
+
+  const getProgressLabel = (daysUntil: number | null, completed: boolean) => {
+    if (completed) return "Completado";
+    if (daysUntil === null) return "Sin fecha";
+    if (daysUntil === 0) return "Sale hoy";
+    if (daysUntil === 1) return "Sale en 1 día";
+    return `Sale en ${daysUntil} días`;
+  };
+
+  const getProgressValue = (daysUntil: number | null, completed: boolean) => {
+    if (completed) return 100;
+    if (daysUntil === null) return 0;
+    const windowDays = 30;
+    const clamped = Math.min(Math.max(daysUntil, 0), windowDays);
+    return Math.round(((windowDays - clamped) / windowDays) * 100);
+  };
+
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -141,67 +178,116 @@ export default function TripsSection({
 
               <div className="border-t border-slate-200 px-6 py-4">
                 <div className="grid gap-4">
-                  {group.trips.map((trip) => (
-                    <details
-                      key={trip.id}
-                      id={`trip-${trip.id}`}
-                      className="rounded-3xl border border-slate-200 bg-white shadow-sm"
-                    >
-                      <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
-                        <div className="grid items-center gap-4 md:grid-cols-[auto_2fr_1.6fr_1.3fr_0.9fr]">
-                          <div className="flex items-start justify-center pt-1">
-                            <input
-                              type="checkbox"
-                              aria-label="Seleccionar viaje"
-                              checked={selectedIds.has(trip.id)}
-                              onChange={() => toggleOne(trip.id)}
-                              onClick={(event) => event.stopPropagation()}
-                              className="h-4 w-4 rounded border-brand-300 text-brand-600"
-                            />
+                {group.trips.map((trip) => (
+                  <details
+                    key={trip.id}
+                    id={`trip-${trip.id}`}
+                    className="rounded-3xl border border-slate-200 bg-white shadow-sm"
+                  >
+                    <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
+                      {(() => {
+                        const { departure, returnDate } = getTripDates(trip);
+                        const completed = returnDate
+                          ? returnDate < startOfToday
+                          : departure
+                          ? departure < startOfToday
+                          : false;
+                        const daysUntil = departure ? getDaysUntil(departure) : null;
+                        const tone = getProgressTone(daysUntil, completed);
+                        const label = getProgressLabel(daysUntil, completed);
+                        const progress = getProgressValue(daysUntil, completed);
+
+                        const toneClasses = {
+                          emerald: {
+                            bar: "bg-emerald-500",
+                            text: "text-emerald-600",
+                          },
+                          amber: {
+                            bar: "bg-amber-500",
+                            text: "text-amber-600",
+                          },
+                          brand: {
+                            bar: "bg-brand-500",
+                            text: "text-brand-600",
+                          },
+                          slate: {
+                            bar: "bg-slate-400",
+                            text: "text-slate-500",
+                          },
+                        } as const;
+
+                        const toneStyle = toneClasses[tone];
+
+                        return (
+                          <div className="grid items-center gap-4 md:grid-cols-[auto_2fr_1.6fr_1.3fr_0.9fr]">
+                            <div className="flex items-start justify-center pt-1">
+                              <input
+                                type="checkbox"
+                                aria-label="Seleccionar viaje"
+                                checked={selectedIds.has(trip.id)}
+                                onChange={() => toggleOne(trip.id)}
+                                onClick={(event) => event.stopPropagation()}
+                                className="h-4 w-4 rounded border-brand-300 text-brand-600"
+                              />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                                Destino
+                              </p>
+                              <p className="font-display text-base text-brand-950">
+                                {trip.destination}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {trip.hotel || "Hotel por confirmar"}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                                Fechas
+                              </p>
+                              <p className="text-sm text-slate-700">
+                                {formatRange(trip.departureDate, trip.returnDate)}
+                              </p>
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <div className="h-1 flex-1 rounded-full bg-slate-200">
+                                  <div
+                                    className={`h-1 rounded-full ${toneStyle.bar}`}
+                                    style={{ width: `${progress}%` }}
+                                  />
+                                </div>
+                                <span
+                                  className={`text-[11px] font-semibold ${toneStyle.text}`}
+                                >
+                                  {label}
+                                </span>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                                Cliente
+                              </p>
+                              <p className="text-sm text-slate-700">
+                                {trip.clientName || "Sin cliente"}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {trip.organizer || "Sin asignar"}
+                              </p>
+                            </div>
+                            <div className="text-right md:text-left">
+                              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                                Pasajeros
+                              </p>
+                              <p className="text-sm text-slate-700">
+                                {trip.passengerCount || trip.travelers.length} personas
+                              </p>
+                              <span className="mt-2 inline-flex rounded-full border border-brand-200 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700">
+                                Ver detalles
+                              </span>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                              Destino
-                            </p>
-                            <p className="font-display text-base text-brand-950">
-                              {trip.destination}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {trip.hotel || "Hotel por confirmar"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                              Fechas
-                            </p>
-                            <p className="text-sm text-slate-700">
-                              {formatRange(trip.departureDate, trip.returnDate)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                              Cliente
-                            </p>
-                            <p className="text-sm text-slate-700">
-                              {trip.clientName || "Sin cliente"}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {trip.organizer || "Sin asignar"}
-                            </p>
-                          </div>
-                          <div className="text-right md:text-left">
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                              Pasajeros
-                            </p>
-                            <p className="text-sm text-slate-700">
-                              {trip.passengerCount || trip.travelers.length} personas
-                            </p>
-                            <span className="mt-2 inline-flex rounded-full border border-brand-200 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700">
-                              Ver detalles
-                            </span>
-                          </div>
-                        </div>
-                      </summary>
+                        );
+                      })()}
+                    </summary>
 
                       <div className="border-t border-slate-200 px-6 py-4">
                         <div className="grid gap-4 text-sm md:grid-cols-3">
