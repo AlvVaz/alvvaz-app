@@ -296,8 +296,8 @@ export async function POST(
   ];
   const colLabels = ["Vendedor", "AGENCIA", "DESTINO", "FECHAS DE VIAJE"];
   const colValues = [
-    contract.seller ?? contract.organizer ?? "",
-    contract.agency ?? "",
+    (contract.seller ?? contract.organizer ?? "").toUpperCase(),
+    (contract.agency ?? "").toUpperCase(),
     contract.destination ?? "",
     [contract.departureDate, contract.returnDate]
       .filter(Boolean)
