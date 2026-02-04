@@ -109,9 +109,20 @@ export default async function PromotionDetailPage({
             </div>
 
             <div className="flex flex-wrap items-center gap-4">
-              <Link href={ctaHref} className={buttonLinkStyles({ variant: "primary" })}>
-                {ctaLabel}
-              </Link>
+              {ctaHref.startsWith("http") ? (
+                <a
+                  href={ctaHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={buttonLinkStyles({ variant: "primary" })}
+                >
+                  {ctaLabel}
+                </a>
+              ) : (
+                <Link href={ctaHref} className={buttonLinkStyles({ variant: "primary" })}>
+                  {ctaLabel}
+                </Link>
+              )}
               <Link
                 href="/promociones"
                 className={buttonLinkStyles({ variant: "secondary" })}

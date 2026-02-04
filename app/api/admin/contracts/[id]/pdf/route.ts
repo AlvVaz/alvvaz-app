@@ -192,7 +192,7 @@ export async function POST(
     highlight: rgb(1, 1, 0.47), // #FFFF77
   };
   const headerTop = height - margin;
-  const headerRightX = width - margin - 255;
+  const headerRight = width - margin;
 
   // Logo
   let logoBottomY = headerTop - 80;
@@ -213,8 +213,10 @@ export async function POST(
   }
 
   const titleText = (contract.title || "RESERVA DE VIAJE").toUpperCase();
+  const titleSize = 12;
+  const titleWidth = headingBold.widthOfTextAtSize(titleText, titleSize);
   page.drawText(titleText, {
-    x: headerRightX,
+    x: headerRight - titleWidth,
     y: headerTop - 18,
     size: 12,
     font: headingBold,
@@ -230,29 +232,33 @@ export async function POST(
   const badgePaddingX = 4;
   const badgeHeight = 14;
   const badgeY = headerTop - 40;
+  const badgeGap = 6;
+  const badgeGroupWidth =
+    labelWidth + badgePaddingX * 2 + badgeGap + numberWidth;
+  const badgeX = headerRight - badgeGroupWidth;
   page.drawRectangle({
-    x: headerRightX,
+    x: badgeX,
     y: badgeY - 2,
     width: labelWidth + badgePaddingX * 2,
     height: badgeHeight,
     color: brand.highlight,
   });
   page.drawText(contractLabel, {
-    x: headerRightX + badgePaddingX,
+    x: badgeX + badgePaddingX,
     y: badgeY,
     size: contractLabelSize,
     font: headingBold,
     color: brand.ink,
   });
   page.drawText(contractNumber, {
-    x: headerRightX + labelWidth + badgePaddingX * 2 + 6,
+    x: badgeX + labelWidth + badgePaddingX * 2 + badgeGap,
     y: badgeY,
     size: contractNumberSize,
     font: headingBold,
     color: brand.ink,
   });
 
-  const headerInfoX = headerRightX;
+  const headerInfoX = headerRight;
   let headerInfoY = headerTop - 58;
   const headerLines = [
     `FECHA DE RESERVA: ${parseDate(contract.reservationDate)}`,
@@ -261,11 +267,14 @@ export async function POST(
     `NOMBRE DEL CLIENTE: ${contract.clientName}`,
   ];
   headerLines.forEach((line, index) => {
+    const size = index === 0 ? 8 : 7;
+    const usedFont = index === 0 ? headingBold : headingFont;
+    const lineWidth = usedFont.widthOfTextAtSize(line, size);
     page.drawText(line, {
-      x: headerInfoX,
+      x: headerInfoX - lineWidth,
       y: headerInfoY,
-      size: index === 0 ? 8 : 7,
-      font: index === 0 ? headingBold : headingFont,
+      size,
+      font: usedFont,
       color: brand.ink,
     });
     headerInfoY -= index === 0 ? 11 : 9;

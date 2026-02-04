@@ -210,7 +210,7 @@ export function PromocionesGrid({ promotions }: PromocionesGridProps) {
                         href={`/promociones/${promo.slug}`}
                         className={buttonLinkStyles({ variant: "secondary" })}
                       >
-                        Ver detalle
+                        Ver Detalles
                       </Link>
                       <button
                         type="button"
