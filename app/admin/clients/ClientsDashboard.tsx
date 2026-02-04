@@ -32,7 +32,6 @@ type ClientsDashboardProps = {
   deleteAction: (formData: FormData) => void | Promise<void>;
   bulkDeleteAction: (ids: string[]) => Promise<{ ok: boolean; error?: string }>;
   initialQuery?: string;
-  initialMissing?: "all" | "phone";
   initialTags?: string;
 };
 
@@ -42,8 +41,6 @@ const normalizeText = (value: string) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
-const hasPhoneDigits = (value: string) => value.replace(/\D/g, "").length >= 7;
-
 export default function ClientsDashboard({
   clients,
   historyByKey,
@@ -52,12 +49,11 @@ export default function ClientsDashboard({
   deleteAction,
   bulkDeleteAction,
   initialQuery = "",
-  initialMissing = "all",
   initialTags = "",
 }: ClientsDashboardProps) {
   const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
-  const [missing, setMissing] = useState<"all" | "phone">(initialMissing);
+  const [selectedTag, setSelectedTag] = useState(initialTags);
   const [selectedTags, setSelectedTags] = useState<string[]>(() =>
     initialTags
       .split(",")
@@ -71,17 +67,14 @@ export default function ClientsDashboard({
       if (query.trim()) {
         params.set("q", query.trim());
       }
-      if (missing === "phone") {
-        params.set("missing", "phone");
-      }
-      if (selectedTags.length) {
-        params.set("tags", selectedTags.join(","));
+      if (selectedTag) {
+        params.set("tags", selectedTag);
       }
       const qs = params.toString();
       router.replace(qs ? `/admin/clients?${qs}` : "/admin/clients");
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [query, missing, selectedTags, router]);
+  }, [query, selectedTag, router]);
 
   const availableTags = useMemo(() => {
     const counts = new Map<string, { label: string; count: number }>();
@@ -101,30 +94,18 @@ export default function ClientsDashboard({
     return Array.from(counts.values()).sort((a, b) => b.count - a.count);
   }, [clients]);
 
-  const toggleTag = (tag: string) => {
-    setSelectedTags((current) => {
-      if (current.includes(tag)) {
-        return current.filter((value) => value !== tag);
-      }
-      return [...current, tag];
-    });
-  };
-
   const filteredClients = useMemo(() => {
     const normalizedQuery = normalizeText(query.trim());
     const tokens = normalizedQuery
       .split(",")
       .map((token) => token.trim())
       .filter(Boolean);
-    const normalizedSelected = selectedTags.map((tag) => normalizeText(tag));
+    const normalizedSelected = selectedTag ? normalizeText(selectedTag) : "";
 
     return clients.filter((client) => {
-      if (missing === "phone" && hasPhoneDigits(client.contact || "")) return false;
       const matchesSelected =
-        !normalizedSelected.length ||
-        client.tags.some((tag) =>
-          normalizedSelected.includes(normalizeText(tag))
-        );
+        !normalizedSelected ||
+        client.tags.some((tag) => normalizeText(tag) === normalizedSelected);
       if (!tokens.length) return matchesSelected;
       const nameValue = normalizeText(client.name);
       const matchesName = tokens.some((token) => nameValue.includes(token));
@@ -133,7 +114,7 @@ export default function ClientsDashboard({
       );
       return matchesSelected && (matchesName || matchesTag);
     });
-  }, [clients, missing, query, selectedTags]);
+  }, [clients, query, selectedTag]);
 
   return (
     <>
@@ -153,17 +134,17 @@ export default function ClientsDashboard({
           </div>
           <div className="space-y-2">
             <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-              Sin teléfono
+              Etiquetas
             </label>
             <ThemedSelect
-              name="missing"
-              value={missing}
-              onChange={(value) => setMissing(value === "phone" ? "phone" : "all")}
+              name="tags"
+              value={selectedTag}
+              onChange={(value) => setSelectedTag(value)}
               options={[
-                { value: "all", label: "Todos" },
-                { value: "phone", label: "Sin teléfono" },
+                { value: "", label: "Todas" },
+                ...availableTags.map((tag) => ({ value: tag.label, label: tag.label })),
               ]}
-              className="w-44"
+              className="w-48"
             />
           </div>
           <Button
@@ -171,40 +152,12 @@ export default function ClientsDashboard({
             variant="secondary"
             onClick={() => {
               setQuery("");
-              setMissing("all");
-              setSelectedTags([]);
+              setSelectedTag("");
             }}
           >
             Limpiar filtros
           </Button>
         </div>
-        {availableTags.length ? (
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-              Etiquetas populares
-            </span>
-            {availableTags.slice(0, 16).map((tag) => {
-              const active = selectedTags.includes(tag.label);
-              return (
-                <button
-                  key={tag.label}
-                  type="button"
-                  onClick={() => toggleTag(tag.label)}
-                  className={[
-                    "rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] transition",
-                    active
-                      ? "border-brand-500 bg-brand-50 text-brand-700"
-                      : "border-brand-200 text-brand-600 hover:border-brand-300 hover:text-brand-700",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
-                  {tag.label}
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
