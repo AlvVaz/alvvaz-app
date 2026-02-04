@@ -33,9 +33,12 @@ export default async function PromotionDetailPage({
   }));
 
   const ctaLabel = promotion.ctaLabel || "Reservar";
+  const whatsappNumber = "5214441717405";
   const ctaHref =
     promotion.ctaLink ||
-    `https://wa.me/?text=${encodeURIComponent(buildWhatsAppMessage(promotion.title))}`;
+    `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
+      buildWhatsAppMessage(promotion.title)
+    )}`;
 
   const availableRange =
     promotion.availableFrom && promotion.availableTo
