@@ -6,6 +6,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/prisma";
 import { ThemedSelect } from "@/components/ui/themed-select";
 import { AddAdminCard } from "./AddAdminCard";
+import DeleteUserForm from "./DeleteUserForm";
 
 type SettingsPageProps = {
   searchParams?: {
@@ -422,16 +423,13 @@ export default async function AdminSettingsPage({
                             Guardar
                           </button>
                         </form>
-                        <form action={deleteUser}>
-                          <input type="hidden" name="userId" value={user.id} />
-                          <button
-                            type="submit"
-                            disabled={!canEditRole}
-                            className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-rose-600 transition hover:border-rose-300 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            Eliminar
-                          </button>
-                        </form>
+                        <DeleteUserForm
+                          action={deleteUser}
+                          userId={user.id}
+                          label={user.username || user.email}
+                          disabled={!canEditRole}
+                          className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-rose-600 transition hover:border-rose-300 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        />
                       </div>
                       {!canEditRole ? (
                         <span className="w-full text-[11px] text-slate-400">

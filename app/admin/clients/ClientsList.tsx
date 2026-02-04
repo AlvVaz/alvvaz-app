@@ -8,6 +8,7 @@ import type { Client } from "@/lib/db";
 import { formatTags } from "@/lib/db/utils";
 import { Button } from "@/components/ui/button";
 import { ThemedSelect } from "@/components/ui/themed-select";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 
 type HistoryEntry = {
   type: "contract" | "trip";
@@ -47,6 +48,7 @@ export default function ClientsList({
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
+  const { confirm, dialog } = useConfirmDialog();
 
   const allSelected = useMemo(
     () => clients.length > 0 && selectedIds.size === clients.length,
@@ -76,12 +78,16 @@ export default function ClientsList({
   const handleBulkDelete = () => {
     const ids = Array.from(selectedIds);
     if (!ids.length) return;
-    startTransition(async () => {
-      const result = await bulkDeleteAction(ids);
-      if (result?.ok) {
-        setSelectedIds(new Set());
-        router.refresh();
-      }
+    const label =
+      ids.length === 1 ? "este cliente" : `${ids.length} clientes seleccionados`;
+    confirm(`Seguro que quieres eliminar ${label}?`, () => {
+      startTransition(async () => {
+        const result = await bulkDeleteAction(ids);
+        if (result?.ok) {
+          setSelectedIds(new Set());
+          router.refresh();
+        }
+      });
     });
   };
 
@@ -229,6 +235,14 @@ export default function ClientsList({
                       formAction={deleteAction}
                       variant="subtle"
                       className="border border-rose-300 bg-rose-50 text-rose-700 shadow-sm hover:border-rose-400 hover:text-rose-800"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        const submitter = event.currentTarget;
+                        confirm(`Seguro que quieres eliminar ${client.name}?`, () => {
+                          submitter.form?.requestSubmit(submitter);
+                        });
+                      }}
                     >
                       Eliminar
                     </Button>
@@ -270,6 +284,7 @@ export default function ClientsList({
           })}
         </div>
       )}
+      {dialog}
     </section>
   );
 }

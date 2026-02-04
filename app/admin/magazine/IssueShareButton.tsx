@@ -1,5 +1,7 @@
 "use client";
 
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
+
 type IssueShareButtonProps = {
   slug: string;
   title: string;
@@ -13,6 +15,7 @@ export default function IssueShareButton({
   deleteAction,
   issueId,
 }: IssueShareButtonProps) {
+  const { confirm, dialog } = useConfirmDialog();
   const handleClick = () => {
     const origin = window.location.origin;
     const shareUrl = `${origin}/magazine/${slug}/share`;
@@ -39,10 +42,19 @@ export default function IssueShareButton({
         <button
           type="submit"
           className="inline-flex rounded-full border border-rose-300 bg-rose-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-rose-700 shadow-sm hover:border-rose-400 hover:text-rose-800"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const submitter = event.currentTarget;
+            confirm(`Seguro que quieres eliminar ${title}?`, () => {
+              submitter.form?.requestSubmit(submitter);
+            });
+          }}
         >
           Eliminar
         </button>
       </form>
+      {dialog}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import type { FormEvent } from "react";
+import type { FormEvent, MouseEvent } from "react";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -8,6 +8,7 @@ import type { Contract, TripTraveler } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { ThemedSelect } from "@/components/ui/themed-select";
 import { useContractsToast } from "./ContractsToastProvider";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 
 type ContractFormProps = {
   action: (
@@ -70,6 +71,7 @@ export function ContractForm({
   const router = useRouter();
   const formRef = useRef<HTMLFormElement | null>(null);
   const { push: pushToast } = useContractsToast();
+  const { confirm, dialog } = useConfirmDialog();
   const seedContract = initialContract ?? draftContract ?? null;
   const initialTravelers = seedContract?.travelers?.length
     ? seedContract.travelers
@@ -334,6 +336,19 @@ export function ContractForm({
 
   const handleReset = (event: FormEvent<HTMLFormElement>) => {
     resetFormState();
+  };
+
+  const handleDeleteClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const submitter = event.currentTarget;
+    const label = initialContract?.title
+      ? `el contrato ${initialContract.title}`
+      : "este contrato";
+    confirm(`Seguro que quieres eliminar ${label}?`, () => {
+      pushToast("Contrato eliminado.", "info");
+      submitter.form?.requestSubmit(submitter);
+    });
   };
 
   const handleCollapseForm = () => {
@@ -983,13 +998,14 @@ export function ContractForm({
             type="submit"
             formAction={deleteAction}
             variant="subtle"
-            onClick={() => pushToast("Contrato eliminado.", "info")}
             className="border border-rose-300 bg-rose-50 text-rose-700 shadow-sm hover:border-rose-400 hover:text-rose-800"
+            onClick={handleDeleteClick}
           >
             Eliminar
           </Button>
         ) : null}
       </div>
+      {dialog}
     </form>
   );
 }

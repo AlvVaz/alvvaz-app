@@ -1,10 +1,11 @@
 "use client";
 
-import type { FormEvent } from "react";
+import type { FormEvent, MouseEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Trip, TripTraveler } from "@/lib/db";
 import { Button } from "@/components/ui/button";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 
 type TripFormProps = {
   action: (formData: FormData) => void;
@@ -16,6 +17,7 @@ type TripFormProps = {
 const emptyTraveler: TripTraveler = { name: "", phone: "", contract: "" };
 
 export function TripForm({ action, deleteAction, initialTrip, submitLabel }: TripFormProps) {
+  const { confirm, dialog } = useConfirmDialog();
   const [travelers, setTravelers] = useState<TripTraveler[]>(
     initialTrip?.travelers?.length ? initialTrip.travelers : [emptyTraveler]
   );
@@ -61,6 +63,18 @@ export function TripForm({ action, deleteAction, initialTrip, submitLabel }: Tri
     }
 
     setTravelers(initialTrip.travelers?.length ? initialTrip.travelers : [emptyTraveler]);
+  };
+
+  const handleDeleteClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const submitter = event.currentTarget;
+    const label = initialTrip?.destination
+      ? `el viaje a ${initialTrip.destination}`
+      : "este viaje";
+    confirm(`Seguro que quieres eliminar ${label}?`, () => {
+      submitter.form?.requestSubmit(submitter);
+    });
   };
 
   return (
@@ -225,11 +239,17 @@ export function TripForm({ action, deleteAction, initialTrip, submitLabel }: Tri
           {submitLabel}
         </Button>
         {deleteAction ? (
-          <Button type="submit" formAction={deleteAction} variant="subtle">
+          <Button
+            type="submit"
+            formAction={deleteAction}
+            variant="subtle"
+            onClick={handleDeleteClick}
+          >
             Eliminar
           </Button>
         ) : null}
       </div>
+      {dialog}
     </form>
   );
 }

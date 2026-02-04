@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import type { Trip } from "@/lib/db";
 import { Button } from "@/components/ui/button";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 
 import { TripForm } from "./TripForm";
 
@@ -35,6 +36,7 @@ export default function TripsSection({
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
+  const { confirm, dialog } = useConfirmDialog();
   const [stageOverrides, setStageOverrides] = useState<Record<string, number>>({});
   const [pendingStageId, setPendingStageId] = useState<string | null>(null);
 
@@ -64,12 +66,16 @@ export default function TripsSection({
   const handleBulkDelete = () => {
     const ids = Array.from(selectedIds);
     if (!ids.length) return;
-    startTransition(async () => {
-      const result = await bulkDeleteAction(ids);
-      if (result?.ok) {
-        setSelectedIds(new Set());
-        router.refresh();
-      }
+    const label =
+      ids.length === 1 ? "este viaje" : `${ids.length} viajes seleccionados`;
+    confirm(`Seguro que quieres eliminar ${label}?`, () => {
+      startTransition(async () => {
+        const result = await bulkDeleteAction(ids);
+        if (result?.ok) {
+          setSelectedIds(new Set());
+          router.refresh();
+        }
+      });
     });
   };
 
@@ -443,6 +449,7 @@ export default function TripsSection({
           ))}
         </div>
       )}
+      {dialog}
     </section>
   );
 }

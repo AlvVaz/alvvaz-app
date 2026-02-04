@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { Promotion } from "@/lib/db";
 import { cn, formatPriceMXN } from "@/lib/utils";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 
 import { PromotionFields } from "./PromotionFields";
 import { PromotionImagesManager } from "./PromotionImagesManager";
@@ -86,6 +87,7 @@ export function PromotionsAdminList({
   );
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [draggingStatus, setDraggingStatus] = useState<PromotionStatus | null>(null);
+  const { confirm, dialog } = useConfirmDialog();
 
   useEffect(() => {
     setItemsByStatus(groupPromotions(promotions));
@@ -280,7 +282,18 @@ export function PromotionsAdminList({
                             formAction={deleteAction}
                             variant="subtle"
                             className="border border-rose-300 bg-rose-50 text-rose-700 shadow-sm hover:border-rose-400 hover:text-rose-800"
-                            onClick={() => showToast("Promoción eliminada.", "info")}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              const submitter = event.currentTarget;
+                              confirm(
+                                `Seguro que quieres eliminar la promoción ${promotion.title}?`,
+                                () => {
+                                  showToast("Promoción eliminada.", "info");
+                                  submitter.form?.requestSubmit(submitter);
+                                }
+                              );
+                            }}
                           >
                             Eliminar
                           </Button>
@@ -308,6 +321,7 @@ export function PromotionsAdminList({
           {toast.message}
         </div>
       ) : null}
+      {dialog}
     </div>
   );
 }

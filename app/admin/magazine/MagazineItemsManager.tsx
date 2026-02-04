@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 
 type MagazineItem = {
   id: string;
@@ -26,6 +27,7 @@ export function MagazineItemsManager({ issueId, items }: MagazineItemsManagerPro
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(
     null
   );
+  const { confirm, dialog } = useConfirmDialog();
   const toastTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -86,16 +88,18 @@ export function MagazineItemsManager({ issueId, items }: MagazineItemsManagerPro
     }
   };
 
-  const handleDelete = async (itemId: string) => {
-    const response = await fetch(`/api/admin/magazine/items/${itemId}`, {
-      method: "DELETE",
+  const handleDelete = async (itemId: string, label: string) => {
+    confirm(`Seguro que quieres eliminar ${label}?`, async () => {
+      const response = await fetch(`/api/admin/magazine/items/${itemId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        showToast("No se pudo eliminar el archivo", "error");
+        return;
+      }
+      setLocalItems((prev) => prev.filter((item) => item.id !== itemId));
+      showToast("Archivo eliminado");
     });
-    if (!response.ok) {
-      showToast("No se pudo eliminar el archivo", "error");
-      return;
-    }
-    setLocalItems((prev) => prev.filter((item) => item.id !== itemId));
-    showToast("Archivo eliminado");
   };
 
   return (
@@ -155,7 +159,9 @@ export function MagazineItemsManager({ issueId, items }: MagazineItemsManagerPro
               </div>
               <button
                 type="button"
-                onClick={() => handleDelete(item.id)}
+                onClick={() =>
+                  handleDelete(item.id, item.title || item.fileUrl || "este archivo")
+                }
                 className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-rose-700 hover:border-rose-300"
                 aria-label="Eliminar archivo"
               >
@@ -179,6 +185,7 @@ export function MagazineItemsManager({ issueId, items }: MagazineItemsManagerPro
           </div>
         </div>
       ) : null}
+      {dialog}
     </div>
   );
 }

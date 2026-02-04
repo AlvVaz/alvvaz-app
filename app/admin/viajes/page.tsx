@@ -215,26 +215,28 @@ export default async function ViajesAdminPage({ searchParams }: ViajesAdminPageP
         </form>
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <details className="group">
-          <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="font-display text-lg text-brand-950">Nuevo viaje</h3>
-                <p className="mt-1 text-sm text-slate-600">
-                  Agrega destino, hotel, asesor y lista de viajeros.
-                </p>
+      {false ? (
+        <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <details className="group">
+            <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-display text-lg text-brand-950">Nuevo viaje</h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Agrega destino, hotel, asesor y lista de viajeros.
+                  </p>
+                </div>
+                <span className="rounded-full border border-brand-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+                  Agregar
+                </span>
               </div>
-              <span className="rounded-full border border-brand-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
-                Agregar
-              </span>
+            </summary>
+            <div className="border-t border-slate-200 px-6 py-4">
+              <TripForm action={createTripAction} submitLabel="Guardar viaje" />
             </div>
-          </summary>
-          <div className="border-t border-slate-200 px-6 py-4">
-            <TripForm action={createTripAction} submitLabel="Guardar viaje" />
-          </div>
-        </details>
-      </section>
+          </details>
+        </section>
+      ) : null}
 
       {showUpcoming &&
         (groupByYear ? (

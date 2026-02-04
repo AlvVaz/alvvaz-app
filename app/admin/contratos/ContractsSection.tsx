@@ -7,6 +7,7 @@ import type { Contract } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { ThemedSelect } from "@/components/ui/themed-select";
 import { cn } from "@/lib/utils";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 
 import { ContractForm } from "./ContractForm";
 import ContractSummaryActions from "./ContractSummaryActions";
@@ -60,6 +61,7 @@ export default function ContractsSection({
   const [sortMode, setSortMode] = useState("recent");
   const [isPending, startTransition] = useTransition();
   const { push: pushToast } = useContractsToast();
+  const { confirm, dialog } = useConfirmDialog();
   const router = useRouter();
 
   const sortedContracts = useMemo(() => {
@@ -115,15 +117,19 @@ export default function ContractsSection({
   const handleBulkDelete = () => {
     const ids = Array.from(selectedIds);
     if (!ids.length) return;
-    startTransition(async () => {
-      const result = await bulkDeleteAction(ids);
-      if (result?.ok) {
-        setSelectedIds(new Set());
-        pushToast("Contratos eliminados.", "info");
-        router.refresh();
-      } else {
-        pushToast(result?.error || "No se pudo eliminar.", "error");
-      }
+    const label =
+      ids.length === 1 ? "este contrato" : `${ids.length} contratos seleccionados`;
+    confirm(`Seguro que quieres eliminar ${label}?`, () => {
+      startTransition(async () => {
+        const result = await bulkDeleteAction(ids);
+        if (result?.ok) {
+          setSelectedIds(new Set());
+          pushToast("Contratos eliminados.", "info");
+          router.refresh();
+        } else {
+          pushToast(result?.error || "No se pudo eliminar.", "error");
+        }
+      });
     });
   };
 
@@ -284,6 +290,7 @@ export default function ContractsSection({
           ))}
         </div>
       )}
+      {dialog}
     </section>
   );
 }
