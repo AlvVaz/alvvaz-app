@@ -110,7 +110,13 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
     });
   });
 
-  const query = String(searchParams?.q ?? "").trim().toLowerCase();
+  const normalizeText = (value: string) =>
+    value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+  const query = normalizeText(String(searchParams?.q ?? "").trim());
   const tokens = query
     .split(",")
     .map((token) => token.trim())
@@ -122,10 +128,10 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   const filteredClients = clients.filter((client) => {
     if (missingPhone && hasPhoneDigits(client.contact || "")) return false;
     if (!tokens.length) return true;
-    const nameValue = client.name.toLowerCase();
+    const nameValue = normalizeText(client.name);
     const matchesName = tokens.some((token) => nameValue.includes(token));
     const matchesTag = client.tags.some((tag) =>
-      tokens.some((token) => tag.toLowerCase().includes(token))
+      tokens.some((token) => normalizeText(tag).includes(token))
     );
     return matchesName || matchesTag;
   });
