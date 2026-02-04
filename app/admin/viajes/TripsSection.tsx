@@ -322,39 +322,43 @@ export default function TripsSection({
                               </div>
                             </div>
 
-                            <div className="mt-2 overflow-hidden rounded-full bg-slate-200">
-                              <div className="grid h-1 grid-cols-3 divide-x divide-white/70">
-                                  {stageLabels.map((labelText, index) => {
-                                    const isActive = stage >= index + 1;
-                                    const palette = stagePalette[index];
-                                    const segmentClasses = [
-                                      "h-1 transition",
-                                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
-                                      "disabled:cursor-not-allowed disabled:opacity-60",
-                                      isActive
-                                        ? palette.active
-                                        : "bg-transparent",
-                                    ]
-                                      .filter(Boolean)
-                                      .join(" ");
+                            <div className="md:grid md:grid-cols-[auto_2fr_1.6fr_1.3fr_0.9fr]">
+                              <div className="md:col-start-3">
+                                <div className="mt-2 w-full overflow-hidden rounded-full bg-slate-200">
+                                  <div className="grid h-1 grid-cols-3 divide-x divide-white/70">
+                                    {stageLabels.map((labelText, index) => {
+                                      const isActive = stage >= index + 1;
+                                      const palette = stagePalette[index];
+                                      const segmentClasses = [
+                                        "h-1 transition",
+                                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
+                                        "disabled:cursor-not-allowed disabled:opacity-60",
+                                        isActive
+                                          ? palette.active
+                                          : "bg-transparent",
+                                      ]
+                                        .filter(Boolean)
+                                        .join(" ");
 
-                                    return (
-                                      <button
-                                        key={labelText}
-                                        type="button"
-                                        aria-pressed={isActive}
-                                        aria-label={`Marcar ${labelText}`}
-                                        disabled={isStagePending}
-                                        onClick={(event) => {
-                                          event.preventDefault();
-                                          event.stopPropagation();
-                                          handleStageChange(trip.id, index + 1);
-                                        }}
-                                        className={segmentClasses}
-                                      />
-                                    );
-                                  })}
+                                      return (
+                                        <button
+                                          key={labelText}
+                                          type="button"
+                                          aria-pressed={isActive}
+                                          aria-label={`Marcar ${labelText}`}
+                                          disabled={isStagePending}
+                                          onClick={(event) => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            handleStageChange(trip.id, index + 1);
+                                          }}
+                                          className={segmentClasses}
+                                        />
+                                      );
+                                    })}
+                                  </div>
                                 </div>
+                              </div>
                             </div>
                           </div>
                         );
