@@ -60,6 +60,7 @@ export default function ClientsDashboard({
       .filter(Boolean)
   );
   const [tagMenuOpen, setTagMenuOpen] = useState(false);
+  const [tagSearch, setTagSearch] = useState("");
   const tagMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -106,6 +107,14 @@ export default function ClientsDashboard({
     return Array.from(counts.values()).sort((a, b) => b.count - a.count);
   }, [clients]);
 
+  const filteredTagOptions = useMemo(() => {
+    const queryValue = normalizeText(tagSearch.trim());
+    if (!queryValue) return availableTags;
+    return availableTags.filter((tag) =>
+      normalizeText(tag.label).includes(queryValue)
+    );
+  }, [availableTags, tagSearch]);
+
   const filteredClients = useMemo(() => {
     const normalizedQuery = normalizeText(query.trim());
     const tokens = normalizedQuery
@@ -145,6 +154,12 @@ export default function ClientsDashboard({
     });
   };
 
+  useEffect(() => {
+    if (!tagMenuOpen) {
+      setTagSearch("");
+    }
+  }, [tagMenuOpen]);
+
   return (
     <>
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -157,7 +172,7 @@ export default function ClientsDashboard({
               name="q"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Cancún, familiar, Miguel..."
+              placeholder="Empieza a escribir"
               className="w-64 rounded-2xl border border-slate-200 px-4 py-2 text-sm"
             />
           </div>
@@ -196,6 +211,14 @@ export default function ClientsDashboard({
               </button>
               {tagMenuOpen ? (
                 <div className="absolute z-30 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
+                  <div className="px-2 pb-2">
+                    <input
+                      value={tagSearch}
+                      onChange={(event) => setTagSearch(event.target.value)}
+                      placeholder="Filtrar etiquetas..."
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={() => setSelectedTags([])}
@@ -216,7 +239,7 @@ export default function ClientsDashboard({
                     ) : null}
                   </button>
                   <div className="max-h-64 overflow-y-auto">
-                    {availableTags.map((tag) => {
+                    {filteredTagOptions.map((tag) => {
                       const active = selectedTags.includes(tag.label);
                       return (
                         <button
@@ -241,6 +264,11 @@ export default function ClientsDashboard({
                         </button>
                       );
                     })}
+                    {!filteredTagOptions.length ? (
+                      <div className="px-3 py-2 text-xs text-slate-400">
+                        Sin resultados
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               ) : null}
