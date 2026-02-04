@@ -104,14 +104,17 @@ export async function createContractAction(
   });
 
   await updateContract(contract.id, { tripId: trip.id });
-  const travelersForSync =
-    travelers.length > 0
-      ? travelers
-      : clientName
-      ? [{ name: clientName, phone: "", contract: contractNumber || "" }]
-      : [];
+  const primaryTraveler = clientName
+    ? [
+        {
+          name: clientName,
+          phone: travelers[0]?.phone || "",
+          contract: contractNumber || "",
+        },
+      ]
+    : [];
 
-  await syncClientsFromTravelers(travelersForSync, {
+  await syncClientsFromTravelers(primaryTraveler, {
     source: "contract",
     destination,
     hotel,
@@ -194,14 +197,17 @@ export async function updateContractAction(
     // TODO: Auto-generate a trip once the contract is approved.
   }
 
-  const travelersForSync =
-    travelers.length > 0
-      ? travelers
-      : clientName
-      ? [{ name: clientName, phone: "", contract: contractNumber || "" }]
-      : [];
+  const primaryTraveler = clientName
+    ? [
+        {
+          name: clientName,
+          phone: travelers[0]?.phone || "",
+          contract: contractNumber || "",
+        },
+      ]
+    : [];
 
-  await syncClientsFromTravelers(travelersForSync, {
+  await syncClientsFromTravelers(primaryTraveler, {
     source: "contract",
     destination,
     hotel,
