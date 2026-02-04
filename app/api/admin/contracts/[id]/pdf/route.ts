@@ -170,42 +170,41 @@ export async function POST(
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([595.28, 841.89]); // A4 portrait
   const { width, height } = page.getSize();
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const fontItalic = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+  const loadFont = async (fileName: string, fallback: StandardFonts) => {
+    try {
+      const fontBytes = await readFile(path.join(process.cwd(), "public", "fonts", fileName));
+      return await pdfDoc.embedFont(fontBytes);
+    } catch {
+      return await pdfDoc.embedFont(fallback);
+    }
+  };
+
+  const headingFont = await loadFont("Montserrat-Regular.ttf", StandardFonts.Helvetica);
+  const headingBold = await loadFont("Montserrat-Bold.ttf", StandardFonts.HelveticaBold);
+  const bodyFont = await loadFont("Rubik-Regular.ttf", StandardFonts.Helvetica);
+  const bodyBold = await loadFont("Rubik-Bold.ttf", StandardFonts.HelveticaBold);
 
   const margin = 38;
   const brand = {
-    ink: rgb(0.08, 0.12, 0.2),
-    muted: rgb(0.38, 0.44, 0.52),
-    accent: rgb(0.16, 0.36, 0.78),
-    accentSoft: rgb(0.9, 0.94, 0.99),
-    line: rgb(0.82, 0.87, 0.93),
-    highlight: rgb(0.98, 0.9, 0.55),
+    ink: rgb(0, 0, 0),
+    muted: rgb(0.32, 0.32, 0.32),
+    line: rgb(0.7, 0.7, 0.7),
+    highlight: rgb(1, 1, 0.47), // #FFFF77
   };
-  const headerBandHeight = 92;
-  const headerBandWidth = width - margin * 2;
-  const headerBandTop = height - margin;
-  const headerBandY = headerBandTop - headerBandHeight;
-  const headerRightX = width - margin - 260;
-
-  page.drawRectangle({
-    x: margin,
-    y: headerBandY,
-    width: headerBandWidth,
-    height: headerBandHeight,
-    color: brand.accentSoft,
-  });
+  const headerTop = height - margin;
+  const headerRightX = width - margin - 255;
 
   // Logo
+  let logoBottomY = headerTop - 80;
   try {
     const logoPath = path.join(process.cwd(), "public", "logoalvvaz.png");
     const logoBytes = await readFile(logoPath);
     const logoImage = await pdfDoc.embedPng(logoBytes);
-    const logoDims = logoImage.scale(0.1);
+    const logoDims = logoImage.scale(0.16);
+    logoBottomY = headerTop - logoDims.height;
     page.drawImage(logoImage, {
-      x: margin + 10,
-      y: headerBandY + headerBandHeight - logoDims.height - 10,
+      x: margin + 6,
+      y: logoBottomY,
       width: logoDims.width,
       height: logoDims.height,
     });
@@ -213,90 +212,88 @@ export async function POST(
     // If logo isn't available, continue without it.
   }
 
-  page.drawText("Reserva de viaje a la playa", {
+  const titleText = (contract.title || "RESERVA DE VIAJE").toUpperCase();
+  page.drawText(titleText, {
     x: headerRightX,
-    y: headerBandY + headerBandHeight - 24,
-    size: 11,
-    font: fontBold,
+    y: headerTop - 18,
+    size: 12,
+    font: headingBold,
     color: brand.ink,
   });
 
   const contractLabel = "CONTRATO";
   const contractNumber = `#${contract.contractNumber ?? ""}`;
-  const contractLabelSize = 9;
-  const contractNumberSize = 9;
-  const labelWidth = fontBold.widthOfTextAtSize(contractLabel, contractLabelSize);
-  const numberWidth = fontBold.widthOfTextAtSize(
-    contractNumber,
-    contractNumberSize
-  );
+  const contractLabelSize = 11;
+  const contractNumberSize = 11;
+  const labelWidth = headingBold.widthOfTextAtSize(contractLabel, contractLabelSize);
+  const numberWidth = headingBold.widthOfTextAtSize(contractNumber, contractNumberSize);
   const badgePaddingX = 4;
-  const badgeHeight = 13;
-  const badgeY = headerBandY + headerBandHeight - 44;
-  page.drawText(contractLabel, {
-    x: headerRightX,
-    y: badgeY + 2,
-    size: contractLabelSize,
-    font: fontBold,
-    color: brand.ink,
-  });
+  const badgeHeight = 14;
+  const badgeY = headerTop - 40;
   page.drawRectangle({
-    x: headerRightX + labelWidth + 6,
-    y: badgeY,
-    width: numberWidth + badgePaddingX * 2,
+    x: headerRightX,
+    y: badgeY - 2,
+    width: labelWidth + badgePaddingX * 2,
     height: badgeHeight,
     color: brand.highlight,
   });
+  page.drawText(contractLabel, {
+    x: headerRightX + badgePaddingX,
+    y: badgeY,
+    size: contractLabelSize,
+    font: headingBold,
+    color: brand.ink,
+  });
   page.drawText(contractNumber, {
-    x: headerRightX + labelWidth + 6 + badgePaddingX,
-    y: badgeY + 2,
+    x: headerRightX + labelWidth + badgePaddingX * 2 + 6,
+    y: badgeY,
     size: contractNumberSize,
-    font: fontBold,
+    font: headingBold,
     color: brand.ink,
   });
 
   const headerInfoX = headerRightX;
-  let headerInfoY = headerBandY + headerBandHeight - 60;
+  let headerInfoY = headerTop - 58;
   const headerLines = [
     `FECHA DE RESERVA: ${parseDate(contract.reservationDate)}`,
     "AGENCIA DE VIAJES ALVVAZ",
     "HERNAN CORTES #508-A COL. INDUSTRIAL AVIACION",
     `NOMBRE DEL CLIENTE: ${contract.clientName}`,
   ];
-  headerLines.forEach((line) => {
+  headerLines.forEach((line, index) => {
     page.drawText(line, {
       x: headerInfoX,
       y: headerInfoY,
-      size: 7,
-      font: fontBold,
-      color: brand.muted,
+      size: index === 0 ? 8 : 7,
+      font: index === 0 ? headingBold : headingFont,
+      color: brand.ink,
     });
-    headerInfoY -= 10;
+    headerInfoY -= index === 0 ? 11 : 9;
   });
 
   page.drawText("Mas de 9 Años nos Respalda!...", {
-    x: margin + 12,
-    y: headerBandY + 10,
+    x: margin + 6,
+    y: logoBottomY - 18,
     size: 8,
-    font: fontItalic,
+    font: bodyFont,
     color: brand.muted,
   });
 
-  let cursorY = headerBandY - 18;
+  let cursorY = headerTop - 150;
 
   // Vendor/Agency/Destination/Dates row
   const rowX = margin;
   const rowWidth = width - margin * 2;
   const rowHeight = 18;
-  page.drawRectangle({
-    x: rowX,
-    y: cursorY - rowHeight,
-    width: rowWidth,
-    height: rowHeight,
-    borderWidth: 0.5,
-    borderColor: brand.line,
-  });
-  const colWidths = [rowWidth * 0.24, rowWidth * 0.24, rowWidth * 0.26, rowWidth * 0.26];
+  const rowLabelY = cursorY;
+  const rowBoxTopY = rowLabelY - 6;
+  const rowBoxBottomY = rowBoxTopY - rowHeight;
+  const colWidths = [
+    rowWidth * 0.24,
+    rowWidth * 0.24,
+    rowWidth * 0.26,
+    rowWidth * 0.26,
+  ];
   const colLabels = ["Vendedor", "AGENCIA", "DESTINO", "FECHAS DE VIAJE"];
   const colValues = [
     contract.seller ?? contract.organizer ?? "",
@@ -307,32 +304,47 @@ export async function POST(
       .map((value) => parseDateShort(value))
       .join(" AL "),
   ];
-  let colX = rowX;
+  let labelX = rowX;
   colLabels.forEach((label, index) => {
     page.drawText(label, {
-      x: colX + 4,
-      y: cursorY + 6,
+      x: labelX + 2,
+      y: rowLabelY,
       size: 7,
-      font: font,
-      color: brand.muted,
+      font: headingFont,
+      color: brand.ink,
     });
+    labelX += colWidths[index];
+  });
+  page.drawRectangle({
+    x: rowX,
+    y: rowBoxBottomY,
+    width: rowWidth,
+    height: rowHeight,
+    borderWidth: 0.5,
+    borderColor: brand.line,
+  });
+  let colX = rowX;
+  colValues.forEach((value, index) => {
     const valueText = colValues[index] || "-";
     const maxTextWidth = colWidths[index] - 8;
     let valueSize = 8;
-    while (valueSize > 6 && fontBold.widthOfTextAtSize(valueText, valueSize) > maxTextWidth) {
+    while (
+      valueSize > 6 &&
+      headingBold.widthOfTextAtSize(valueText, valueSize) > maxTextWidth
+    ) {
       valueSize -= 0.5;
     }
     page.drawText(valueText, {
       x: colX + 4,
-      y: cursorY - 12,
+      y: rowBoxBottomY + 5,
       size: valueSize,
-      font: fontBold,
+      font: headingBold,
       color: brand.ink,
     });
-    if (index < colLabels.length - 1) {
+    if (index < colValues.length - 1) {
       page.drawLine({
-        start: { x: colX + colWidths[index], y: cursorY + 2 },
-        end: { x: colX + colWidths[index], y: cursorY - rowHeight + 2 },
+        start: { x: colX + colWidths[index], y: rowBoxTopY },
+        end: { x: colX + colWidths[index], y: rowBoxBottomY },
         thickness: 0.5,
         color: brand.line,
       });
@@ -340,7 +352,7 @@ export async function POST(
     colX += colWidths[index];
   });
 
-  cursorY -= 40;
+  cursorY = rowBoxBottomY - 26;
 
   // Description table
   const tableX = margin;
@@ -359,7 +371,6 @@ export async function POST(
     y: tableHeaderBottomY,
     width: tableWidth,
     height: tableHeaderHeight,
-    color: brand.accentSoft,
     borderWidth: 0.5,
     borderColor: brand.line,
   });
@@ -377,22 +388,22 @@ export async function POST(
     x: tableX + 4,
     y: headerTextY,
     size: 8,
-    font,
-    color: brand.muted,
+    font: headingFont,
+    color: brand.ink,
   });
   page.drawText("Descripción de lo contratado:", {
     x: tableX + tableCols[0] + 4,
     y: headerTextY,
     size: 8,
-    font,
-    color: brand.muted,
+    font: headingFont,
+    color: brand.ink,
   });
   page.drawText("COSTOS", {
     x: tableX + tableCols[0] + tableCols[1] + 4,
     y: headerTextY,
     size: 8,
-    font,
-    color: brand.muted,
+    font: headingFont,
+    color: brand.ink,
   });
 
   cursorY = tableHeaderBottomY;
@@ -426,15 +437,15 @@ export async function POST(
       x: tableX + 4,
       y: rowY - 12,
       size: 8,
-      font,
+      font: bodyFont,
       color: brand.ink,
     });
-    const detailLines = wrapText(details, tableCols[1] - 8, font, 8);
+    const detailLines = wrapText(details, tableCols[1] - 8, bodyFont, 8);
     page.drawText(detailLines[0] ?? "", {
       x: tableX + tableCols[0] + 4,
       y: rowY - 12,
       size: 8,
-      font,
+      font: bodyFont,
       color: brand.ink,
     });
     if (index === 0 && total) {
@@ -442,7 +453,7 @@ export async function POST(
         x: tableX + tableCols[0] + tableCols[1] + 6,
         y: rowY - 12,
         size: 8,
-        font,
+        font: bodyFont,
         color: brand.ink,
       });
     }
@@ -450,13 +461,49 @@ export async function POST(
 
   cursorY -= tableRowHeight * descriptionLines.length + 10;
 
+  const notesText = contract.notes?.trim() || "";
+  const notesLabel = "NOTAS";
+  page.drawText(notesLabel, {
+    x: tableX,
+    y: cursorY,
+    size: 8,
+    font: headingFont,
+    color: brand.ink,
+  });
+  cursorY -= 10;
+  const notesWidth = tableWidth;
+  const notesLines = notesText
+    ? wrapText(notesText, notesWidth - 10, bodyFont, 8)
+    : [""];
+  const notesHeight = Math.max(32, notesLines.length * 9 + 8);
+  page.drawRectangle({
+    x: tableX,
+    y: cursorY - notesHeight,
+    width: notesWidth,
+    height: notesHeight,
+    borderWidth: 0.5,
+    borderColor: brand.line,
+  });
+  let notesY = cursorY - 14;
+  notesLines.forEach((line) => {
+    page.drawText(line, {
+      x: tableX + 4,
+      y: notesY,
+      size: 8,
+      font: bodyFont,
+      color: brand.ink,
+    });
+    notesY -= 9;
+  });
+  cursorY -= notesHeight + 14;
+
   const liquidationText = `LIQUIDACION DEL VIAJE: ${parseDate(contract.liquidationDate) || "-"}`;
   page.drawText(liquidationText, {
     x: tableX + 140,
     y: cursorY,
     size: 8,
-    font,
-    color: brand.muted,
+    font: headingFont,
+    color: brand.ink,
   });
 
   const costBoxX = tableX + tableWidth * 0.7;
@@ -468,7 +515,6 @@ export async function POST(
     y: costBoxY - costBoxHeight,
     width: costBoxWidth,
     height: costBoxHeight,
-    color: brand.accentSoft,
     borderWidth: 0.5,
     borderColor: brand.line,
   });
@@ -485,14 +531,14 @@ export async function POST(
       x: costBoxX + 6,
       y: lineY,
       size: 7,
-      font,
-      color: brand.muted,
+      font: headingFont,
+      color: brand.ink,
     });
     page.drawText(line[1], {
       x: costBoxX + costBoxWidth - 50,
       y: lineY,
       size: 7,
-      font,
+      font: bodyFont,
       color: brand.ink,
     });
   });
@@ -500,34 +546,34 @@ export async function POST(
   cursorY -= 70;
 
   const consultaText = "CONSULTA PLAN DE PAGOS PARA LA LIQUIDACION DE TU RESERVA";
-  const consultaWidth = font.widthOfTextAtSize(consultaText, 7);
+  const consultaWidth = headingFont.widthOfTextAtSize(consultaText, 7);
   page.drawText(consultaText, {
     x: (width - consultaWidth) / 2,
     y: cursorY,
     size: 7,
-    font,
+    font: headingFont,
     color: brand.muted,
   });
   cursorY -= 14;
   const graciasText = "Gracias por tu confianza.";
-  const graciasWidth = fontBold.widthOfTextAtSize(graciasText, 8);
+  const graciasWidth = headingBold.widthOfTextAtSize(graciasText, 8);
   page.drawText(graciasText, {
     x: (width - graciasWidth) / 2,
     y: cursorY,
     size: 8,
-    font: fontBold,
+    font: headingBold,
     color: brand.ink,
   });
 
   cursorY -= 30;
   const policyTitle = "POLITICAS GENERALES:";
-  const policyTitleWidth = fontBold.widthOfTextAtSize(policyTitle, 8);
+  const policyTitleWidth = headingFont.widthOfTextAtSize(policyTitle, 8);
   page.drawText(policyTitle, {
     x: (width - policyTitleWidth) / 2,
     y: cursorY,
     size: 8,
-    font: fontBold,
-    color: brand.accent,
+    font: headingFont,
+    color: brand.muted,
   });
 
   cursorY -= 12;
@@ -540,41 +586,37 @@ export async function POST(
     { text: "EL TEMA DE CANCELACIONES DE HOTELERIA:", level: 0 },
     { text: "SI CANCELAS 270 A 300 DIAS ANTES DE TU VIAJE LA PENALIDAD APLICABLE ES DEL 10% SOBRE EL TOTAL DEL VIAJE CONTRATADO", level: 1 },
     { text: "SI CANCELAS DE 180 A 269 ANTES DE TU VIAJE LA PENALIDAD APLICABLE ES DEL 30% SOBRE EL TOTAL DEL VIAJE CONTRATADO", level: 1 },
-    { text: "SI CANCELAS DE 46 A 179 DIAS ANTES DE TU VIAJE LA PENALIDAD APLICABLE ES DEL 55% SOBRE EL TOTAL DEL VIAJE CONTRATADO", level: 1 },
+    { text: "SI CANCELAS DE 46 A 179 DIAS ANTES DE TU VIAJE LA PENALIDAD APLICABLE ES DE 55% SOBRE EL TOTAL DEL VIAJE CONTRATADO", level: 1 },
     { text: "SI CANCELAS DE 16 A 45 DIAS ANTES DE TU VIAJE LA PENALIDAD APLICABLE ES DE 85% SOBRE EL TOTAL DEL VIAJE CONTRATADO", level: 1 },
     { text: "TODA RESERVA CANCELADA 15 A 0 DIAS ANTES DEL VIAJE APLICA LA PENALIDAD DEL 100% SOBRE EL TOTAL DEL VIAJE CONTRATADO", level: 1 },
-    { text: "AL SER FIRMADO ESTE DOCUMENTO POR EL CLIENTE, ACEPTA HABER LEIDO Y ESTAR CONFORME CON LAS POLITICAS.", level: 1 },
+    { text: "AL SER FIRMADO ESTE DOCUMENTO POR EL CLIENTE, ACEPTA HABER LEIDO Y ESTAR CONFORME CON LAS POLITICAS.", level: 0 },
   ];
 
   const policyLineHeight = 1.35;
-  const policyGap = 6;
-  const policySubGap = 4;
+  const policyGap = 5;
+  const policySubGap = 2;
   policies.forEach((policy) => {
-    const bullet = policy.level === 0 ? "•" : "–";
-    const bulletIndent = policy.level === 0 ? 12 : 24;
+    const bullet = policy.level === 0 ? "•" : "";
+    const bulletIndent = policy.level === 0 ? 12 : 26;
     const bulletMaxWidth = width - margin * 2 - bulletIndent;
-    page.drawText(bullet, {
-      x: margin + (policy.level === 0 ? 0 : 10),
-      y: cursorY,
-      size: 6.5,
-      font,
-      color: brand.muted,
-    });
-    const tokens = policy.text.split(/(\s+)/).filter(Boolean).map((part) => ({
-      text: part,
-      bold: /[0-9%]/.test(part),
-    }));
-    cursorY = drawWrappedTokens(
+    if (bullet) {
+      page.drawText(bullet, {
+        x: margin + 2,
+        y: cursorY,
+        size: 6.5,
+        font: bodyFont,
+        color: brand.muted,
+      });
+    }
+    cursorY = drawWrapped(
       page,
-      tokens,
+      policy.text,
       margin + bulletIndent,
       cursorY,
       bulletMaxWidth,
-      font,
-      fontBold,
+      bodyFont,
       6.5,
       brand.muted,
-      brand.ink,
       policyLineHeight
     );
     cursorY -= policy.level === 0 ? policyGap : policySubGap;
@@ -583,22 +625,22 @@ export async function POST(
   cursorY -= 6;
   const addressLine =
     "HERNAN CORTES #508-A COL. INDUSTRIAL AVIACION / CALLE 30 #689 VILLAS DEL SOL";
-  const addressWidth = fontBold.widthOfTextAtSize(addressLine, 7);
+  const addressWidth = headingBold.widthOfTextAtSize(addressLine, 7);
   page.drawText(addressLine, {
     x: (width - addressWidth) / 2,
     y: cursorY,
     size: 7,
-    font: fontBold,
+    font: headingBold,
     color: brand.muted,
   });
   cursorY -= 16;
   const firmaLine = "FIRMA:______________________________ AGENCIA ALVVAZ";
-  const firmaWidth = font.widthOfTextAtSize(firmaLine, 7);
+  const firmaWidth = bodyFont.widthOfTextAtSize(firmaLine, 7);
   page.drawText(firmaLine, {
     x: (width - firmaWidth) / 2,
     y: cursorY,
     size: 7,
-    font,
+    font: bodyFont,
     color: brand.muted,
   });
 
