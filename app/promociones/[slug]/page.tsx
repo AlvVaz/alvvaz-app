@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 
 import { Container } from "@/components/container";
 import { ImageCarousel } from "@/components/image-carousel";
@@ -14,8 +15,16 @@ type PromotionDetailPageProps = {
   params: { slug: string } | Promise<{ slug: string }>;
 };
 
-function buildWhatsAppMessage(title: string) {
-  return `Hola, me interesa la promoción: ${title}. ¿Me compartes más detalles?`;
+function buildWhatsAppMessage(title: string, url: string) {
+  return `Hola, me interesa la promoción: ${title}. ¿Me compartes más detalles?\n${url}`;
+}
+
+function getBaseUrl() {
+  const headerList = headers();
+  const proto = headerList.get("x-forwarded-proto") ?? "https";
+  const host = headerList.get("x-forwarded-host") ?? headerList.get("host") ?? "";
+  if (!host) return "";
+  return `${proto}://${host}`;
 }
 
 export default async function PromotionDetailPage({
@@ -34,10 +43,12 @@ export default async function PromotionDetailPage({
 
   const ctaLabel = promotion.ctaLabel || "Reservar";
   const whatsappNumber = "5214441717405";
+  const baseUrl = getBaseUrl();
+  const promotionUrl = `${baseUrl}/promociones/${promotion.slug}`;
   const ctaHref =
     promotion.ctaLink ||
     `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
-      buildWhatsAppMessage(promotion.title)
+      buildWhatsAppMessage(promotion.title, promotionUrl)
     )}`;
 
   const availableRange =

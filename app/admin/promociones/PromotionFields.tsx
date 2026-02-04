@@ -1,9 +1,13 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { TagsInput } from "./TagsInput";
 import { ThemedSelect } from "@/components/ui/themed-select";
 
 import type { Promotion } from "@/lib/db";
+import { slugify } from "@/lib/db/utils";
 
 type PromotionFieldsProps = {
   defaults?: Partial<Promotion>;
@@ -16,6 +20,40 @@ export function PromotionFields({
   presetTags,
   afterDescription,
 }: PromotionFieldsProps) {
+  const [baseUrl, setBaseUrl] = useState("");
+  const [titleValue, setTitleValue] = useState(defaults?.title ?? "");
+  const [ctaLinkValue, setCtaLinkValue] = useState(defaults?.ctaLink ?? "");
+  const [ctaLinkTouched, setCtaLinkTouched] = useState(Boolean(defaults?.ctaLink));
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setBaseUrl(window.location.origin);
+  }, []);
+
+  useEffect(() => {
+    if (!defaults?.title) return;
+    setTitleValue(defaults.title);
+  }, [defaults?.title]);
+
+  const promotionSlug = useMemo(() => {
+    return defaults?.slug || slugify(titleValue);
+  }, [defaults?.slug, titleValue]);
+
+  const defaultCtaLink = useMemo(() => {
+    if (!baseUrl) return "";
+    const promotionUrl = promotionSlug
+      ? `${baseUrl}/promociones/${promotionSlug}`
+      : `${baseUrl}/promociones`;
+    const message = `Hola, me interesa la promoción: ${titleValue}. ¿Me pudieras dar más detalles?\n${promotionUrl}`;
+    return `https://wa.me/5214441717405?text=${encodeURIComponent(message)}`;
+  }, [baseUrl, promotionSlug, titleValue]);
+
+  useEffect(() => {
+    if (ctaLinkTouched) return;
+    if (!defaultCtaLink) return;
+    setCtaLinkValue(defaultCtaLink);
+  }, [ctaLinkTouched, defaultCtaLink]);
+
   return (
     <div className="grid gap-4 text-sm md:grid-cols-2">
       <div className="space-y-2">
@@ -24,7 +62,13 @@ export function PromotionFields({
         </label>
         <input
           name="title"
-          defaultValue={defaults?.title ?? ""}
+          value={titleValue}
+          onChange={(event) => {
+            setTitleValue(event.target.value);
+            if (!ctaLinkTouched) {
+              setCtaLinkValue("");
+            }
+          }}
           placeholder="Escapada Premium en Cancún"
           className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
           required
@@ -300,7 +344,11 @@ Spa`}
           </label>
           <input
             name="ctaLink"
-            defaultValue={defaults?.ctaLink ?? ""}
+            value={ctaLinkValue}
+            onChange={(event) => {
+              setCtaLinkTouched(true);
+              setCtaLinkValue(event.target.value);
+            }}
             placeholder="https://wa.me/?text=..."
             className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
           />
