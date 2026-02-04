@@ -217,7 +217,7 @@ export function PromocionesGrid({ promotions }: PromocionesGridProps) {
                         onClick={() => handleShare(promo, shareUrl)}
                         className={buttonLinkStyles({ variant: "secondary" })}
                       >
-                        Enviar
+                        Compartir
                       </button>
                     </div>
                     {isShareOpen ? (
