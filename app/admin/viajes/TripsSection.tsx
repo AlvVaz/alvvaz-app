@@ -324,13 +324,13 @@ export default function TripsSection({
 
                             <div className="md:grid md:grid-cols-[auto_2fr_1.6fr_1.3fr_0.9fr]">
                               <div className="md:col-start-3">
-                                <div className="mt-2 w-full overflow-hidden rounded-full bg-slate-200">
-                                  <div className="grid h-1 grid-cols-3 divide-x divide-white/70">
+                                <div className="mt-2 w-full max-w-[220px] overflow-hidden rounded-full bg-slate-200">
+                                  <div className="grid h-3 grid-cols-3 divide-x divide-white/70">
                                     {stageLabels.map((labelText, index) => {
                                       const isActive = stage >= index + 1;
                                       const palette = stagePalette[index];
                                       const segmentClasses = [
-                                        "h-1 transition",
+                                        "h-3 transition",
                                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
                                         "disabled:cursor-not-allowed disabled:opacity-60",
                                         isActive
