@@ -33,6 +33,7 @@ type ClientsDashboardProps = {
   bulkDeleteAction: (ids: string[]) => Promise<{ ok: boolean; error?: string }>;
   initialQuery?: string;
   initialMissing?: "all" | "phone";
+  initialTags?: string;
 };
 
 const normalizeText = (value: string) =>
@@ -52,10 +53,17 @@ export default function ClientsDashboard({
   bulkDeleteAction,
   initialQuery = "",
   initialMissing = "all",
+  initialTags = "",
 }: ClientsDashboardProps) {
   const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
   const [missing, setMissing] = useState<"all" | "phone">(initialMissing);
+  const [selectedTags, setSelectedTags] = useState<string[]>(() =>
+    initialTags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -66,11 +74,41 @@ export default function ClientsDashboard({
       if (missing === "phone") {
         params.set("missing", "phone");
       }
+      if (selectedTags.length) {
+        params.set("tags", selectedTags.join(","));
+      }
       const qs = params.toString();
       router.replace(qs ? `/admin/clients?${qs}` : "/admin/clients");
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [query, missing, router]);
+  }, [query, missing, selectedTags, router]);
+
+  const availableTags = useMemo(() => {
+    const counts = new Map<string, { label: string; count: number }>();
+    for (const client of clients) {
+      for (const rawTag of client.tags) {
+        const trimmed = rawTag.trim();
+        if (!trimmed) continue;
+        const key = normalizeText(trimmed);
+        const entry = counts.get(key);
+        if (entry) {
+          entry.count += 1;
+        } else {
+          counts.set(key, { label: trimmed, count: 1 });
+        }
+      }
+    }
+    return Array.from(counts.values()).sort((a, b) => b.count - a.count);
+  }, [clients]);
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags((current) => {
+      if (current.includes(tag)) {
+        return current.filter((value) => value !== tag);
+      }
+      return [...current, tag];
+    });
+  };
 
   const filteredClients = useMemo(() => {
     const normalizedQuery = normalizeText(query.trim());
@@ -78,18 +116,24 @@ export default function ClientsDashboard({
       .split(",")
       .map((token) => token.trim())
       .filter(Boolean);
+    const normalizedSelected = selectedTags.map((tag) => normalizeText(tag));
 
     return clients.filter((client) => {
       if (missing === "phone" && hasPhoneDigits(client.contact || "")) return false;
-      if (!tokens.length) return true;
+      const matchesSelected =
+        !normalizedSelected.length ||
+        client.tags.some((tag) =>
+          normalizedSelected.includes(normalizeText(tag))
+        );
+      if (!tokens.length) return matchesSelected;
       const nameValue = normalizeText(client.name);
       const matchesName = tokens.some((token) => nameValue.includes(token));
       const matchesTag = client.tags.some((tag) =>
         tokens.some((token) => normalizeText(tag).includes(token))
       );
-      return matchesName || matchesTag;
+      return matchesSelected && (matchesName || matchesTag);
     });
-  }, [clients, missing, query]);
+  }, [clients, missing, query, selectedTags]);
 
   return (
     <>
@@ -128,11 +172,39 @@ export default function ClientsDashboard({
             onClick={() => {
               setQuery("");
               setMissing("all");
+              setSelectedTags([]);
             }}
           >
             Limpiar filtros
           </Button>
         </div>
+        {availableTags.length ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+              Etiquetas populares
+            </span>
+            {availableTags.slice(0, 16).map((tag) => {
+              const active = selectedTags.includes(tag.label);
+              return (
+                <button
+                  key={tag.label}
+                  type="button"
+                  onClick={() => toggleTag(tag.label)}
+                  className={[
+                    "rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] transition",
+                    active
+                      ? "border-brand-500 bg-brand-50 text-brand-700"
+                      : "border-brand-200 text-brand-600 hover:border-brand-300 hover:text-brand-700",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {tag.label}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">

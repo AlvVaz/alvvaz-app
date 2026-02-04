@@ -12,7 +12,7 @@ import {
 import ClientsDashboard from "./ClientsDashboard";
 
 type ClientsPageProps = {
-  searchParams?: { q?: string; missing?: string };
+  searchParams?: { q?: string; missing?: string; tags?: string };
 };
 
 export default async function ClientsPage({ searchParams }: ClientsPageProps) {
@@ -127,6 +127,7 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
         bulkDeleteAction={bulkDeleteClientsAction}
         initialQuery={String(searchParams?.q ?? "")}
         initialMissing={searchParams?.missing === "phone" ? "phone" : "all"}
+        initialTags={String(searchParams?.tags ?? "")}
       />
     </div>
   );
