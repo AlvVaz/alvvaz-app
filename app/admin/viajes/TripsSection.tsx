@@ -352,11 +352,13 @@ export default function TripsSection({
                                           aria-pressed={isActive}
                                           aria-label={`Marcar ${labelText}`}
                                           disabled={isStagePending}
-                                          onClick={(event) => {
-                                            event.preventDefault();
-                                            event.stopPropagation();
-                                            handleStageChange(trip.id, index + 1);
-                                          }}
+                                        onClick={(event) => {
+                                          event.preventDefault();
+                                          event.stopPropagation();
+                                          const nextStage =
+                                            stage === index + 1 ? 0 : index + 1;
+                                          handleStageChange(trip.id, nextStage);
+                                        }}
                                           className={segmentClasses}
                                         />
                                       );
