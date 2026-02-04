@@ -18,6 +18,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ContratosAdminPage() {
   const contracts = await getContracts();
+  const latestContract = contracts[0] ?? null;
   const adminUsers = await prisma.adminUser.findMany({
     orderBy: [{ username: "asc" }, { email: "asc" }],
   });
@@ -55,9 +56,14 @@ export default async function ContratosAdminPage() {
           </summary>
           <div className="border-t border-slate-200 px-6 py-4">
             <ContractForm
+              key={
+                latestContract
+                  ? `${latestContract.id}-${latestContract.updatedAt}`
+                  : "new-contract"
+              }
               action={createContractAction}
+              draftContract={latestContract}
               submitLabel="Crear contrato"
-              resetOnSubmit
               organizerOptions={organizerOptions}
             />
           </div>

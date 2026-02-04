@@ -16,6 +16,7 @@ type ContractFormProps = {
   ) => Promise<{ submittedAt: number }>;
   deleteAction?: (formData: FormData) => void;
   initialContract?: Contract;
+  draftContract?: Contract | null;
   submitLabel: string;
   resetOnSubmit?: boolean;
   organizerOptions?: { value: string; label: string }[];
@@ -61,6 +62,7 @@ export function ContractForm({
   action,
   deleteAction,
   initialContract,
+  draftContract,
   submitLabel,
   resetOnSubmit = false,
   organizerOptions = [],
@@ -68,36 +70,40 @@ export function ContractForm({
   const router = useRouter();
   const formRef = useRef<HTMLFormElement | null>(null);
   const { push: pushToast } = useContractsToast();
+  const seedContract = initialContract ?? draftContract ?? null;
+  const initialTravelers = seedContract?.travelers?.length
+    ? seedContract.travelers
+    : [emptyTraveler];
   const [travelers, setTravelers] = useState<TripTraveler[]>(
-    initialContract?.travelers?.length ? initialContract.travelers : [emptyTraveler]
+    initialTravelers
   );
   const [contractItems, setContractItems] = useState(() =>
-    parseContractItems(initialContract?.description)
+    parseContractItems(seedContract?.description)
   );
   const [contractNumberValue, setContractNumberValue] = useState(
-    initialContract?.contractNumber ?? ""
+    seedContract?.contractNumber ?? ""
   );
   const [titleValue, setTitleValue] = useState(
-    initialContract?.title ?? initialContract?.clientName ?? ""
+    seedContract?.title ?? seedContract?.clientName ?? ""
   );
   const [departureDateValue, setDepartureDateValue] = useState(
-    initialContract?.departureDate ?? ""
+    seedContract?.departureDate ?? ""
   );
   const [liquidationDateValue, setLiquidationDateValue] = useState(
-    initialContract?.liquidationDate ?? ""
+    seedContract?.liquidationDate ?? ""
   );
   const [isLiquidationAuto, setIsLiquidationAuto] = useState(
-    !initialContract?.liquidationDate ||
-      initialContract?.liquidationDate === initialContract?.departureDate
+    !seedContract?.liquidationDate ||
+      seedContract?.liquidationDate === seedContract?.departureDate
   );
   const [totalPriceValue, setTotalPriceValue] = useState(
-    initialContract?.totalPrice ?? ""
+    seedContract?.totalPrice ?? ""
   );
   const [firstPaymentValue, setFirstPaymentValue] = useState(
-    initialContract?.firstPayment ?? ""
+    seedContract?.firstPayment ?? ""
   );
   const [balanceDueValue, setBalanceDueValue] = useState(
-    initialContract?.balanceDue ?? ""
+    seedContract?.balanceDue ?? ""
   );
   const [isBalanceAuto, setIsBalanceAuto] = useState(true);
 
@@ -125,7 +131,7 @@ export function ContractForm({
         return true;
       });
 
-    const currentOrganizer = initialContract?.organizer?.trim();
+    const currentOrganizer = seedContract?.organizer?.trim();
     if (currentOrganizer && !seen.has(currentOrganizer)) {
       options.unshift({
         value: currentOrganizer,
@@ -134,7 +140,7 @@ export function ContractForm({
     }
 
     return options;
-  }, [initialContract?.organizer, organizerOptions]);
+  }, [seedContract?.organizer, organizerOptions]);
 
   const normalizedTravelers = useMemo(
     () =>
@@ -168,8 +174,8 @@ export function ContractForm({
   ).length;
 
   const [passengerCountValue, setPassengerCountValue] = useState(
-    initialContract?.passengerCount !== null && initialContract?.passengerCount !== undefined
-      ? String(initialContract.passengerCount)
+    seedContract?.passengerCount !== null && seedContract?.passengerCount !== undefined
+      ? String(seedContract.passengerCount)
       : String(travelerCount)
   );
   const lastTravelerCount = useRef(travelerCount);
@@ -259,7 +265,37 @@ export function ContractForm({
   };
 
   const resetFormState = () => {
+    const baseContract = initialContract ?? seedContract;
     if (!initialContract) {
+      if (baseContract) {
+        setTravelers(
+          baseContract.travelers?.length ? baseContract.travelers : [emptyTraveler]
+        );
+        setContractItems(parseContractItems(baseContract.description));
+        setContractNumberValue(baseContract.contractNumber ?? "");
+        setTitleValue(baseContract.title ?? baseContract.clientName ?? "");
+        setDepartureDateValue(baseContract.departureDate ?? "");
+        setLiquidationDateValue(baseContract.liquidationDate ?? "");
+        setIsLiquidationAuto(
+          !baseContract.liquidationDate ||
+            baseContract.liquidationDate === baseContract.departureDate
+        );
+        setTotalPriceValue(baseContract.totalPrice ?? "");
+        setFirstPaymentValue(baseContract.firstPayment ?? "");
+        setBalanceDueValue(baseContract.balanceDue ?? "");
+        setIsBalanceAuto(true);
+        const basePassengerCount =
+          baseContract.passengerCount !== null && baseContract.passengerCount !== undefined
+            ? String(baseContract.passengerCount)
+            : String(
+                (baseContract.travelers ?? []).filter(
+                  (traveler) => traveler.name || traveler.phone || traveler.contract
+                ).length
+              );
+        setPassengerCountValue(basePassengerCount);
+        return;
+      }
+
       setTravelers([emptyTraveler]);
       setContractItems([{ ...emptyContractItem }]);
       setTitleValue("");
@@ -483,7 +519,7 @@ export function ContractForm({
         <input
           type="date"
           name="reservationDate"
-          defaultValue={initialContract?.reservationDate ?? ""}
+          defaultValue={seedContract?.reservationDate ?? ""}
           className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
       </div>
@@ -494,7 +530,7 @@ export function ContractForm({
         </label>
         <ThemedSelect
           name="agency"
-          defaultValue={initialContract?.agency ?? ""}
+          defaultValue={seedContract?.agency ?? ""}
           placeholder="Selecciona una agencia"
           options={[
             { value: "AlvVaz Aviación", label: "AlvVaz Aviación" },
@@ -512,7 +548,7 @@ export function ContractForm({
         <input
           name="destination"
           required
-          defaultValue={initialContract?.destination ?? ""}
+          defaultValue={seedContract?.destination ?? ""}
           placeholder="Cancún"
           className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
@@ -524,7 +560,7 @@ export function ContractForm({
         </label>
         <input
           name="hotel"
-          defaultValue={initialContract?.hotel ?? ""}
+          defaultValue={seedContract?.hotel ?? ""}
           placeholder="Hotel seleccionado"
           className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
@@ -536,7 +572,7 @@ export function ContractForm({
         </label>
         <input
           name="supplier"
-          defaultValue={initialContract?.supplier ?? ""}
+          defaultValue={seedContract?.supplier ?? ""}
           placeholder="Proveedor"
           className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
@@ -549,14 +585,14 @@ export function ContractForm({
         {organizerChoices.length > 0 ? (
           <ThemedSelect
             name="organizer"
-            defaultValue={initialContract?.organizer ?? ""}
+            defaultValue={seedContract?.organizer ?? ""}
             placeholder="Selecciona un usuario"
             options={organizerChoices}
           />
         ) : (
           <input
             name="organizer"
-            defaultValue={initialContract?.organizer ?? ""}
+            defaultValue={seedContract?.organizer ?? ""}
             placeholder="Asesor o agencia"
             className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
           />
@@ -659,7 +695,7 @@ export function ContractForm({
         <input
           type="date"
           name="returnDate"
-          defaultValue={initialContract?.returnDate ?? ""}
+          defaultValue={seedContract?.returnDate ?? ""}
           className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
       </div>
@@ -801,8 +837,8 @@ export function ContractForm({
       <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
         {(() => {
           const currentStatus =
-            initialContract?.status ??
-            (initialContract?.isPaid ? "paid" : initialContract?.isSigned ? "signed" : "");
+            seedContract?.status ??
+            (seedContract?.isPaid ? "paid" : seedContract?.isSigned ? "signed" : "");
           return (
             <>
         <label className="flex items-center gap-2">

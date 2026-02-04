@@ -186,6 +186,40 @@ export default function ContractsPanel({
         </p>
       </section>
 
+      <ContractsSection
+        title="Contratos pendientes"
+        badgeLabel={`${pendingContracts.length} pendientes`}
+        emptyMessage="No hay contratos pendientes por revisar."
+        contracts={pendingContracts}
+        updateAction={updateAction}
+        deleteAction={deleteAction}
+        bulkDeleteAction={bulkDeleteAction}
+        organizerOptions={organizerOptions}
+      />
+
+      <ContractsSection
+        title="Contratos aprobados"
+        badgeLabel={`${approvedContracts.length} aprobados`}
+        emptyMessage="Aún no hay contratos aprobados."
+        contracts={approvedContracts}
+        updateAction={updateAction}
+        deleteAction={deleteAction}
+        bulkDeleteAction={bulkDeleteAction}
+        organizerOptions={organizerOptions}
+        enableSort
+      />
+
+      <ContractsSection
+        title="Contratos cancelados"
+        badgeLabel={`${canceledContracts.length} cancelados`}
+        emptyMessage="No hay contratos cancelados."
+        contracts={canceledContracts}
+        updateAction={updateAction}
+        deleteAction={deleteAction}
+        bulkDeleteAction={bulkDeleteAction}
+        organizerOptions={organizerOptions}
+      />
+
       {contracts2025.length > 0 ? (
         <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
           <details className="group">
@@ -222,40 +256,6 @@ export default function ContractsPanel({
           </details>
         </section>
       ) : null}
-
-      <ContractsSection
-        title="Contratos pendientes"
-        badgeLabel={`${pendingContracts.length} pendientes`}
-        emptyMessage="No hay contratos pendientes por revisar."
-        contracts={pendingContracts}
-        updateAction={updateAction}
-        deleteAction={deleteAction}
-        bulkDeleteAction={bulkDeleteAction}
-        organizerOptions={organizerOptions}
-      />
-
-      <ContractsSection
-        title="Contratos aprobados"
-        badgeLabel={`${approvedContracts.length} aprobados`}
-        emptyMessage="Aún no hay contratos aprobados."
-        contracts={approvedContracts}
-        updateAction={updateAction}
-        deleteAction={deleteAction}
-        bulkDeleteAction={bulkDeleteAction}
-        organizerOptions={organizerOptions}
-        enableSort
-      />
-
-      <ContractsSection
-        title="Contratos cancelados"
-        badgeLabel={`${canceledContracts.length} cancelados`}
-        emptyMessage="No hay contratos cancelados."
-        contracts={canceledContracts}
-        updateAction={updateAction}
-        deleteAction={deleteAction}
-        bulkDeleteAction={bulkDeleteAction}
-        organizerOptions={organizerOptions}
-      />
     </>
   );
 }
