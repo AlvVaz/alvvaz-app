@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -53,13 +53,25 @@ export default function ClientsDashboard({
 }: ClientsDashboardProps) {
   const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
-  const [selectedTag, setSelectedTag] = useState(initialTags);
   const [selectedTags, setSelectedTags] = useState<string[]>(() =>
     initialTags
       .split(",")
       .map((tag) => tag.trim())
       .filter(Boolean)
   );
+  const [tagMenuOpen, setTagMenuOpen] = useState(false);
+  const tagMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleOutside = (event: MouseEvent) => {
+      if (!tagMenuRef.current) return;
+      if (!tagMenuRef.current.contains(event.target as Node)) {
+        setTagMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -67,14 +79,14 @@ export default function ClientsDashboard({
       if (query.trim()) {
         params.set("q", query.trim());
       }
-      if (selectedTag) {
-        params.set("tags", selectedTag);
+      if (selectedTags.length) {
+        params.set("tags", selectedTags.join(","));
       }
       const qs = params.toString();
       router.replace(qs ? `/admin/clients?${qs}` : "/admin/clients");
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [query, selectedTag, router]);
+  }, [query, selectedTags, router]);
 
   const availableTags = useMemo(() => {
     const counts = new Map<string, { label: string; count: number }>();
@@ -100,12 +112,14 @@ export default function ClientsDashboard({
       .split(",")
       .map((token) => token.trim())
       .filter(Boolean);
-    const normalizedSelected = selectedTag ? normalizeText(selectedTag) : "";
+    const normalizedSelected = selectedTags.map((tag) => normalizeText(tag));
 
     return clients.filter((client) => {
       const matchesSelected =
-        !normalizedSelected ||
-        client.tags.some((tag) => normalizeText(tag) === normalizedSelected);
+        !normalizedSelected.length ||
+        normalizedSelected.every((selected) =>
+          client.tags.some((tag) => normalizeText(tag) === selected)
+        );
       if (!tokens.length) return matchesSelected;
       const nameValue = normalizeText(client.name);
       const matchesName = tokens.some((token) => nameValue.includes(token));
@@ -114,7 +128,22 @@ export default function ClientsDashboard({
       );
       return matchesSelected && (matchesName || matchesTag);
     });
-  }, [clients, query, selectedTag]);
+  }, [clients, query, selectedTags]);
+
+  const selectedLabel = useMemo(() => {
+    if (!selectedTags.length) return "Todas";
+    if (selectedTags.length === 1) return selectedTags[0];
+    return `${selectedTags[0]} + ${selectedTags.length - 1}`;
+  }, [selectedTags]);
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags((current) => {
+      if (current.includes(tag)) {
+        return current.filter((value) => value !== tag);
+      }
+      return [...current, tag];
+    });
+  };
 
   return (
     <>
@@ -136,23 +165,93 @@ export default function ClientsDashboard({
             <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
               Etiquetas
             </label>
-            <ThemedSelect
-              name="tags"
-              value={selectedTag}
-              onChange={(value) => setSelectedTag(value)}
-              options={[
-                { value: "", label: "Todas" },
-                ...availableTags.map((tag) => ({ value: tag.label, label: tag.label })),
-              ]}
-              className="w-48"
-            />
+            <div ref={tagMenuRef} className="relative w-56">
+              <button
+                type="button"
+                onClick={() => setTagMenuOpen((prev) => !prev)}
+                className="flex w-full items-center justify-between rounded-2xl border border-brand-200 bg-white px-4 py-2 text-left text-sm text-brand-900 shadow-sm transition hover:border-brand-300"
+              >
+                <span className={selectedTags.length ? "text-brand-900" : "text-slate-400"}>
+                  {selectedLabel}
+                </span>
+                <svg
+                  viewBox="0 0 20 20"
+                  aria-hidden="true"
+                  className={[
+                    "h-4 w-4 text-slate-500 transition-transform",
+                    tagMenuOpen ? "rotate-180" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  <path
+                    d="M5 7l5 5 5-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+              {tagMenuOpen ? (
+                <div className="absolute z-30 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTags([])}
+                    className={[
+                      "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition",
+                      selectedTags.length === 0
+                        ? "bg-brand-100 text-brand-700"
+                        : "text-slate-700 hover:bg-brand-50 hover:text-brand-700",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    <span>Todas</span>
+                    {selectedTags.length === 0 ? (
+                      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                        ✓
+                      </span>
+                    ) : null}
+                  </button>
+                  <div className="max-h-64 overflow-y-auto">
+                    {availableTags.map((tag) => {
+                      const active = selectedTags.includes(tag.label);
+                      return (
+                        <button
+                          key={tag.label}
+                          type="button"
+                          onClick={() => toggleTag(tag.label)}
+                          className={[
+                            "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition",
+                            active
+                              ? "bg-brand-100 text-brand-700"
+                              : "text-slate-700 hover:bg-brand-50 hover:text-brand-700",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                        >
+                          <span>{tag.label}</span>
+                          {active ? (
+                            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                              ✓
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
           <Button
             type="button"
             variant="secondary"
             onClick={() => {
               setQuery("");
-              setSelectedTag("");
+              setSelectedTags([]);
             }}
           >
             Limpiar filtros
