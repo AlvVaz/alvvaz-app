@@ -115,6 +115,18 @@ export async function updateTripAction(formData: FormData) {
   revalidatePath("/admin/clients");
 }
 
+export async function updateTripStageAction(id: string, stage: number) {
+  const tripId = String(id ?? "").trim();
+  if (!tripId) return;
+  const rawStage = Number(stage);
+  const safeStage = Number.isFinite(rawStage)
+    ? Math.max(0, Math.min(3, Math.round(rawStage)))
+    : 0;
+
+  await updateTrip(tripId, { prepStage: safeStage });
+  revalidatePath("/admin/viajes");
+}
+
 export async function deleteTripAction(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
   if (!id) return;

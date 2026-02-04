@@ -197,6 +197,7 @@ function mapTrip(trip: {
   returnDate: string | null;
   travelers: unknown;
   notes: string;
+  prepStage: number;
   createdAt: Date;
   updatedAt: Date;
 }): Trip {
@@ -642,6 +643,7 @@ export async function createTrip(input: {
   returnDate?: string | null;
   travelers?: TripTraveler[];
   notes?: string;
+  prepStage?: number;
 }) {
   const normalizedTravelers = normalizeTravelers(input.travelers);
   const trip = await prisma.trip.create({
@@ -656,6 +658,7 @@ export async function createTrip(input: {
       returnDate: input.returnDate ?? null,
       travelers: normalizedTravelers,
       notes: input.notes ?? "",
+      prepStage: input.prepStage ?? 0,
     },
   });
 
@@ -675,6 +678,7 @@ export async function updateTrip(
     returnDate: string | null;
     travelers: TripTraveler[];
     notes: string;
+    prepStage: number;
   }>
 ) {
   const existing = await prisma.trip.findUnique({ where: { id } });
@@ -699,6 +703,7 @@ export async function updateTrip(
         ? { travelers: normalizeTravelers(updates.travelers) }
         : {}),
       ...(updates.notes !== undefined ? { notes: updates.notes } : {}),
+      ...(updates.prepStage !== undefined ? { prepStage: updates.prepStage } : {}),
     },
   });
 

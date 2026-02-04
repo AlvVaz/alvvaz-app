@@ -5,7 +5,13 @@ import { getTrips } from "@/lib/db";
 import type { Trip } from "@/lib/db";
 
 import { TripForm } from "./TripForm";
-import { createTripAction, deleteTripAction, updateTripAction, bulkDeleteTripsAction } from "./actions";
+import {
+  createTripAction,
+  deleteTripAction,
+  updateTripAction,
+  bulkDeleteTripsAction,
+  updateTripStageAction,
+} from "./actions";
 import TripsSection from "./TripsSection";
 
 export const dynamic = "force-dynamic";
@@ -122,6 +128,7 @@ export default async function ViajesAdminPage({ searchParams }: ViajesAdminPageP
               groups={yearGroups}
               bulkDeleteAction={bulkDeleteTripsAction}
               updateAction={updateTripAction}
+              updateStageAction={updateTripStageAction}
               deleteAction={deleteTripAction}
             />
           );
@@ -243,6 +250,7 @@ export default async function ViajesAdminPage({ searchParams }: ViajesAdminPageP
             groups={upcomingGroups}
             bulkDeleteAction={bulkDeleteTripsAction}
             updateAction={updateTripAction}
+            updateStageAction={updateTripStageAction}
             deleteAction={deleteTripAction}
           />
         ))}
@@ -261,6 +269,7 @@ export default async function ViajesAdminPage({ searchParams }: ViajesAdminPageP
             groups={completedGroups}
             bulkDeleteAction={bulkDeleteTripsAction}
             updateAction={updateTripAction}
+            updateStageAction={updateTripStageAction}
             deleteAction={deleteTripAction}
           />
         ))}

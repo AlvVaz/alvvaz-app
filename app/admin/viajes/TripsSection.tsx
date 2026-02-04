@@ -19,6 +19,7 @@ type TripsSectionProps = {
   groups: TripGroup[];
   bulkDeleteAction: (ids: string[]) => Promise<{ ok: boolean; error?: string }>;
   updateAction: (formData: FormData) => void | Promise<void>;
+  updateStageAction: (id: string, stage: number) => void | Promise<void>;
   deleteAction: (formData: FormData) => void | Promise<void>;
 };
 
@@ -28,11 +29,14 @@ export default function TripsSection({
   groups,
   bulkDeleteAction,
   updateAction,
+  updateStageAction,
   deleteAction,
 }: TripsSectionProps) {
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
+  const [stageOverrides, setStageOverrides] = useState<Record<string, number>>({});
+  const [pendingStageId, setPendingStageId] = useState<string | null>(null);
 
   const allTrips = useMemo(() => groups.flatMap((group) => group.trips), [groups]);
   const allSelected = allTrips.length > 0 && selectedIds.size === allTrips.length;
@@ -127,6 +131,38 @@ export default function TripsSection({
     return Math.round(((windowDays - clamped) / windowDays) * 100);
   };
 
+  const clampStage = (value: number) => Math.max(0, Math.min(3, Math.round(value)));
+  const stageLabels = ["Etapa 1", "Etapa 2", "Etapa 3"];
+  const stagePalette = [
+    {
+      active: "bg-amber-200 text-amber-900",
+      hover: "hover:bg-amber-50",
+    },
+    {
+      active: "bg-orange-400 text-white",
+      hover: "hover:bg-orange-50",
+    },
+    {
+      active: "bg-emerald-500 text-white",
+      hover: "hover:bg-emerald-50",
+    },
+  ];
+
+  const resolveStage = (trip: Trip) =>
+    clampStage(stageOverrides[trip.id] ?? trip.prepStage ?? 0);
+
+  const handleStageChange = (tripId: string, stage: number) => {
+    const nextStage = clampStage(stage);
+    setStageOverrides((prev) => ({ ...prev, [tripId]: nextStage }));
+    setPendingStageId(tripId);
+    startTransition(() => {
+      void updateStageAction(tripId, nextStage).then(() => {
+        setPendingStageId((current) => (current === tripId ? null : current));
+        router.refresh();
+      });
+    });
+  };
+
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -217,72 +253,126 @@ export default function TripsSection({
                         } as const;
 
                         const toneStyle = toneClasses[tone];
+                        const stage = resolveStage(trip);
+                        const stageStatus = stage
+                          ? `Etapa ${stage} de 3`
+                          : "Preparación pendiente";
+                        const isStagePending = pendingStageId === trip.id && isPending;
 
                         return (
-                          <div className="grid items-center gap-4 md:grid-cols-[auto_2fr_1.6fr_1.3fr_0.9fr]">
-                            <div className="flex items-start justify-center pt-1">
-                              <input
-                                type="checkbox"
-                                aria-label="Seleccionar viaje"
-                                checked={selectedIds.has(trip.id)}
-                                onChange={() => toggleOne(trip.id)}
-                                onClick={(event) => event.stopPropagation()}
-                                className="h-4 w-4 rounded border-brand-300 text-brand-600"
-                              />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                                Destino
-                              </p>
-                              <p className="font-display text-base text-brand-950">
-                                {trip.destination}
-                              </p>
-                              <p className="text-xs text-slate-500">
-                                {trip.hotel || "Hotel por confirmar"}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                                Fechas
-                              </p>
-                              <p className="text-sm text-slate-700">
-                                {formatRange(trip.departureDate, trip.returnDate)}
-                              </p>
-                              <div className="mt-2 flex flex-wrap items-center gap-2">
-                                <div className="h-1 flex-1 rounded-full bg-slate-200">
-                                  <div
-                                    className={`h-1 rounded-full ${toneStyle.bar}`}
-                                    style={{ width: `${progress}%` }}
-                                  />
+                          <div className="space-y-4">
+                            <div className="grid items-center gap-4 md:grid-cols-[auto_2fr_1.6fr_1.3fr_0.9fr]">
+                              <div className="flex items-start justify-center pt-1">
+                                <input
+                                  type="checkbox"
+                                  aria-label="Seleccionar viaje"
+                                  checked={selectedIds.has(trip.id)}
+                                  onChange={() => toggleOne(trip.id)}
+                                  onClick={(event) => event.stopPropagation()}
+                                  className="h-4 w-4 rounded border-brand-300 text-brand-600"
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                                  Destino
+                                </p>
+                                <p className="font-display text-base text-brand-950">
+                                  {trip.destination}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {trip.hotel || "Hotel por confirmar"}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                                  Fechas
+                                </p>
+                                <p className="text-sm text-slate-700">
+                                  {formatRange(trip.departureDate, trip.returnDate)}
+                                </p>
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                  <div className="h-1 flex-1 rounded-full bg-slate-200">
+                                    <div
+                                      className={`h-1 rounded-full ${toneStyle.bar}`}
+                                      style={{ width: `${progress}%` }}
+                                    />
+                                  </div>
+                                  <span
+                                    className={`text-[11px] font-semibold ${toneStyle.text}`}
+                                  >
+                                    {label}
+                                  </span>
                                 </div>
-                                <span
-                                  className={`text-[11px] font-semibold ${toneStyle.text}`}
-                                >
-                                  {label}
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                                  Cliente
+                                </p>
+                                <p className="text-sm text-slate-700">
+                                  {trip.clientName || "Sin cliente"}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {trip.organizer || "Sin asignar"}
+                                </p>
+                              </div>
+                              <div className="text-right md:text-left">
+                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                                  Pasajeros
+                                </p>
+                                <p className="text-sm text-slate-700">
+                                  {trip.passengerCount || trip.travelers.length} personas
+                                </p>
+                                <span className="mt-2 inline-flex rounded-full border border-brand-200 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700">
+                                  Ver detalles
                                 </span>
                               </div>
                             </div>
-                            <div>
-                              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                                Cliente
-                              </p>
-                              <p className="text-sm text-slate-700">
-                                {trip.clientName || "Sin cliente"}
-                              </p>
-                              <p className="text-xs text-slate-500">
-                                {trip.organizer || "Sin asignar"}
-                              </p>
-                            </div>
-                            <div className="text-right md:text-left">
-                              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                                Pasajeros
-                              </p>
-                              <p className="text-sm text-slate-700">
-                                {trip.passengerCount || trip.travelers.length} personas
-                              </p>
-                              <span className="mt-2 inline-flex rounded-full border border-brand-200 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700">
-                                Ver detalles
-                              </span>
+
+                            <div className="rounded-2xl border border-brand-200 bg-white/80 px-3 py-2 shadow-sm">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-brand-600">
+                                  Preparación del viaje
+                                </p>
+                                <span className="text-[11px] font-semibold text-slate-500">
+                                  {stageStatus}
+                                </span>
+                              </div>
+                              <div className="mt-2 overflow-hidden rounded-full border border-brand-300 bg-brand-50/40">
+                                <div className="grid grid-cols-3 divide-x divide-brand-200">
+                                  {stageLabels.map((labelText, index) => {
+                                    const isActive = stage >= index + 1;
+                                    const palette = stagePalette[index];
+                                    const segmentClasses = [
+                                      "flex h-8 items-center justify-center text-[10px] font-semibold uppercase tracking-[0.2em] transition",
+                                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
+                                      "disabled:cursor-not-allowed disabled:opacity-60",
+                                      isActive
+                                        ? palette.active
+                                        : `text-brand-700 ${palette.hover}`,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" ");
+
+                                    return (
+                                      <button
+                                        key={labelText}
+                                        type="button"
+                                        aria-pressed={isActive}
+                                        aria-label={`Marcar ${labelText}`}
+                                        disabled={isStagePending}
+                                        onClick={(event) => {
+                                          event.preventDefault();
+                                          event.stopPropagation();
+                                          handleStageChange(trip.id, index + 1);
+                                        }}
+                                        className={segmentClasses}
+                                      >
+                                        {labelText}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         );
