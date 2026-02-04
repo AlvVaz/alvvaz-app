@@ -111,13 +111,22 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   });
 
   const query = String(searchParams?.q ?? "").trim().toLowerCase();
+  const tokens = query
+    .split(",")
+    .map((token) => token.trim())
+    .filter(Boolean);
   const missingPhone = searchParams?.missing === "phone";
+  const hasPhoneDigits = (value: string) =>
+    value.replace(/\D/g, "").length >= 7;
 
   const filteredClients = clients.filter((client) => {
-    if (missingPhone && client.contact.trim()) return false;
-    if (!query) return true;
-    const matchesName = client.name.toLowerCase().includes(query);
-    const matchesTag = client.tags.some((tag) => tag.toLowerCase().includes(query));
+    if (missingPhone && hasPhoneDigits(client.contact || "")) return false;
+    if (!tokens.length) return true;
+    const nameValue = client.name.toLowerCase();
+    const matchesName = tokens.some((token) => nameValue.includes(token));
+    const matchesTag = client.tags.some((tag) =>
+      tokens.some((token) => tag.toLowerCase().includes(token))
+    );
     return matchesName || matchesTag;
   });
 
