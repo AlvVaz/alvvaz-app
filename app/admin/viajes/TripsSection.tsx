@@ -19,7 +19,7 @@ type TripsSectionProps = {
   groups: TripGroup[];
   bulkDeleteAction: (ids: string[]) => Promise<{ ok: boolean; error?: string }>;
   updateAction: (formData: FormData) => void | Promise<void>;
-  updateStageAction: (id: string, stage: number) => void | Promise<void>;
+  updateStageAction: (id: string, stage: number) => Promise<void>;
   deleteAction: (formData: FormData) => void | Promise<void>;
 };
 

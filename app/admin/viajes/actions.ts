@@ -115,7 +115,7 @@ export async function updateTripAction(formData: FormData) {
   revalidatePath("/admin/clients");
 }
 
-export async function updateTripStageAction(id: string, stage: number) {
+export async function updateTripStageAction(id: string, stage: number): Promise<void> {
   const tripId = String(id ?? "").trim();
   if (!tripId) return;
   const rawStage = Number(stage);
