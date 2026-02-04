@@ -144,6 +144,7 @@ export default function TripsSection({
       active: "bg-emerald-500",
     },
   ];
+  const tripBarWidthClass = "w-[220px] max-w-full";
 
   const resolveStage = (trip: Trip) =>
     clampStage(stageOverrides[trip.id] ?? trip.prepStage ?? 0);
@@ -285,12 +286,14 @@ export default function TripsSection({
                                   {formatRange(trip.departureDate, trip.returnDate)}
                                 </p>
                                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                                  <div className="h-1 flex-1 rounded-full bg-slate-200">
-                                    <div
-                                      className={`h-1 rounded-full ${toneStyle.bar}`}
-                                      style={{ width: `${progress}%` }}
-                                    />
-                                  </div>
+                                <div
+                                  className={`h-1 flex-none rounded-full bg-slate-200 ${tripBarWidthClass}`}
+                                >
+                                  <div
+                                    className={`h-1 rounded-full ${toneStyle.bar}`}
+                                    style={{ width: `${progress}%` }}
+                                  />
+                                </div>
                                   <span
                                     className={`text-[11px] font-semibold ${toneStyle.text}`}
                                   >
@@ -324,7 +327,9 @@ export default function TripsSection({
 
                             <div className="md:grid md:grid-cols-[auto_2fr_1.6fr_1.3fr_0.9fr]">
                               <div className="md:col-start-3">
-                                <div className="mt-2 w-full max-w-[220px] overflow-hidden rounded-full bg-slate-200">
+                                <div
+                                  className={`mt-2 overflow-hidden rounded-full bg-slate-200 ${tripBarWidthClass}`}
+                                >
                                   <div className="grid h-3 grid-cols-3 divide-x divide-white/70">
                                     {stageLabels.map((labelText, index) => {
                                       const isActive = stage >= index + 1;
