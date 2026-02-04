@@ -325,7 +325,7 @@ export default function TripsSection({
                               </div>
                             </div>
 
-                            <div className="md:grid md:grid-cols-[auto_2fr_1.6fr_1.3fr_0.9fr]">
+                            <div className="md:grid md:grid-cols-[auto_2fr_1.6fr_1.3fr_0.9fr] md:gap-4">
                               <div className="md:col-start-3">
                                 <div
                                   className={`mt-0 translate-y-[-6px] translate-x-0 overflow-hidden rounded-full bg-slate-200 ${tripBarWidthClass}`}
