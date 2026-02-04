@@ -19,8 +19,8 @@ function buildWhatsAppMessage(title: string, url: string) {
   return `Hola, me interesa la promoción: ${title}. ¿Me compartes más detalles?\n${url}`;
 }
 
-function getBaseUrl() {
-  const headerList = headers();
+async function getBaseUrl() {
+  const headerList = await headers();
   const proto = headerList.get("x-forwarded-proto") ?? "https";
   const host = headerList.get("x-forwarded-host") ?? headerList.get("host") ?? "";
   if (!host) return "";
@@ -43,7 +43,7 @@ export default async function PromotionDetailPage({
 
   const ctaLabel = promotion.ctaLabel || "Reservar";
   const whatsappNumber = "5214441717405";
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
   const promotionUrl = `${baseUrl}/promociones/${promotion.slug}`;
   const ctaHref =
     promotion.ctaLink ||
