@@ -86,6 +86,9 @@ export function ContractForm({
   const [titleValue, setTitleValue] = useState(
     seedContract?.title ?? seedContract?.clientName ?? ""
   );
+  const [clientNameValue, setClientNameValue] = useState(
+    seedContract?.clientName ?? seedContract?.title ?? ""
+  );
   const [departureDateValue, setDepartureDateValue] = useState(
     seedContract?.departureDate ?? ""
   );
@@ -146,10 +149,10 @@ export function ContractForm({
     () =>
       travelers.map((traveler, index) => ({
         ...traveler,
-        name: index === 0 ? titleValue : traveler.name,
+        name: index === 0 ? clientNameValue : traveler.name,
         contract: contractNumberValue || traveler.contract,
       })),
-    [travelers, contractNumberValue, titleValue]
+    [travelers, contractNumberValue, clientNameValue]
   );
   const travelersPayload = useMemo(
     () => JSON.stringify(normalizedTravelers),
@@ -198,14 +201,14 @@ export function ContractForm({
     setTravelers((prev) => {
       const firstTraveler = prev[0];
       if (!firstTraveler) return prev;
-      if (!firstTraveler.name || firstTraveler.name === titleValue) {
+      if (firstTraveler.name !== clientNameValue) {
         const next = [...prev];
-        next[0] = { ...firstTraveler, name: titleValue };
+        next[0] = { ...firstTraveler, name: clientNameValue };
         return next;
       }
       return prev;
     });
-  }, [titleValue, travelers.length]);
+  }, [clientNameValue, travelers.length]);
 
   useEffect(() => {
     if (!isBalanceAuto) return;
@@ -274,6 +277,7 @@ export function ContractForm({
         setContractItems(parseContractItems(baseContract.description));
         setContractNumberValue(baseContract.contractNumber ?? "");
         setTitleValue(baseContract.title ?? baseContract.clientName ?? "");
+        setClientNameValue(baseContract.clientName ?? baseContract.title ?? "");
         setDepartureDateValue(baseContract.departureDate ?? "");
         setLiquidationDateValue(baseContract.liquidationDate ?? "");
         setIsLiquidationAuto(
@@ -312,11 +316,12 @@ export function ContractForm({
     }
 
     setTravelers(initialContract.travelers?.length ? initialContract.travelers : [emptyTraveler]);
-    setContractItems(parseContractItems(initialContract.description));
-    setContractNumberValue(initialContract.contractNumber ?? "");
-    setTitleValue(initialContract.title ?? initialContract.clientName ?? "");
-    setDepartureDateValue(initialContract.departureDate ?? "");
-    setLiquidationDateValue(initialContract.liquidationDate ?? "");
+      setContractItems(parseContractItems(initialContract.description));
+      setContractNumberValue(initialContract.contractNumber ?? "");
+      setTitleValue(initialContract.title ?? initialContract.clientName ?? "");
+      setClientNameValue(initialContract.clientName ?? initialContract.title ?? "");
+      setDepartureDateValue(initialContract.departureDate ?? "");
+      setLiquidationDateValue(initialContract.liquidationDate ?? "");
     setIsLiquidationAuto(
       !initialContract.liquidationDate ||
         initialContract.liquidationDate === initialContract.departureDate
@@ -483,7 +488,6 @@ export function ContractForm({
       {initialContract ? <input type="hidden" name="id" value={initialContract.id} /> : null}
       <input type="hidden" name="travelers" value={travelersPayload} />
       <input type="hidden" name="description" value={descriptionPayload} />
-      <input type="hidden" name="clientName" value={titleValue} />
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
@@ -526,18 +530,15 @@ export function ContractForm({
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          Agencia
+          Nombre del cliente
         </label>
-        <ThemedSelect
-          name="agency"
-          defaultValue={seedContract?.agency ?? ""}
-          placeholder="Selecciona una agencia"
-          options={[
-            { value: "AlvVaz Aviación", label: "AlvVaz Aviación" },
-            { value: "AlvVaz Oriente", label: "AlvVaz Oriente" },
-          ]}
-          buttonClassName="admin-select w-full rounded-2xl border border-brand-200 bg-gradient-to-b from-white to-brand-50/40 px-4 py-3 text-sm text-brand-900 shadow-sm"
-          selectClassName="admin-select w-full rounded-2xl border border-brand-200 bg-gradient-to-b from-white to-brand-50/40 px-4 py-3 text-sm text-brand-900 shadow-sm"
+        <input
+          name="clientName"
+          required
+          value={clientNameValue}
+          onChange={(event) => setClientNameValue(event.target.value)}
+          placeholder="Nombre del cliente"
+          className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
       </div>
 
@@ -551,6 +552,23 @@ export function ContractForm({
           defaultValue={seedContract?.destination ?? ""}
           placeholder="Cancún"
           className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+          Agencia
+        </label>
+        <ThemedSelect
+          name="agency"
+          defaultValue={seedContract?.agency ?? ""}
+          placeholder="Selecciona una agencia"
+          options={[
+            { value: "AlvVaz Aviación", label: "AlvVaz Aviación" },
+            { value: "AlvVaz Oriente", label: "AlvVaz Oriente" },
+          ]}
+          buttonClassName="admin-select w-full rounded-2xl border border-brand-200 bg-gradient-to-b from-white to-brand-50/40 px-4 py-3 text-sm text-brand-900 shadow-sm"
+          selectClassName="admin-select w-full rounded-2xl border border-brand-200 bg-gradient-to-b from-white to-brand-50/40 px-4 py-3 text-sm text-brand-900 shadow-sm"
         />
       </div>
 
@@ -626,7 +644,7 @@ export function ContractForm({
               <div key={index} className="grid gap-3 md:grid-cols-3">
                 <input
                   placeholder="Nombre"
-                  value={index === 0 ? titleValue : traveler.name}
+                  value={index === 0 ? clientNameValue : traveler.name}
                   onChange={(event) =>
                     index === 0
                       ? null
