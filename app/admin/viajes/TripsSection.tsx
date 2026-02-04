@@ -132,19 +132,16 @@ export default function TripsSection({
   };
 
   const clampStage = (value: number) => Math.max(0, Math.min(3, Math.round(value)));
-  const stageLabels = ["Etapa 1", "Etapa 2", "Etapa 3"];
+  const stageLabels = ["Sección 1", "Sección 2", "Sección 3"];
   const stagePalette = [
     {
-      active: "bg-amber-200 text-amber-900",
-      hover: "hover:bg-amber-50",
+      active: "bg-amber-300",
     },
     {
-      active: "bg-orange-400 text-white",
-      hover: "hover:bg-orange-50",
+      active: "bg-orange-400",
     },
     {
-      active: "bg-emerald-500 text-white",
-      hover: "hover:bg-emerald-50",
+      active: "bg-emerald-500",
     },
   ];
 
@@ -254,9 +251,6 @@ export default function TripsSection({
 
                         const toneStyle = toneClasses[tone];
                         const stage = resolveStage(trip);
-                        const stageStatus = stage
-                          ? `Etapa ${stage} de 3`
-                          : "Preparación pendiente";
                         const isStagePending = pendingStageId === trip.id && isPending;
 
                         return (
@@ -328,27 +322,18 @@ export default function TripsSection({
                               </div>
                             </div>
 
-                            <div className="rounded-2xl border border-brand-200 bg-white/80 px-3 py-2 shadow-sm">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-brand-600">
-                                  Preparación del viaje
-                                </p>
-                                <span className="text-[11px] font-semibold text-slate-500">
-                                  {stageStatus}
-                                </span>
-                              </div>
-                              <div className="mt-2 overflow-hidden rounded-full border border-brand-300 bg-brand-50/40">
-                                <div className="grid grid-cols-3 divide-x divide-brand-200">
+                            <div className="mt-2 overflow-hidden rounded-full bg-slate-200">
+                              <div className="grid h-1 grid-cols-3 divide-x divide-white/70">
                                   {stageLabels.map((labelText, index) => {
                                     const isActive = stage >= index + 1;
                                     const palette = stagePalette[index];
                                     const segmentClasses = [
-                                      "flex h-8 items-center justify-center text-[10px] font-semibold uppercase tracking-[0.2em] transition",
+                                      "h-1 transition",
                                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
                                       "disabled:cursor-not-allowed disabled:opacity-60",
                                       isActive
                                         ? palette.active
-                                        : `text-brand-700 ${palette.hover}`,
+                                        : "bg-transparent",
                                     ]
                                       .filter(Boolean)
                                       .join(" ");
@@ -366,13 +351,10 @@ export default function TripsSection({
                                           handleStageChange(trip.id, index + 1);
                                         }}
                                         className={segmentClasses}
-                                      >
-                                        {labelText}
-                                      </button>
+                                      />
                                     );
                                   })}
                                 </div>
-                              </div>
                             </div>
                           </div>
                         );
