@@ -836,6 +836,18 @@ export function ContractForm({
         </div>
       </div>
 
+      <div className="md:col-span-2 space-y-2">
+        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+          Notas
+        </label>
+        <textarea
+          name="notes"
+          defaultValue={seedContract?.notes ?? ""}
+          placeholder="Agrega cláusulas, observaciones o notas internas."
+          className="min-h-[120px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+        />
+      </div>
+
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
           Liquidación del viaje

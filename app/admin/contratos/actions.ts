@@ -44,6 +44,7 @@ export async function createContractAction(
   const returnDate = String(formData.get("returnDate") ?? "").trim();
   const travelersRaw = String(formData.get("travelers") ?? "[]");
   const description = String(formData.get("description") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "").trim();
   const totalPrice = String(formData.get("totalPrice") ?? "").trim();
   const firstPayment = String(formData.get("firstPayment") ?? "").trim();
   const balanceDue = String(formData.get("balanceDue") ?? "").trim();
@@ -77,6 +78,7 @@ export async function createContractAction(
     returnDate: returnDate || null,
     travelers,
     description: description || null,
+    notes: notes || null,
     totalPrice: totalPrice || null,
     firstPayment: firstPayment || null,
     balanceDue: balanceDue || null,
@@ -153,6 +155,7 @@ export async function updateContractAction(
   const returnDate = String(formData.get("returnDate") ?? "").trim();
   const travelersRaw = String(formData.get("travelers") ?? "[]");
   const description = String(formData.get("description") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "").trim();
   const totalPrice = String(formData.get("totalPrice") ?? "").trim();
   const firstPayment = String(formData.get("firstPayment") ?? "").trim();
   const balanceDue = String(formData.get("balanceDue") ?? "").trim();
@@ -184,6 +187,7 @@ export async function updateContractAction(
     returnDate: returnDate || null,
     travelers,
     description: description || null,
+    notes: notes || null,
     totalPrice: totalPrice || null,
     firstPayment: firstPayment || null,
     balanceDue: balanceDue || null,

@@ -227,6 +227,7 @@ function mapContract(contract: {
   returnDate: string | null;
   travelers: unknown;
   description: string | null;
+  notes: string | null;
   totalPrice: string | null;
   firstPayment: string | null;
   balanceDue: string | null;
@@ -752,6 +753,7 @@ export async function createContract(input: {
   returnDate?: string | null;
   travelers?: TripTraveler[];
   description?: string | null;
+  notes?: string | null;
   totalPrice?: string | null;
   firstPayment?: string | null;
   balanceDue?: string | null;
@@ -786,6 +788,7 @@ export async function createContract(input: {
       returnDate: input.returnDate ?? null,
       travelers: normalizedTravelers,
       description: input.description ?? null,
+      notes: input.notes ?? null,
       totalPrice: input.totalPrice ?? null,
       firstPayment: input.firstPayment ?? null,
       balanceDue: input.balanceDue ?? null,
@@ -825,6 +828,7 @@ export async function updateContract(
     returnDate: string | null;
     travelers: TripTraveler[];
     description: string | null;
+    notes: string | null;
     totalPrice: string | null;
     firstPayment: string | null;
     balanceDue: string | null;
@@ -865,6 +869,7 @@ export async function updateContract(
       ? { travelers: normalizeTravelers(updates.travelers) }
       : {}),
     ...(updates.description !== undefined ? { description: updates.description } : {}),
+    ...(updates.notes !== undefined ? { notes: updates.notes } : {}),
     ...(updates.totalPrice !== undefined ? { totalPrice: updates.totalPrice } : {}),
     ...(updates.firstPayment !== undefined ? { firstPayment: updates.firstPayment } : {}),
     ...(updates.balanceDue !== undefined ? { balanceDue: updates.balanceDue } : {}),
