@@ -1,11 +1,10 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { SectionHeading } from "@/components/section-heading";
 import { buttonLinkStyles } from "@/components/ui/button";
 import { getAdminFromCookies } from "@/lib/auth/admin";
 import { getContracts, getTrips } from "@/lib/db";
-import { cn } from "@/lib/utils";
+import { YearFilter } from "./YearFilter";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +14,7 @@ type SearchParams = {
   range?: SearchParam;
   from?: SearchParam;
   to?: SearchParam;
+  year?: SearchParam;
 };
 
 type SellerSummary = {
@@ -89,6 +89,7 @@ function endOfDay(date: Date) {
 function getRange(searchParams?: SearchParams) {
   const now = new Date();
   const range = coerceParam(searchParams?.range);
+  const yearParam = coerceParam(searchParams?.year);
 
   if (range === "custom") {
     const fromRaw = coerceParam(searchParams?.from);
@@ -106,9 +107,16 @@ function getRange(searchParams?: SearchParams) {
   }
 
   if (range === "year") {
+    if (yearParam === "all") {
+      return { range: "all", hasFilter: false, start: null, end: null, year: "all" };
+    }
+    const parsedYear = Number.parseInt(yearParam || "", 10);
+    const targetYear = Number.isFinite(parsedYear) ? parsedYear : now.getFullYear();
     const start = new Date(now.getFullYear(), 0, 1);
     const end = endOfDay(new Date(now.getFullYear(), 11, 31));
-    return { range, hasFilter: true, start, end };
+    start.setFullYear(targetYear, 0, 1);
+    end.setFullYear(targetYear, 11, 31);
+    return { range, hasFilter: true, start, end, year: String(targetYear) };
   }
 
   if (range === "month") {
@@ -117,7 +125,17 @@ function getRange(searchParams?: SearchParams) {
     return { range, hasFilter: true, start, end };
   }
 
-  return { range: "all", hasFilter: false, start: null, end: null, from: "", to: "" };
+  const start = new Date(now.getFullYear(), 0, 1);
+  const end = endOfDay(new Date(now.getFullYear(), 11, 31));
+  return {
+    range: "year",
+    hasFilter: true,
+    start,
+    end,
+    from: "",
+    to: "",
+    year: String(now.getFullYear()),
+  };
 }
 
 function inRange(date: Date | null, start: Date, end: Date) {
@@ -186,12 +204,21 @@ export default async function ComisionesPage({
     redirect("/admin/contratos");
   }
 
-  const { range, start, end, from, to, hasFilter } = getRange(searchParams);
+  const { range, start, end, from, to, hasFilter, year } = getRange(searchParams);
   const fromInput = formatDateInput(from);
   const toInput = formatDateInput(to);
+  const now = new Date();
 
   const contracts = await getContracts();
   const trips = await getTrips();
+
+  const yearsSet = new Set<number>();
+  yearsSet.add(now.getFullYear());
+  for (const contract of contracts) {
+    const date = parseDate(contract.reservationDate);
+    if (date) yearsSet.add(date.getFullYear());
+  }
+  const years = Array.from(yearsSet).sort((a, b) => b - a);
 
   const filteredContracts =
     hasFilter && start && end
@@ -360,30 +387,12 @@ export default async function ComisionesPage({
               Ajusta el periodo para ver ventas y rendimiento.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-            <Link
-              href="/admin/comisiones?range=month"
-              className={cn(
-                "rounded-full border px-3 py-1",
-                range === "month"
-                  ? "border-brand-500 bg-white text-brand-700"
-                  : "border-brand-200 text-brand-600"
-              )}
-            >
-              Este mes
-            </Link>
-            <Link
-              href="/admin/comisiones?range=year"
-              className={cn(
-                "rounded-full border px-3 py-1",
-                range === "year"
-                  ? "border-brand-500 bg-white text-brand-700"
-                  : "border-brand-200 text-brand-600"
-              )}
-            >
-              Este año
-            </Link>
-          </div>
+          <YearFilter
+            years={years}
+            currentYear={now.getFullYear()}
+            range={range}
+            selectedYear={year ?? ""}
+          />
         </div>
 
         <form
@@ -425,7 +434,7 @@ export default async function ComisionesPage({
         </form>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-2">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
             Ventas (firmadas + pagadas)
@@ -514,105 +523,6 @@ export default async function ComisionesPage({
         </div>
       </section>
 
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="font-display text-lg text-brand-950">Ventas por asesor</h3>
-            <p className="mt-1 text-sm text-slate-500">
-              Contratos agrupados por quien organizó/vendió.
-            </p>
-          </div>
-          <span className="rounded-full border border-brand-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-            {sellerList.length} asesores
-          </span>
-        </div>
-
-        {sellerList.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-brand-200 bg-white/60 p-6 text-sm text-slate-600">
-            No hay ventas firmadas o pagadas en este periodo.
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {sellerList.map((seller) => (
-              <details
-                key={seller.name}
-                className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
-              >
-                <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-                  <div className="grid items-center gap-4 md:grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr_0.8fr]">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                        Asesor
-                      </p>
-                      <p className="font-display text-lg text-brand-950">{seller.name}</p>
-                      <p className="text-xs text-slate-500">
-                        Última venta: {formatDateLabel(seller.lastSaleAt)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                        Contratos
-                      </p>
-                      <p className="text-sm text-brand-950">{seller.contracts}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                        Ingresos
-                      </p>
-                      <p className="text-sm text-brand-950">
-                        {formatCurrency(seller.revenue)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                        Firmados
-                      </p>
-                      <p className="text-sm text-brand-950">{seller.signed}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                        Pagados
-                      </p>
-                      <p className="text-sm text-brand-950">{seller.paid}</p>
-                    </div>
-                  </div>
-                </summary>
-
-                <div className="mt-4 border-t border-slate-200 pt-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                    Contratos vendidos
-                  </p>
-                  <div className="mt-3 grid gap-3">
-                    {seller.items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm"
-                      >
-                        <div>
-                          <p className="font-semibold text-brand-950">{item.title}</p>
-                          <p className="text-xs text-slate-500">
-                            {item.clientName}
-                            {item.contractNumber ? ` • #${item.contractNumber}` : ""}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs uppercase tracking-[0.2em] text-brand-600">
-                            {item.status}
-                          </p>
-                          <p className="text-sm text-brand-950">
-                            {item.totalPrice ? formatCurrency(parseMoney(item.totalPrice)) : "—"}
-                          </p>
-                          <p className="text-xs text-slate-500">{item.dateLabel}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </details>
-            ))}
-          </div>
-        )}
-      </section>
     </div>
   );
 }
