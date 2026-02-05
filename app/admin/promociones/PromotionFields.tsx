@@ -22,8 +22,18 @@ export function PromotionFields({
 }: PromotionFieldsProps) {
   const [baseUrl, setBaseUrl] = useState("");
   const [titleValue, setTitleValue] = useState(defaults?.title ?? "");
-  const [ctaLinkValue, setCtaLinkValue] = useState(defaults?.ctaLink ?? "");
-  const [ctaLinkTouched, setCtaLinkTouched] = useState(Boolean(defaults?.ctaLink));
+  const hasLegacyCtaLink = Boolean(defaults?.ctaLink) && (() => {
+    const raw = String(defaults?.ctaLink ?? "").toLowerCase();
+    if (raw.includes("wa.me/?text=")) return true;
+    if (raw.includes("wa.me") && !raw.includes("text=")) return true;
+    return false;
+  })();
+  const [ctaLinkValue, setCtaLinkValue] = useState(
+    defaults?.ctaLink ?? ""
+  );
+  const [ctaLinkTouched, setCtaLinkTouched] = useState(
+    Boolean(defaults?.ctaLink) && !hasLegacyCtaLink
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;

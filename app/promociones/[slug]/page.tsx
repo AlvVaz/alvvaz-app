@@ -16,7 +16,7 @@ type PromotionDetailPageProps = {
 };
 
 function buildWhatsAppMessage(title: string, url: string) {
-  return `Hola, me interesa la promoción: ${title}. ¿Me compartes más detalles?\n${url}`;
+  return `Hola, me interesa la promoción: ${title}. ¿Me pudieras dar más detalles?\n${url}`;
 }
 
 async function getBaseUrl() {
@@ -25,6 +25,14 @@ async function getBaseUrl() {
   const host = headerList.get("x-forwarded-host") ?? headerList.get("host") ?? "";
   if (!host) return "";
   return `${proto}://${host}`;
+}
+
+function shouldUseDefaultCta(link: string | null) {
+  if (!link) return true;
+  const normalized = link.toLowerCase();
+  if (normalized.includes("wa.me/?text=")) return true;
+  if (normalized.includes("wa.me") && !normalized.includes("text=")) return true;
+  return false;
 }
 
 export default async function PromotionDetailPage({
@@ -45,11 +53,10 @@ export default async function PromotionDetailPage({
   const whatsappNumber = "5214441717405";
   const baseUrl = await getBaseUrl();
   const promotionUrl = `${baseUrl}/promociones/${promotion.slug}`;
-  const ctaHref =
-    promotion.ctaLink ||
-    `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
-      buildWhatsAppMessage(promotion.title, promotionUrl)
-    )}`;
+  const defaultCta = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
+    buildWhatsAppMessage(promotion.title, promotionUrl)
+  )}`;
+  const ctaHref = shouldUseDefaultCta(promotion.ctaLink) ? defaultCta : promotion.ctaLink!;
 
   const availableRange =
     promotion.availableFrom && promotion.availableTo
