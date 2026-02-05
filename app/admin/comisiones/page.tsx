@@ -201,7 +201,10 @@ export default async function ComisionesPage({
   const filteredTripIds = new Set(
     filteredContracts
       .map((contract) => contract.tripId)
-      .filter((tripId): tripId is string => Boolean(tripId) && tripIdSet.has(tripId))
+      .filter(
+        (tripId): tripId is string =>
+          typeof tripId === "string" && tripIdSet.has(tripId)
+      )
   );
   const tripsCount = filteredTripIds.size;
 
