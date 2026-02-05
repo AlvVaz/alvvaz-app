@@ -106,7 +106,7 @@ export default function ContactoPage() {
                 <div className="mt-3 h-40 w-full overflow-hidden rounded-2xl border border-slate-200">
                   <iframe
                     title="Mapa de ubicación Villas del Sol"
-                    src="https://www.google.com/maps/embed?pb=!3m2!1sen!2sca!4v1770306950153!5m2!1sen!2sca!6m8!1m7!1s3a2u6ZxVDyjz5O-xW6jMoQ!2m2!1d22.13701844201469!2d-100.9099802029264!3f315.20666288287697!4f0.8456487183427441!5f0.7973746877340908"
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d386.42905341001654!2d-100.91036104173563!3d22.137062470954305!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x842aa3ea532852bb%3A0xc878c08f2ab384bb!2sProlongacion%20de%20la%20Calle%2030%20689%2C%20Villas%20del%20Sol%2C%2078394%20Pozos%2C%20S.L.P.%2C%20Mexico!5e0!3m2!1sen!2sca!4v1770307245311!5m2!1sen!2sca"
                     className="h-full w-full"
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
