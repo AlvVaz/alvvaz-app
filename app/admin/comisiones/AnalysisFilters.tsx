@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
@@ -52,17 +52,20 @@ function Dropdown({
   onChange: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const selected = options.find((option) => option.value === value) ?? options[0];
 
-  useEffect(() => {
-    if (!open) return;
-    const handleClick = () => setOpen(false);
-    window.addEventListener("click", handleClick);
-    return () => window.removeEventListener("click", handleClick);
-  }, [open]);
-
   return (
-    <div className="relative">
+    <div
+      ref={wrapperRef}
+      className="relative"
+      tabIndex={0}
+      onBlur={(event) => {
+        const next = event.relatedTarget as Node | null;
+        if (!wrapperRef.current || (next && wrapperRef.current.contains(next))) return;
+        setOpen(false);
+      }}
+    >
       <button
         type="button"
         onClick={(event) => {
