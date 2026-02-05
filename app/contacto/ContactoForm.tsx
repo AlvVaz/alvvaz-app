@@ -19,6 +19,7 @@ export function ContactoForm() {
     mensaje: "",
   });
   const [status, setStatus] = useState<"idle" | "success">("idle");
+  const whatsappNumber = "5214441717405";
 
   const handleChange = (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -29,6 +30,17 @@ export function ContactoForm() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const message = [
+      `Hola, soy ${formData.nombre}.`,
+      `Email: ${formData.email}`,
+      formData.mensaje,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
+      message
+    )}`;
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
     setStatus("success");
   };
 
@@ -54,14 +66,13 @@ export function ContactoForm() {
       </div>
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          Email
+          Email (Opcional)
         </label>
         <input
           type="email"
           name="email"
           value={formData.email}
           onChange={handleChange}
-          required
           className={cn(
             "w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 transition-colors duration-200 focus:border-brand-400 focus:outline-none"
           )}
