@@ -3,26 +3,33 @@ import { redirect } from "next/navigation";
 import { SectionHeading } from "@/components/section-heading";
 import { getAdminFromCookies } from "@/lib/auth/admin";
 import { getContracts, getTrips } from "@/lib/db";
+
+import { AnalysisFilters } from "./AnalysisFilters";
+
 export const dynamic = "force-dynamic";
 
-type SellerSummary = {
-  name: string;
-  contracts: number;
-  revenue: number;
-  signed: number;
-  paid: number;
-  lastSaleAt?: string;
-  items: Array<{
-    id: string;
-    title: string;
-    clientName: string;
-    contractNumber?: string | null;
-    status: string;
-    totalPrice?: string | null;
-    dateLabel: string;
-    dateValue: number;
-  }>;
+type SearchParam = string | string[] | undefined;
+
+type SearchParams = {
+  mode?: SearchParam;
+  from?: SearchParam;
+  to?: SearchParam;
+  year?: SearchParam;
+  month?: SearchParam;
 };
+
+type FilterMode = "range" | "month" | "year";
+
+function coerceParam(value?: SearchParam): string {
+  if (!value) return "";
+  return Array.isArray(value) ? value[0] ?? "" : value;
+}
+
+function parseNumber(value?: string) {
+  if (!value) return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 function parseDate(value?: string | null): Date | null {
   if (!value) return null;
@@ -77,16 +84,6 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-function formatDateLabel(value?: string | null) {
-  const date = parseDate(value);
-  if (!date) return "Sin fecha";
-  return new Intl.DateTimeFormat("es-MX", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(date);
-}
-
 function getMonthBuckets(start: Date, end: Date, maxMonths = 12) {
   const buckets: Array<{ key: string; label: string; month: number; year: number }> = [];
   const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
@@ -108,7 +105,16 @@ function getMonthBuckets(start: Date, end: Date, maxMonths = 12) {
   return buckets;
 }
 
-export default async function ComisionesPage() {
+function inRange(date: Date | null, start: Date, end: Date) {
+  if (!date) return false;
+  return date.getTime() >= start.getTime() && date.getTime() <= end.getTime();
+}
+
+export default async function ComisionesPage({
+  searchParams,
+}: {
+  searchParams?: SearchParams;
+}) {
   const admin = await getAdminFromCookies();
   if (!admin) {
     redirect("/admin/login");
@@ -117,118 +123,98 @@ export default async function ComisionesPage() {
     redirect("/admin/contratos");
   }
 
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  const rawMode = coerceParam(searchParams?.mode);
+  const mode: FilterMode =
+    rawMode === "range" || rawMode === "month" || rawMode === "year"
+      ? rawMode
+      : "year";
+  const selectedYear = parseNumber(coerceParam(searchParams?.year)) ?? currentYear;
+  const selectedMonth = parseNumber(coerceParam(searchParams?.month)) ?? currentMonth;
+  const rangeFrom = coerceParam(searchParams?.from);
+  const rangeTo = coerceParam(searchParams?.to);
+
+  let filterStart: Date | null = null;
+  let filterEnd: Date | null = null;
+  let hasFilter = true;
+
+  if (mode === "range") {
+    const fromDate = parseDate(rangeFrom);
+    const toDate = parseDate(rangeTo);
+    if (fromDate && toDate) {
+      filterStart = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+      filterEnd = endOfDay(toDate);
+    } else {
+      hasFilter = false;
+    }
+  } else if (mode === "month") {
+    filterStart = new Date(selectedYear, selectedMonth - 1, 1);
+    filterEnd = endOfDay(new Date(selectedYear, selectedMonth, 0));
+  } else {
+    filterStart = new Date(selectedYear, 0, 1);
+    filterEnd = endOfDay(new Date(selectedYear, 11, 31));
+  }
+
   const contracts = await getContracts();
   const trips = await getTrips();
 
-  const filteredContracts = contracts;
-  const filteredTrips = trips;
+  const yearsSet = new Set<number>();
+  yearsSet.add(currentYear);
+  for (const contract of contracts) {
+    const date = parseDate(contract.reservationDate);
+    if (date) yearsSet.add(date.getFullYear());
+  }
+  const years = Array.from(yearsSet).sort((a, b) => b - a);
 
-  const saleContracts = contracts.filter(
+  const filteredContracts =
+    hasFilter && filterStart && filterEnd
+      ? contracts.filter((contract) => {
+          const date = parseDate(contract.reservationDate);
+          return inRange(date, filterStart, filterEnd);
+        })
+      : [];
+
+  const saleContracts = filteredContracts.filter(
     (contract) =>
       contract.status === "signed" ||
       contract.status === "paid" ||
       contract.isSigned ||
       contract.isPaid
   );
-  const pendingContracts = contracts.filter(
-    (contract) =>
-      !(
-        contract.status === "signed" ||
-        contract.status === "paid" ||
-        contract.isSigned ||
-        contract.isPaid
-      )
-  );
+
+  const pendingContracts = filteredContracts.filter((contract) => {
+    if (contract.status) {
+      return contract.status === "pending";
+    }
+    return !(contract.isSigned || contract.isPaid);
+  });
 
   const totalRevenue = saleContracts.reduce(
     (sum, contract) => sum + parseMoney(contract.totalPrice),
     0
   );
 
-  const saleContractItems = saleContracts
-    .map((contract) => {
-      const contractDate = contract.reservationDate;
-      const dateLabel = formatDateLabel(contractDate);
-      const dateValue = parseDate(contractDate)?.getTime() ?? 0;
-      const statusLabel =
-        contract.status === "paid" || contract.isPaid ? "Pagado" : "Firmado";
-      return {
-        id: contract.id,
-        title: contract.title,
-        clientName: contract.clientName,
-        contractNumber: contract.contractNumber,
-        totalPrice: contract.totalPrice,
-        statusLabel,
-        dateLabel,
-        dateValue,
-      };
-    })
-    .sort((a, b) => b.dateValue - a.dateValue);
+  const tripIdSet = new Set(trips.map((trip) => trip.id));
+  const filteredTripIds = new Set(
+    filteredContracts
+      .map((contract) => contract.tripId)
+      .filter((tripId): tripId is string => Boolean(tripId) && tripIdSet.has(tripId))
+  );
+  const tripsCount = filteredTripIds.size;
 
-  const sellers = new Map<string, SellerSummary>();
-  for (const contract of saleContracts) {
-    const sellerName = contract.organizer?.trim() || "Sin asignar";
-    const current = sellers.get(sellerName) ?? {
-      name: sellerName,
-      contracts: 0,
-      revenue: 0,
-      signed: 0,
-      paid: 0,
-      items: [],
-    };
-
-    current.contracts += 1;
-    current.revenue += parseMoney(contract.totalPrice);
-    if (contract.status === "paid" || contract.isPaid) current.paid += 1;
-    if (contract.status === "signed" || contract.isSigned) current.signed += 1;
-
-    const contractDate = contract.reservationDate;
-    const dateLabel = formatDateLabel(contractDate);
-    const dateValue = parseDate(contractDate)?.getTime() ?? 0;
-    current.items.push({
-      id: contract.id,
-      title: contract.title,
-      clientName: contract.clientName,
-      contractNumber: contract.contractNumber,
-      status: contract.status,
-      totalPrice: contract.totalPrice,
-      dateLabel,
-      dateValue,
-    });
-
-    if (contractDate) {
-      const dateObject = parseDate(contractDate);
-      if (dateObject) {
-        if (!current.lastSaleAt || dateObject > new Date(current.lastSaleAt)) {
-          current.lastSaleAt = dateObject.toISOString();
-        }
-      }
-    }
-
-    sellers.set(sellerName, current);
-  }
-
-  const sellerList = Array.from(sellers.values()).sort((a, b) => b.revenue - a.revenue);
-  for (const seller of sellerList) {
-    seller.items.sort((a, b) => b.dateValue - a.dateValue);
-  }
+  const noData = hasFilter && filteredContracts.length === 0;
 
   let bucketStart: Date;
   let bucketEnd: Date;
-  const saleDates = saleContracts
-    .map((contract) => parseDate(contract.reservationDate))
-    .filter((date): date is Date => Boolean(date));
-  if (saleDates.length) {
-    const minTime = Math.min(...saleDates.map((date) => date.getTime()));
-    const maxTime = Math.max(...saleDates.map((date) => date.getTime()));
-    const minDate = new Date(minTime);
-    const maxDate = new Date(maxTime);
-    bucketStart = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
-    bucketEnd = endOfDay(new Date(maxDate.getFullYear(), maxDate.getMonth() + 1, 0));
+  if (filterStart && filterEnd) {
+    bucketStart = new Date(filterStart.getFullYear(), filterStart.getMonth(), 1);
+    bucketEnd = endOfDay(new Date(filterEnd.getFullYear(), filterEnd.getMonth() + 1, 0));
   } else {
-    const now = new Date();
-    bucketStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    bucketEnd = endOfDay(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+    bucketStart = new Date(currentYear, currentMonth - 1, 1);
+    bucketEnd = endOfDay(new Date(currentYear, currentMonth, 0));
   }
 
   const buckets = getMonthBuckets(bucketStart, bucketEnd);
@@ -258,13 +244,40 @@ export default async function ComisionesPage() {
         kicker="Admin"
       />
 
+      <section className="rounded-3xl border border-brand-200/80 bg-gradient-to-br from-brand-100 via-white to-brand-200/70 p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h3 className="font-display text-lg text-brand-950">Filtros de fecha</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              Ajusta el periodo para ver ventas y rendimiento.
+            </p>
+          </div>
+        </div>
+        <AnalysisFilters
+          mode={mode}
+          years={years}
+          currentYear={currentYear}
+          currentMonth={currentMonth}
+          selectedYear={selectedYear}
+          selectedMonth={selectedMonth}
+          rangeFrom={rangeFrom}
+          rangeTo={rangeTo}
+        />
+      </section>
+
+      {noData ? (
+        <div className="inline-flex w-fit rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
+          No se encontró data
+        </div>
+      ) : null}
+
       <section className="grid gap-4 md:grid-cols-2">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
             Ventas (firmadas + pagadas)
           </p>
           <p className="mt-3 font-display text-3xl text-brand-950">
-            {saleContracts.length}
+            {noData ? "—" : saleContracts.length}
           </p>
           <p className="mt-1 text-sm text-slate-500">Contratos en el periodo</p>
         </div>
@@ -273,7 +286,7 @@ export default async function ComisionesPage() {
             Ingresos netos
           </p>
           <p className="mt-3 font-display text-3xl text-brand-950">
-            {formatCurrency(totalRevenue)}
+            {noData ? "—" : formatCurrency(totalRevenue)}
           </p>
           <p className="mt-1 text-sm text-slate-500">Basado en Precio Neto</p>
         </div>
@@ -282,7 +295,7 @@ export default async function ComisionesPage() {
             Viajes programados
           </p>
           <p className="mt-3 font-display text-3xl text-brand-950">
-            {filteredTrips.length}
+            {noData ? "—" : tripsCount}
           </p>
           <p className="mt-1 text-sm text-slate-500">Salidas registradas</p>
         </div>
@@ -291,7 +304,7 @@ export default async function ComisionesPage() {
             Pendientes
           </p>
           <p className="mt-3 font-display text-3xl text-brand-950">
-            {pendingContracts.length}
+            {noData ? "—" : pendingContracts.length}
           </p>
           <p className="mt-1 text-sm text-slate-500">Por firmar o pagar</p>
         </div>
@@ -348,7 +361,6 @@ export default async function ComisionesPage() {
           </div>
         </div>
       </section>
-
     </div>
   );
 }
