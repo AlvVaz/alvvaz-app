@@ -148,8 +148,7 @@ export function DateFilters({
   const yearActive = yearValue !== "all";
 
   const handleYearChange = (value: string) => {
-    const resolvedValue = value === yearValue ? "all" : value;
-    if (resolvedValue === "all") {
+    if (value === "all") {
       router.push("/admin/comisiones?range=year&year=all");
       return;
     }
@@ -157,18 +156,17 @@ export function DateFilters({
     if (monthValue !== "all") {
       router.push(
         `/admin/comisiones?range=month&year=${encodeURIComponent(
-          resolvedValue
+          value
         )}&month=${encodeURIComponent(monthValue)}`
       );
       return;
     }
 
-    router.push(`/admin/comisiones?range=year&year=${encodeURIComponent(resolvedValue)}`);
+    router.push(`/admin/comisiones?range=year&year=${encodeURIComponent(value)}`);
   };
 
   const handleMonthChange = (value: string) => {
-    const resolvedValue = value === monthValue ? "all" : value;
-    if (resolvedValue === "all") {
+    if (value === "all") {
       if (yearValue === "all") {
         router.push("/admin/comisiones?range=year&year=all");
       } else {
@@ -181,7 +179,7 @@ export function DateFilters({
     router.push(
       `/admin/comisiones?range=month&year=${encodeURIComponent(
         resolvedYear
-      )}&month=${encodeURIComponent(resolvedValue)}`
+      )}&month=${encodeURIComponent(value)}`
     );
   };
 

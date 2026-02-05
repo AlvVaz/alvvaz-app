@@ -100,12 +100,19 @@ function getRange(searchParams?: SearchParams) {
     const parsedMonth = Number.parseInt(monthParam || "", 10);
     const hasYear = Number.isFinite(parsedYear);
     const hasMonth = Number.isFinite(parsedMonth);
-    const fallbackStart = hasYear && hasMonth
-      ? new Date(parsedYear, parsedMonth - 1, 1)
-      : new Date(now.getFullYear(), now.getMonth(), 1);
-    const fallbackEnd = hasYear && hasMonth
-      ? endOfDay(new Date(parsedYear, parsedMonth, 0))
-      : now;
+    let fallbackStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    let fallbackEnd = endOfDay(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+
+    if (hasYear && hasMonth) {
+      fallbackStart = new Date(parsedYear, parsedMonth - 1, 1);
+      fallbackEnd = endOfDay(new Date(parsedYear, parsedMonth, 0));
+    } else if (hasYear) {
+      fallbackStart = new Date(parsedYear, 0, 1);
+      fallbackEnd = endOfDay(new Date(parsedYear, 11, 31));
+    } else if (hasMonth) {
+      fallbackStart = new Date(now.getFullYear(), parsedMonth - 1, 1);
+      fallbackEnd = endOfDay(new Date(now.getFullYear(), parsedMonth, 0));
+    }
     const from = parseDate(fromRaw) ?? fallbackStart;
     const to = parseDate(toRaw) ?? fallbackEnd;
     return {
