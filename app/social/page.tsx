@@ -6,11 +6,11 @@ const facebookPageUrl = "https://www.facebook.com/AgenciaAlvvaz/";
 export default function SocialPage() {
   const embedSrc = `https://www.facebook.com/plugins/page.php?href=${encodeURIComponent(
     facebookPageUrl
-  )}&tabs=timeline&width=500&height=720&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true`;
+  )}&tabs=timeline&width=1200&height=720&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true`;
 
   return (
     <div className="pb-24 pt-12">
-      <Container className="space-y-12">
+      <Container className="space-y-12 max-w-none">
         <SectionHeading
           title="Social"
           subtitle="Nuestras publicaciones más recientes desde Facebook."
