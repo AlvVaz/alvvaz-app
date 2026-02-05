@@ -14,7 +14,7 @@ const navItems = [
     href: "/admin/contratos",
     roles: ["owner", "tech", "admin"],
   },
-  { label: "Comisiones", href: "/admin/comisiones", roles: ["owner", "tech"] },
+  { label: "Analisis", href: "/admin/comisiones", roles: ["owner", "tech"] },
   {
     label: "Promociones",
     href: "/admin/promociones",

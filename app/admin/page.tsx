@@ -94,7 +94,7 @@ export default async function AdminPage() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="font-display text-xl text-brand-950">Comisiones</h3>
+          <h3 className="font-display text-xl text-brand-950">Analisis</h3>
           <p className="mt-2 text-sm text-slate-600">
             Visualiza ventas, ingresos estimados y rendimiento por asesor en el
             periodo seleccionado.
@@ -103,7 +103,7 @@ export default async function AdminPage() {
             href="/admin/comisiones"
             className={buttonLinkStyles({ variant: "primary", className: "mt-6" })}
           >
-            Ver comisiones
+            Ver analisis
           </Link>
         </div>
 

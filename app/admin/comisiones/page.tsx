@@ -374,7 +374,7 @@ export default async function ComisionesPage({
   return (
     <div className="space-y-8">
       <SectionHeading
-        title="Comisiones"
+        title="Analisis"
         subtitle="Resumen de ventas, contratos y rendimiento por asesor."
         kicker="Admin"
       />
