@@ -184,6 +184,26 @@ export default async function ComisionesPage({
     0
   );
 
+  const saleContractItems = saleContracts
+    .map((contract) => {
+      const contractDate = contract.reservationDate ?? contract.createdAt;
+      const dateLabel = formatDateLabel(contractDate);
+      const dateValue = parseDate(contractDate)?.getTime() ?? 0;
+      const statusLabel =
+        contract.status === "paid" || contract.isPaid ? "Pagado" : "Firmado";
+      return {
+        id: contract.id,
+        title: contract.title,
+        clientName: contract.clientName,
+        contractNumber: contract.contractNumber,
+        totalPrice: contract.totalPrice,
+        statusLabel,
+        dateLabel,
+        dateValue,
+      };
+    })
+    .sort((a, b) => b.dateValue - a.dateValue);
+
   const sellers = new Map<string, SellerSummary>();
   for (const contract of saleContracts) {
     const sellerName = contract.organizer?.trim() || "Sin asignar";
@@ -385,6 +405,54 @@ export default async function ComisionesPage({
           </p>
           <p className="mt-1 text-sm text-slate-500">Por firmar o pagar</p>
         </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="font-display text-lg text-brand-950">
+              Ventas firmadas o pagadas
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Contratos con estatus firmado o pagado.
+            </p>
+          </div>
+          <span className="rounded-full border border-emerald-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">
+            {saleContractItems.length} contratos
+          </span>
+        </div>
+
+        {saleContractItems.length === 0 ? (
+          <div className="mt-4 rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/60 p-4 text-sm text-slate-600">
+            No hay contratos firmados o pagados en este periodo.
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-3">
+            {saleContractItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm"
+              >
+                <div>
+                  <p className="font-semibold text-brand-950">{item.title}</p>
+                  <p className="text-xs text-slate-500">
+                    {item.clientName}
+                    {item.contractNumber ? ` • #${item.contractNumber}` : ""}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">
+                    {item.statusLabel}
+                  </p>
+                  <p className="text-sm text-brand-950">
+                    {item.totalPrice ? formatCurrency(parseMoney(item.totalPrice)) : "—"}
+                  </p>
+                  <p className="text-xs text-slate-500">{item.dateLabel}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
