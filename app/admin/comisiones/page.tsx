@@ -71,6 +71,15 @@ function parseDate(value?: string | null): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function formatDateInput(value?: string | null) {
+  const date = parseDate(value);
+  if (!date) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function endOfDay(date: Date) {
   const copy = new Date(date);
   copy.setHours(23, 59, 59, 999);
@@ -79,7 +88,7 @@ function endOfDay(date: Date) {
 
 function getRange(searchParams?: SearchParams) {
   const now = new Date();
-  const range = coerceParam(searchParams?.range) || "month";
+  const range = coerceParam(searchParams?.range);
 
   if (range === "custom") {
     const fromRaw = coerceParam(searchParams?.from);
@@ -88,6 +97,7 @@ function getRange(searchParams?: SearchParams) {
     const to = parseDate(toRaw) ?? now;
     return {
       range,
+      hasFilter: true,
       start: new Date(from.getFullYear(), from.getMonth(), from.getDate()),
       end: endOfDay(to),
       from: fromRaw,
@@ -98,12 +108,16 @@ function getRange(searchParams?: SearchParams) {
   if (range === "year") {
     const start = new Date(now.getFullYear(), 0, 1);
     const end = endOfDay(new Date(now.getFullYear(), 11, 31));
-    return { range, start, end };
+    return { range, hasFilter: true, start, end };
   }
 
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = endOfDay(new Date(now.getFullYear(), now.getMonth() + 1, 0));
-  return { range: "month", start, end };
+  if (range === "month") {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = endOfDay(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+    return { range, hasFilter: true, start, end };
+  }
+
+  return { range: "all", hasFilter: false, start: null, end: null, from: "", to: "" };
 }
 
 function inRange(date: Date | null, start: Date, end: Date) {
@@ -172,20 +186,28 @@ export default async function ComisionesPage({
     redirect("/admin/contratos");
   }
 
-  const { range, start, end, from, to } = getRange(searchParams);
+  const { range, start, end, from, to, hasFilter } = getRange(searchParams);
+  const fromInput = formatDateInput(from);
+  const toInput = formatDateInput(to);
 
   const contracts = await getContracts();
   const trips = await getTrips();
 
-  const filteredContracts = contracts.filter((contract) => {
-    const date = parseDate(contract.reservationDate) ?? parseDate(contract.createdAt);
-    return inRange(date, start, end);
-  });
+  const filteredContracts =
+    hasFilter && start && end
+      ? contracts.filter((contract) => {
+          const date = parseDate(contract.reservationDate);
+          return inRange(date, start, end);
+        })
+      : contracts;
 
-  const filteredTrips = trips.filter((trip) => {
-    const date = parseDate(trip.departureDate) ?? parseDate(trip.createdAt);
-    return inRange(date, start, end);
-  });
+  const filteredTrips =
+    hasFilter && start && end
+      ? trips.filter((trip) => {
+          const date = parseDate(trip.departureDate) ?? parseDate(trip.createdAt);
+          return inRange(date, start, end);
+        })
+      : trips;
 
   const signedContracts = filteredContracts.filter(
     (contract) => contract.status === "signed" || contract.isSigned
@@ -217,7 +239,7 @@ export default async function ComisionesPage({
 
   const saleContractItems = saleContracts
     .map((contract) => {
-      const contractDate = contract.reservationDate ?? contract.createdAt;
+      const contractDate = contract.reservationDate;
       const dateLabel = formatDateLabel(contractDate);
       const dateValue = parseDate(contractDate)?.getTime() ?? 0;
       const statusLabel =
@@ -252,7 +274,7 @@ export default async function ComisionesPage({
     if (contract.status === "paid" || contract.isPaid) current.paid += 1;
     if (contract.status === "signed" || contract.isSigned) current.signed += 1;
 
-    const contractDate = contract.reservationDate ?? contract.createdAt;
+    const contractDate = contract.reservationDate;
     const dateLabel = formatDateLabel(contractDate);
     const dateValue = parseDate(contractDate)?.getTime() ?? 0;
     current.items.push({
@@ -283,14 +305,34 @@ export default async function ComisionesPage({
     seller.items.sort((a, b) => b.dateValue - a.dateValue);
   }
 
-  const buckets = getMonthBuckets(start, end);
+  let bucketStart = start;
+  let bucketEnd = end;
+  if (!bucketStart || !bucketEnd) {
+    const saleDates = saleContracts
+      .map((contract) => parseDate(contract.reservationDate))
+      .filter((date): date is Date => Boolean(date));
+    if (saleDates.length) {
+      const minTime = Math.min(...saleDates.map((date) => date.getTime()));
+      const maxTime = Math.max(...saleDates.map((date) => date.getTime()));
+      const minDate = new Date(minTime);
+      const maxDate = new Date(maxTime);
+      bucketStart = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+      bucketEnd = endOfDay(new Date(maxDate.getFullYear(), maxDate.getMonth() + 1, 0));
+    } else {
+      const now = new Date();
+      bucketStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      bucketEnd = endOfDay(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+    }
+  }
+
+  const buckets = getMonthBuckets(bucketStart, bucketEnd);
   const bucketMap = new Map<string, { sales: number; revenue: number }>();
   for (const bucket of buckets) {
     bucketMap.set(bucket.key, { sales: 0, revenue: 0 });
   }
 
   for (const contract of saleContracts) {
-    const date = parseDate(contract.reservationDate) ?? parseDate(contract.createdAt);
+    const date = parseDate(contract.reservationDate);
     if (!date) continue;
     const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
     const bucket = bucketMap.get(key);
@@ -357,7 +399,7 @@ export default async function ComisionesPage({
             <input
               type="date"
               name="from"
-              defaultValue={from ?? ""}
+              defaultValue={fromInput}
               className="w-full rounded-2xl border border-slate-200 px-4 py-2"
             />
           </div>
@@ -368,7 +410,7 @@ export default async function ComisionesPage({
             <input
               type="date"
               name="to"
-              defaultValue={to ?? ""}
+              defaultValue={toInput}
               className="w-full rounded-2xl border border-slate-200 px-4 py-2"
             />
           </div>
@@ -393,12 +435,12 @@ export default async function ComisionesPage({
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-            Ingresos estimados
+            Ingresos netos
           </p>
           <p className="mt-3 font-display text-3xl text-brand-950">
             {formatCurrency(totalRevenue)}
           </p>
-          <p className="mt-1 text-sm text-slate-500">Basado en totalPrice</p>
+          <p className="mt-1 text-sm text-slate-500">Basado en Precio Neto</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
@@ -411,24 +453,6 @@ export default async function ComisionesPage({
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-            Firmados
-          </p>
-          <p className="mt-3 font-display text-3xl text-brand-950">
-            {signedContracts.length}
-          </p>
-          <p className="mt-1 text-sm text-slate-500">En revisión o confirmados</p>
-        </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-            Pagados
-          </p>
-          <p className="mt-3 font-display text-3xl text-brand-950">
-            {paidContracts.length}
-          </p>
-          <p className="mt-1 text-sm text-slate-500">Ventas cobradas</p>
-        </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
             Pendientes
           </p>
           <p className="mt-3 font-display text-3xl text-brand-950">
@@ -436,54 +460,6 @@ export default async function ComisionesPage({
           </p>
           <p className="mt-1 text-sm text-slate-500">Por firmar o pagar</p>
         </div>
-      </section>
-
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="font-display text-lg text-brand-950">
-              Ventas firmadas o pagadas
-            </h3>
-            <p className="mt-1 text-sm text-slate-500">
-              Contratos con estatus firmado o pagado.
-            </p>
-          </div>
-          <span className="rounded-full border border-emerald-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">
-            {saleContractItems.length} contratos
-          </span>
-        </div>
-
-        {saleContractItems.length === 0 ? (
-          <div className="mt-4 rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/60 p-4 text-sm text-slate-600">
-            No hay contratos firmados o pagados en este periodo.
-          </div>
-        ) : (
-          <div className="mt-4 grid gap-3">
-            {saleContractItems.map((item) => (
-              <div
-                key={item.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm"
-              >
-                <div>
-                  <p className="font-semibold text-brand-950">{item.title}</p>
-                  <p className="text-xs text-slate-500">
-                    {item.clientName}
-                    {item.contractNumber ? ` • #${item.contractNumber}` : ""}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">
-                    {item.statusLabel}
-                  </p>
-                  <p className="text-sm text-brand-950">
-                    {item.totalPrice ? formatCurrency(parseMoney(item.totalPrice)) : "—"}
-                  </p>
-                  <p className="text-xs text-slate-500">{item.dateLabel}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
@@ -512,8 +488,10 @@ export default async function ComisionesPage({
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="font-display text-lg text-brand-950">Ingresos por mes</h3>
-          <p className="mt-1 text-sm text-slate-500">TotalPrice acumulado.</p>
+          <h3 className="font-display text-lg text-brand-950">
+            Ingresos Netos por Mes
+          </h3>
+          <p className="mt-1 text-sm text-slate-500">Precio Neto Acumulado.</p>
           <div className="mt-6 flex items-end gap-3">
             {buckets.map((bucket) => {
               const data = bucketMap.get(bucket.key) ?? { sales: 0, revenue: 0 };

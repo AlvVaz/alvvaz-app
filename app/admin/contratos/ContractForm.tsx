@@ -538,6 +538,7 @@ export function ContractForm({
         <input
           type="date"
           name="reservationDate"
+          required
           defaultValue={seedContract?.reservationDate ?? ""}
           className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />

@@ -57,7 +57,7 @@ export async function createContractAction(
   const isSigned = status === "signed" || status === "paid";
   const isPaid = status === "paid";
 
-  if (!title || !clientName || !destination) return prevState;
+  if (!title || !clientName || !destination || !reservationDate) return prevState;
 
   const travelers = parseTravelers(travelersRaw);
 
@@ -167,6 +167,8 @@ export async function updateContractAction(
       : "pending";
   const isSigned = status === "signed" || status === "paid";
   const isPaid = status === "paid";
+
+  if (!title || !clientName || !destination || !reservationDate) return prevState;
 
   const travelers = parseTravelers(travelersRaw);
 
