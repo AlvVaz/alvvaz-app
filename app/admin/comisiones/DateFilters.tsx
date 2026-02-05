@@ -77,7 +77,21 @@ function Dropdown({
         )}
       >
         <span>{selected?.label ?? value}</span>
-        <span className="text-[10px]">▼</span>
+        {value !== "all" ? (
+          <span
+            onClick={(event) => {
+              event.stopPropagation();
+              setOpen(false);
+              onChange("all");
+            }}
+            className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold text-brand-600 hover:bg-brand-50"
+            aria-label="Quitar filtro"
+          >
+            ×
+          </span>
+        ) : (
+          <span className="text-[10px]">▼</span>
+        )}
       </button>
 
       {open ? (

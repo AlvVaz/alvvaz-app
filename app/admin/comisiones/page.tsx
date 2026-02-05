@@ -219,8 +219,14 @@ export default async function ComisionesPage({
   }
 
   const { range, start, end, from, to, hasFilter, year, month } = getRange(searchParams);
-  const fromInput = formatDateInput(from);
-  const toInput = formatDateInput(to);
+  let fromInput = formatDateInput(from);
+  let toInput = formatDateInput(to);
+  if (!fromInput && start) {
+    fromInput = formatDateInput(start.toISOString());
+  }
+  if (!toInput && end) {
+    toInput = formatDateInput(end.toISOString());
+  }
   const now = new Date();
 
   const contracts = await getContracts();
