@@ -59,7 +59,10 @@ export default function ContactoPage() {
                   Horario
                 </p>
                 <p className="text-sm text-slate-600">
-                  Lunes a sábado - 9:00 a 20:00
+                  Lunes a sábado - 11:30 am a 6:30 pm (Industrial Aviación)
+                </p>
+                <p className="text-sm text-slate-600">
+                  1 pm a 7 pm (corrido) (Villas del Sol)
                 </p>
               </div>
               <div>
@@ -83,6 +86,34 @@ export default function ContactoPage() {
                 </div>
                 <a
                   href="https://www.google.com/maps/search/?api=1&query=22.1715345,-100.9931872"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex text-xs font-semibold uppercase tracking-[0.2em] text-brand-600 transition hover:text-brand-700"
+                >
+                  Ver en Google Maps
+                </a>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                  Ubicación
+                </p>
+                <p className="text-sm text-slate-600 break-words">
+                  Prol. Calle 30 #689
+                </p>
+                <p className="text-sm text-slate-600 break-words">
+                  Col. Villas del Sol / Casi Frente a la Comandancia Oriente
+                </p>
+                <div className="mt-3 h-40 w-full overflow-hidden rounded-2xl border border-slate-200">
+                  <iframe
+                    title="Mapa de ubicación Villas del Sol"
+                    src="https://www.google.com/maps/embed?pb=!3m2!1sen!2sca!4v1770306950153!5m2!1sen!2sca!6m8!1m7!1s3a2u6ZxVDyjz5O-xW6jMoQ!2m2!1d22.13701844201469!2d-100.9099802029264!3f315.20666288287697!4f0.8456487183427441!5f0.7973746877340908"
+                    className="h-full w-full"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                </div>
+                <a
+                  href="https://www.google.com/maps/search/?api=1&query=22.13701844201469,-100.9099802029264"
                   target="_blank"
                   rel="noreferrer"
                   className="mt-3 inline-flex text-xs font-semibold uppercase tracking-[0.2em] text-brand-600 transition hover:text-brand-700"
