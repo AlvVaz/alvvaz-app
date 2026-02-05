@@ -12,6 +12,7 @@ const navItems = [
   { label: "Servicios", href: "/servicios" },
   { label: "Promociones", href: "/promociones" },
   { label: "Revista", href: "/magazine" },
+  { label: "Social", href: "/social" },
   { label: "Reservaciones", href: "/reservaciones" },
   { label: "Contáctanos", href: "/contacto" },
 ];
