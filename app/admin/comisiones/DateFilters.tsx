@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
@@ -13,7 +14,12 @@ type DateFiltersProps = {
   selectedMonth: string;
 };
 
-const monthOptions = [
+type Option = {
+  value: string;
+  label: string;
+};
+
+const monthOptions: Option[] = [
   { value: "01", label: "Enero" },
   { value: "02", label: "Febrero" },
   { value: "03", label: "Marzo" },
@@ -27,6 +33,87 @@ const monthOptions = [
   { value: "11", label: "Noviembre" },
   { value: "12", label: "Diciembre" },
 ];
+
+function Dropdown({
+  value,
+  options,
+  active,
+  ariaLabel,
+  onChange,
+}: {
+  value: string;
+  options: Option[];
+  active: boolean;
+  ariaLabel: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const selected = options.find((option) => option.value === value) ?? options[0];
+
+  useEffect(() => {
+    const handleClick = (event: MouseEvent) => {
+      if (!wrapperRef.current) return;
+      if (wrapperRef.current.contains(event.target as Node)) return;
+      setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        className={cn(
+          "inline-flex items-center gap-2 rounded-full border bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]",
+          active
+            ? "border-brand-500 text-brand-700"
+            : "border-brand-200 text-brand-600 hover:border-brand-400"
+        )}
+      >
+        <span>{selected?.label ?? value}</span>
+        <span className="text-[10px]">▼</span>
+      </button>
+
+      {open ? (
+        <div
+          role="listbox"
+          className="absolute right-0 z-20 mt-2 min-w-[160px] rounded-2xl border border-brand-200 bg-white p-1 shadow-lg"
+        >
+          {options.map((option) => {
+            const isSelected = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em]",
+                  isSelected
+                    ? "bg-brand-50 text-brand-700"
+                    : "text-slate-600 hover:bg-brand-50 hover:text-brand-700"
+                )}
+              >
+                <span>{option.label}</span>
+                {isSelected ? <span className="text-[10px]">●</span> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function DateFilters({
   years,
@@ -43,11 +130,12 @@ export function DateFilters({
     selectedMonth ||
     (range === "month" ? String(currentMonth).padStart(2, "0") : "all");
 
-  const monthActive = range === "month" && monthValue !== "all";
-  const yearActive = range === "year" || range === "month" || range === "all";
+  const monthActive = monthValue !== "all";
+  const yearActive = yearValue !== "all";
 
   const handleYearChange = (value: string) => {
-    if (value === "all") {
+    const resolvedValue = value === yearValue ? "all" : value;
+    if (resolvedValue === "all") {
       router.push("/admin/comisiones?range=year&year=all");
       return;
     }
@@ -55,17 +143,18 @@ export function DateFilters({
     if (monthValue !== "all") {
       router.push(
         `/admin/comisiones?range=month&year=${encodeURIComponent(
-          value
+          resolvedValue
         )}&month=${encodeURIComponent(monthValue)}`
       );
       return;
     }
 
-    router.push(`/admin/comisiones?range=year&year=${encodeURIComponent(value)}`);
+    router.push(`/admin/comisiones?range=year&year=${encodeURIComponent(resolvedValue)}`);
   };
 
   const handleMonthChange = (value: string) => {
-    if (value === "all") {
+    const resolvedValue = value === monthValue ? "all" : value;
+    if (resolvedValue === "all") {
       if (yearValue === "all") {
         router.push("/admin/comisiones?range=year&year=all");
       } else {
@@ -78,59 +167,33 @@ export function DateFilters({
     router.push(
       `/admin/comisiones?range=month&year=${encodeURIComponent(
         resolvedYear
-      )}&month=${encodeURIComponent(value)}`
+      )}&month=${encodeURIComponent(resolvedValue)}`
     );
   };
 
+  const yearOptions: Option[] = [
+    { value: "all", label: "Todos" },
+    ...years.map((year) => ({ value: String(year), label: String(year) })),
+  ];
+
+  const monthDropdownOptions: Option[] = [{ value: "all", label: "Todos" }, ...monthOptions];
+
   return (
     <div className="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-      <div className="relative">
-        <select
-          value={monthValue}
-          onChange={(event) => handleMonthChange(event.target.value)}
-          className={cn(
-            "rounded-full border bg-white px-3 py-1 pr-8 text-xs font-semibold uppercase tracking-[0.2em] text-brand-600",
-            monthActive
-              ? "border-brand-500 text-brand-700"
-              : "border-brand-200 text-brand-600 hover:border-brand-400"
-          )}
-          aria-label="Filtrar por mes"
-        >
-          <option value="all">Todos</option>
-          {monthOptions.map((month) => (
-            <option key={month.value} value={month.value}>
-              {month.label}
-            </option>
-          ))}
-        </select>
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px]">
-          ▼
-        </span>
-      </div>
-
-      <div className="relative">
-        <select
-          value={yearValue === "all" ? "all" : yearValue}
-          onChange={(event) => handleYearChange(event.target.value)}
-          className={cn(
-            "rounded-full border bg-white px-3 py-1 pr-8 text-xs font-semibold uppercase tracking-[0.2em] text-brand-600",
-            yearActive
-              ? "border-brand-500 text-brand-700"
-              : "border-brand-200 text-brand-600 hover:border-brand-400"
-          )}
-          aria-label="Filtrar por año"
-        >
-          <option value="all">Todos</option>
-          {years.map((year) => (
-            <option key={year} value={String(year)}>
-              {year}
-            </option>
-          ))}
-        </select>
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px]">
-          ▼
-        </span>
-      </div>
+      <Dropdown
+        value={monthValue}
+        options={monthDropdownOptions}
+        active={monthActive}
+        ariaLabel="Filtrar por mes"
+        onChange={handleMonthChange}
+      />
+      <Dropdown
+        value={yearValue === "all" ? "all" : yearValue}
+        options={yearOptions}
+        active={yearActive}
+        ariaLabel="Filtrar por año"
+        onChange={handleYearChange}
+      />
     </div>
   );
 }
