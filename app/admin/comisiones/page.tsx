@@ -96,8 +96,18 @@ function getRange(searchParams?: SearchParams) {
   if (range === "custom") {
     const fromRaw = coerceParam(searchParams?.from);
     const toRaw = coerceParam(searchParams?.to);
-    const from = parseDate(fromRaw) ?? new Date(now.getFullYear(), now.getMonth(), 1);
-    const to = parseDate(toRaw) ?? now;
+    const parsedYear = Number.parseInt(yearParam || "", 10);
+    const parsedMonth = Number.parseInt(monthParam || "", 10);
+    const hasYear = Number.isFinite(parsedYear);
+    const hasMonth = Number.isFinite(parsedMonth);
+    const fallbackStart = hasYear && hasMonth
+      ? new Date(parsedYear, parsedMonth - 1, 1)
+      : new Date(now.getFullYear(), now.getMonth(), 1);
+    const fallbackEnd = hasYear && hasMonth
+      ? endOfDay(new Date(parsedYear, parsedMonth, 0))
+      : now;
+    const from = parseDate(fromRaw) ?? fallbackStart;
+    const to = parseDate(toRaw) ?? fallbackEnd;
     return {
       range,
       hasFilter: true,
@@ -105,6 +115,8 @@ function getRange(searchParams?: SearchParams) {
       end: endOfDay(to),
       from: fromRaw,
       to: toRaw,
+      year: hasYear ? String(parsedYear) : yearParam || "",
+      month: hasMonth ? String(parsedMonth).padStart(2, "0") : monthParam || "",
     };
   }
 
@@ -219,6 +231,8 @@ export default async function ComisionesPage({
   }
 
   const { range, start, end, from, to, hasFilter, year, month } = getRange(searchParams);
+  const selectedYearValue = year ?? "";
+  const selectedMonthValue = month ?? "";
   let fromInput = formatDateInput(from);
   let toInput = formatDateInput(to);
   if (!fromInput && start) {
@@ -278,6 +292,7 @@ export default async function ComisionesPage({
         contract.isPaid
       )
   );
+  const noData = hasFilter && filteredContracts.length === 0 && filteredTrips.length === 0;
 
   const totalRevenue = saleContracts.reduce(
     (sum, contract) => sum + parseMoney(contract.totalPrice),
@@ -423,6 +438,8 @@ export default async function ComisionesPage({
           className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4 text-sm md:grid-cols-[1fr_1fr_auto]"
         >
           <input type="hidden" name="range" value="custom" />
+          <input type="hidden" name="year" value={selectedYearValue} />
+          <input type="hidden" name="month" value={selectedMonthValue} />
           <div className="space-y-2">
             <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
               Desde
@@ -456,12 +473,20 @@ export default async function ComisionesPage({
         </form>
       </section>
 
+      {noData ? (
+        <div className="inline-flex w-fit rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
+          No hay datos en este periodo
+        </div>
+      ) : null}
+
       <section className="grid gap-4 md:grid-cols-2">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
             Ventas (firmadas + pagadas)
           </p>
-          <p className="mt-3 font-display text-3xl text-brand-950">{saleContracts.length}</p>
+          <p className="mt-3 font-display text-3xl text-brand-950">
+            {noData ? "—" : saleContracts.length}
+          </p>
           <p className="mt-1 text-sm text-slate-500">Contratos en el periodo</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -469,7 +494,7 @@ export default async function ComisionesPage({
             Ingresos netos
           </p>
           <p className="mt-3 font-display text-3xl text-brand-950">
-            {formatCurrency(totalRevenue)}
+            {noData ? "—" : formatCurrency(totalRevenue)}
           </p>
           <p className="mt-1 text-sm text-slate-500">Basado en Precio Neto</p>
         </div>
@@ -478,7 +503,7 @@ export default async function ComisionesPage({
             Viajes programados
           </p>
           <p className="mt-3 font-display text-3xl text-brand-950">
-            {filteredTrips.length}
+            {noData ? "—" : filteredTrips.length}
           </p>
           <p className="mt-1 text-sm text-slate-500">Salidas registradas</p>
         </div>
@@ -487,7 +512,7 @@ export default async function ComisionesPage({
             Pendientes
           </p>
           <p className="mt-3 font-display text-3xl text-brand-950">
-            {pendingContracts.length}
+            {noData ? "—" : pendingContracts.length}
           </p>
           <p className="mt-1 text-sm text-slate-500">Por firmar o pagar</p>
         </div>
