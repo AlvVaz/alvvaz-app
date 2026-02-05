@@ -4,7 +4,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { buttonLinkStyles } from "@/components/ui/button";
 import { getAdminFromCookies } from "@/lib/auth/admin";
 import { getContracts, getTrips } from "@/lib/db";
-import { YearFilter } from "./YearFilter";
+import { DateFilters } from "./DateFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +15,7 @@ type SearchParams = {
   from?: SearchParam;
   to?: SearchParam;
   year?: SearchParam;
+  month?: SearchParam;
 };
 
 type SellerSummary = {
@@ -90,6 +91,7 @@ function getRange(searchParams?: SearchParams) {
   const now = new Date();
   const range = coerceParam(searchParams?.range);
   const yearParam = coerceParam(searchParams?.year);
+  const monthParam = coerceParam(searchParams?.month);
 
   if (range === "custom") {
     const fromRaw = coerceParam(searchParams?.from);
@@ -120,9 +122,20 @@ function getRange(searchParams?: SearchParams) {
   }
 
   if (range === "month") {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = endOfDay(new Date(now.getFullYear(), now.getMonth() + 1, 0));
-    return { range, hasFilter: true, start, end };
+    const parsedYear = Number.parseInt(yearParam || "", 10);
+    const parsedMonth = Number.parseInt(monthParam || "", 10);
+    const targetYear = Number.isFinite(parsedYear) ? parsedYear : now.getFullYear();
+    const targetMonth = Number.isFinite(parsedMonth) ? parsedMonth : now.getMonth() + 1;
+    const start = new Date(targetYear, targetMonth - 1, 1);
+    const end = endOfDay(new Date(targetYear, targetMonth, 0));
+    return {
+      range,
+      hasFilter: true,
+      start,
+      end,
+      year: String(targetYear),
+      month: String(targetMonth).padStart(2, "0"),
+    };
   }
 
   const start = new Date(now.getFullYear(), 0, 1);
@@ -135,6 +148,7 @@ function getRange(searchParams?: SearchParams) {
     from: "",
     to: "",
     year: String(now.getFullYear()),
+    month: "",
   };
 }
 
@@ -204,7 +218,7 @@ export default async function ComisionesPage({
     redirect("/admin/contratos");
   }
 
-  const { range, start, end, from, to, hasFilter, year } = getRange(searchParams);
+  const { range, start, end, from, to, hasFilter, year, month } = getRange(searchParams);
   const fromInput = formatDateInput(from);
   const toInput = formatDateInput(to);
   const now = new Date();
@@ -387,11 +401,13 @@ export default async function ComisionesPage({
               Ajusta el periodo para ver ventas y rendimiento.
             </p>
           </div>
-          <YearFilter
+          <DateFilters
             years={years}
             currentYear={now.getFullYear()}
+            currentMonth={now.getMonth() + 1}
             range={range}
             selectedYear={year ?? ""}
+            selectedMonth={month ?? ""}
           />
         </div>
 
