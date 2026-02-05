@@ -4,9 +4,11 @@ import { SectionHeading } from "@/components/section-heading";
 const facebookPageUrl = "https://www.facebook.com/AgenciaAlvvaz/";
 
 export default function SocialPage() {
+  const embedWidth = 500;
+  const embedHeight = 720;
   const embedSrc = `https://www.facebook.com/plugins/page.php?href=${encodeURIComponent(
     facebookPageUrl
-  )}&tabs=timeline&width=1200&height=720&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true`;
+  )}&tabs=timeline&width=${embedWidth}&height=${embedHeight}&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true`;
 
   return (
     <div className="pb-24 pt-12">
@@ -28,15 +30,27 @@ export default function SocialPage() {
               </p>
             </div>
 
-            <div className="h-[720px] w-full overflow-hidden rounded-2xl border border-slate-200">
-              <iframe
-                title="AlvVaz en Facebook"
-                src={embedSrc}
-                className="h-full w-full"
-                loading="lazy"
-                allow="encrypted-media"
-                referrerPolicy="no-referrer-when-downgrade"
-              />
+            <div
+              className="w-full overflow-hidden rounded-2xl border border-slate-200 [--fb-scale:1.12] md:[--fb-scale:1.3] lg:[--fb-scale:1.6]"
+              style={{ height: `calc(${embedHeight}px * var(--fb-scale))` }}
+            >
+              <div
+                className="h-full w-full origin-top-left"
+                style={{
+                  transform: "scale(var(--fb-scale))",
+                  width: "calc(100% / var(--fb-scale))",
+                  height: "calc(100% / var(--fb-scale))",
+                }}
+              >
+                <iframe
+                  title="AlvVaz en Facebook"
+                  src={embedSrc}
+                  className="h-full w-full"
+                  loading="lazy"
+                  allow="encrypted-media"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
             </div>
 
             <a
