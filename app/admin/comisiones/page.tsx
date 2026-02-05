@@ -9,10 +9,12 @@ import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+type SearchParam = string | string[] | undefined;
+
 type SearchParams = {
-  range?: string;
-  from?: string;
-  to?: string;
+  range?: SearchParam;
+  from?: SearchParam;
+  to?: SearchParam;
 };
 
 type SellerSummary = {
@@ -34,9 +36,38 @@ type SellerSummary = {
   }>;
 };
 
+function coerceParam(value?: SearchParam): string {
+  if (!value) return "";
+  return Array.isArray(value) ? value[0] ?? "" : value;
+}
+
 function parseDate(value?: string | null): Date | null {
   if (!value) return null;
-  const date = new Date(value);
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const ymdMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (ymdMatch) {
+    const year = Number(ymdMatch[1]);
+    const month = Number(ymdMatch[2]) - 1;
+    const day = Number(ymdMatch[3]);
+    const date = new Date(year, month, day);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const slashMatch = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (slashMatch) {
+    const first = Number(slashMatch[1]);
+    const second = Number(slashMatch[2]);
+    const year = Number(slashMatch[3]);
+    const isDayFirst = first > 12 || second <= 12;
+    const day = isDayFirst ? first : second;
+    const month = isDayFirst ? second - 1 : first - 1;
+    const date = new Date(year, month, day);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const date = new Date(trimmed);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -48,11 +79,11 @@ function endOfDay(date: Date) {
 
 function getRange(searchParams?: SearchParams) {
   const now = new Date();
-  const range = searchParams?.range ?? "month";
+  const range = coerceParam(searchParams?.range) || "month";
 
   if (range === "custom") {
-    const fromRaw = searchParams?.from ?? "";
-    const toRaw = searchParams?.to ?? "";
+    const fromRaw = coerceParam(searchParams?.from);
+    const toRaw = coerceParam(searchParams?.to);
     const from = parseDate(fromRaw) ?? new Date(now.getFullYear(), now.getMonth(), 1);
     const to = parseDate(toRaw) ?? now;
     return {
