@@ -16,6 +16,7 @@ import {
 } from "@/lib/db";
 import type { ContractStatus } from "@/lib/db";
 import { prisma } from "@/lib/prisma";
+import { ALLOW_CONTRACT_NUMBER_EDIT_FOR_ALL_ROLES } from "@/lib/contracts/config";
 
 type ActionState = { submittedAt: number; error?: string; field?: "contractNumber" | "general" };
 
@@ -90,7 +91,8 @@ export async function createContractAction(
   if (!title || !clientName || !destination || !reservationDate) return prevState;
 
   const travelers = parseTravelers(travelersRaw);
-  const canEditContractNumber = admin.role === "owner";
+  const canEditContractNumber =
+    ALLOW_CONTRACT_NUMBER_EDIT_FOR_ALL_ROLES || admin.role === "owner";
   const normalizedContractNumber = normalizeContractNumber(contractNumber);
   const applyContractNumber = (value: string | null) =>
     travelers.map((traveler) => ({
@@ -261,7 +263,8 @@ export async function updateContractAction(
   if (!title || !clientName || !destination || !reservationDate) return prevState;
 
   const travelers = parseTravelers(travelersRaw);
-  const canEditContractNumber = admin.role === "owner";
+  const canEditContractNumber =
+    ALLOW_CONTRACT_NUMBER_EDIT_FOR_ALL_ROLES || admin.role === "owner";
   const normalizedContractNumber = normalizeContractNumber(contractNumber);
   const contractNumberUpdate = canEditContractNumber ? normalizedContractNumber : undefined;
 

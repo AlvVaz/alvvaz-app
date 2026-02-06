@@ -1,0 +1,1 @@
+export const ALLOW_CONTRACT_NUMBER_EDIT_FOR_ALL_ROLES = true;

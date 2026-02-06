@@ -4,6 +4,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { getAdminFromCookies } from "@/lib/auth/admin";
 import { getContracts } from "@/lib/db";
 import { prisma } from "@/lib/prisma";
+import { ALLOW_CONTRACT_NUMBER_EDIT_FOR_ALL_ROLES } from "@/lib/contracts/config";
 
 import { ContractForm } from "./ContractForm";
 import ContractsToastProvider from "./ContractsToastProvider";
@@ -130,7 +131,8 @@ export default async function ContratosAdminPage() {
 
   const latestContract = visibleContracts[0] ?? null;
   const nextContractNumber = getNextContractNumber(contracts);
-  const canEditContractNumber = admin.role === "owner";
+  const canEditContractNumber =
+    ALLOW_CONTRACT_NUMBER_EDIT_FOR_ALL_ROLES || admin.role === "owner";
 
   return (
     <ContractsToastProvider>
