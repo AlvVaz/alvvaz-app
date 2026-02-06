@@ -51,12 +51,37 @@ function parseReservationParts(value?: string | null): ReservationParts | null {
 
   const slashMatch = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
   if (slashMatch) {
-    const day = Number(slashMatch[1]);
-    const month = Number(slashMatch[2]);
+    const first = Number(slashMatch[1]);
+    const second = Number(slashMatch[2]);
     const year = Number(slashMatch[3]);
-    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    if (!Number.isFinite(year) || !Number.isFinite(first) || !Number.isFinite(second)) {
       return null;
     }
+
+    let month = first;
+    let day = second;
+
+    if (first > 12 && second <= 12) {
+      day = first;
+      month = second;
+    } else if (second > 12 && first <= 12) {
+      month = first;
+      day = second;
+    } else {
+      // Ambiguo: por UX usamos MM/DD/YYYY (mes primero).
+      month = first;
+      day = second;
+    }
+
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+      const swappedMonth = second;
+      const swappedDay = first;
+      if (swappedMonth >= 1 && swappedMonth <= 12 && swappedDay >= 1 && swappedDay <= 31) {
+        return { year, month: swappedMonth, day: swappedDay };
+      }
+      return null;
+    }
+
     return { year, month, day };
   }
 
