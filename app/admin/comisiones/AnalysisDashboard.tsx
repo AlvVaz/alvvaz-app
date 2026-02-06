@@ -397,11 +397,14 @@ export function AnalysisDashboard({
                 const height = Math.max(4, Math.round((value / computed.maxSales) * 100));
                 return (
                   <div key={bucket.key} className="flex flex-1 flex-col items-center gap-2">
-                    <div className="flex h-24 w-full items-end">
+                    <div className="group relative flex h-24 w-full items-end justify-center">
                       <div
-                        className="mx-auto w-2 rounded-full bg-brand-500/80"
+                        className="w-2 rounded-full bg-brand-500/80"
                         style={{ height: `${height}%` }}
                       />
+                      <span className="pointer-events-none absolute -top-7 whitespace-nowrap rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 opacity-0 shadow-sm transition group-hover:opacity-100">
+                        {value} contratos
+                      </span>
                     </div>
                     <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500">
                       {bucket.label}
@@ -430,11 +433,14 @@ export function AnalysisDashboard({
                 const height = Math.max(4, Math.round((value / computed.maxRevenue) * 100));
                 return (
                   <div key={bucket.key} className="flex flex-1 flex-col items-center gap-2">
-                    <div className="flex h-24 w-full items-end">
+                    <div className="group relative flex h-24 w-full items-end justify-center">
                       <div
-                        className="mx-auto w-2 rounded-full bg-gradient-to-t from-brand-400 to-brand-600"
+                        className="w-2 rounded-full bg-gradient-to-t from-brand-400 to-brand-600"
                         style={{ height: `${height}%` }}
                       />
+                      <span className="pointer-events-none absolute -top-7 whitespace-nowrap rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 opacity-0 shadow-sm transition group-hover:opacity-100">
+                        {formatCurrency(value)}
+                      </span>
                     </div>
                     <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500">
                       {bucket.label}
