@@ -218,7 +218,7 @@ export default function ContractsSection({
                       getStatusCardStyles(contract.status)
                     )}
                   >
-                    <div className="grid items-center gap-4 md:grid-cols-[auto_1.8fr_0.9fr_1.4fr_1fr_0.8fr]">
+                    <div className="grid items-center gap-4 md:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
                       <div className="flex items-start justify-center pt-1">
                         <input
                           type="checkbox"
@@ -294,7 +294,7 @@ export default function ContractsSection({
                           )}
                         </div>
                       </div>
-                      <div className="flex flex-col items-end gap-2 text-right md:items-start md:text-left">
+                      <div className="flex flex-col items-center gap-2 text-center">
                         <ContractSummaryActions
                           contractId={contract.id}
                           contractTitle={contract.title}

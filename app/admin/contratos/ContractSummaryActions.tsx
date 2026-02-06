@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+
+import { cn } from "@/lib/utils";
+
 import { useContractsToast } from "./ContractsToastProvider";
 
 type ContractSummaryActionsProps = {
@@ -14,7 +17,6 @@ export default function ContractSummaryActions({
   contractTitle,
   contractNumber,
 }: ContractSummaryActionsProps) {
-  const [isSending, setIsSending] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const { push: pushToast } = useContractsToast();
 
@@ -29,75 +31,6 @@ export default function ContractSummaryActions({
     event.preventDefault();
     event.stopPropagation();
     window.open(`/contratos/${contractId}/pdf`, "_blank", "noopener,noreferrer");
-  };
-
-  const handleSendPdf = async (
-    event: React.MouseEvent<HTMLButtonElement>
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (isSending) return;
-    setIsSending(true);
-    try {
-      const response = await fetch(`/api/admin/contracts/${contractId}/pdf`, {
-        method: "POST",
-      });
-      if (!response.ok) {
-        throw new Error("No se pudo generar el PDF.");
-      }
-      const payload = await response.json();
-      const signedUrl = payload?.signedUrl as string | undefined;
-      if (!signedUrl) {
-        throw new Error("No se pudo obtener el PDF.");
-      }
-
-      const fileResponse = await fetch(signedUrl);
-      if (!fileResponse.ok) {
-        throw new Error("No se pudo descargar el PDF.");
-      }
-      const blob = await fileResponse.blob();
-      const file = new File([blob], `${buildFileName()}.pdf`, {
-        type: blob.type || "application/pdf",
-      });
-
-      if (
-        typeof navigator !== "undefined" &&
-        navigator.canShare &&
-        navigator.canShare({ files: [file] })
-      ) {
-        try {
-          await navigator.share({
-            files: [file],
-            title: contractTitle || "Contrato",
-            text: "Contrato adjunto",
-          });
-          pushToast("PDF listo para enviar.");
-          return;
-        } catch (error) {
-          if (error instanceof DOMException && error.name === "AbortError") {
-            return;
-          }
-        }
-      }
-
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${buildFileName()}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-
-      const message = `Adjunto contrato ${contractTitle}.`;
-      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-      window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-      pushToast("PDF descargado. Adjunta el archivo en WhatsApp.");
-    } catch {
-      pushToast("No se pudo enviar el PDF.", "error");
-    } finally {
-      setIsSending(false);
-    }
   };
 
   const handleDownloadPdf = async (
@@ -139,27 +72,41 @@ export default function ContractSummaryActions({
   };
 
   return (
-    <div className="flex flex-col items-end gap-2 text-right md:items-start md:text-left">
+    <div className="flex flex-col items-center gap-2">
       <button
         type="button"
         onClick={handleViewPdf}
-        className="inline-flex rounded-full border border-brand-200 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700 shadow-sm transition hover:border-brand-300 hover:text-brand-900"
+        aria-label="Ver PDF"
+        title="Ver PDF"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-white shadow-sm transition hover:bg-brand-700"
       >
-        Ver PDF
+        <svg
+          viewBox="0 0 24 24"
+          className="h-4 w-4"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path d="M12 5c-5.5 0-9.5 4.5-10.5 6.2a1.5 1.5 0 0 0 0 1.6C2.5 14.5 6.5 19 12 19s9.5-4.5 10.5-6.2a1.5 1.5 0 0 0 0-1.6C21.5 9.5 17.5 5 12 5zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
+        </svg>
       </button>
       <button
         type="button"
         onClick={handleDownloadPdf}
-        className="inline-flex rounded-full border border-brand-200 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700 shadow-sm transition hover:border-brand-300 hover:text-brand-900"
+        aria-label="Guardar PDF"
+        title={isDownloading ? "Guardando..." : "Guardar PDF"}
+        className={cn(
+          "inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-white shadow-sm transition hover:bg-brand-700",
+          isDownloading ? "animate-pulse" : ""
+        )}
       >
-        {isDownloading ? "Guardando..." : "Guardar PDF"}
-      </button>
-      <button
-        type="button"
-        onClick={handleSendPdf}
-        className="inline-flex rounded-full border border-brand-200 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700 shadow-sm transition hover:border-brand-300 hover:text-brand-900"
-      >
-        {isSending ? "Enviando..." : "Enviar PDF"}
+        <svg
+          viewBox="0 0 24 24"
+          className="h-4 w-4"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path d="M17 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7l-2-4zM7 5h8v4H7V5zm5 14H7v-6h5v6zm2 0v-6h2v6h-2z" />
+        </svg>
       </button>
     </div>
   );
