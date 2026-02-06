@@ -222,6 +222,30 @@ export function AnalysisDashboard({
       return !(contract.isSigned || contract.isPaid);
     });
 
+    const organizerMap = new Map<
+      string,
+      { name: string; count: number; signedPaid: number; pending: number }
+    >();
+
+    for (const contract of filteredContracts) {
+      const name = contract.organizer?.trim() || "Sin asignar";
+      const key = name.toLowerCase();
+      const entry =
+        organizerMap.get(key) ?? { name, count: 0, signedPaid: 0, pending: 0 };
+      entry.count += 1;
+      if (contract.status === "signed" || contract.status === "paid" || contract.isSigned || contract.isPaid) {
+        entry.signedPaid += 1;
+      } else {
+        entry.pending += 1;
+      }
+      organizerMap.set(key, entry);
+    }
+
+    const organizerSummary = Array.from(organizerMap.values()).sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.name.localeCompare(b.name, "es", { sensitivity: "base" });
+    });
+
     const totalRevenue = saleContracts.reduce(
       (sum, contract) => sum + parseMoney(contract.totalPrice),
       0
@@ -267,6 +291,7 @@ export function AnalysisDashboard({
     const maxRevenue = Math.max(1, ...Array.from(bucketMap.values()).map((b) => b.revenue));
 
     return {
+      filteredContracts,
       saleContracts,
       pendingContracts,
       totalRevenue,
@@ -277,6 +302,7 @@ export function AnalysisDashboard({
       bucketMap,
       maxSales,
       maxRevenue,
+      organizerSummary,
     };
   }, [
     contracts,
@@ -456,6 +482,47 @@ export function AnalysisDashboard({
             ) : null}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="font-display text-lg text-brand-950">
+              Contratos por asesor
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Resumen según el filtro actual.
+            </p>
+          </div>
+          <span className="rounded-full border border-brand-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+            {computed.filteredContracts.length} contratos
+          </span>
+        </div>
+
+        {computed.organizerSummary.length === 0 ? (
+          <div className="mt-4 rounded-2xl border border-dashed border-brand-200 bg-brand-50/40 p-4 text-sm text-slate-600">
+            No hay contratos para este filtro.
+          </div>
+        ) : (
+          <div className="mt-4 divide-y divide-slate-200">
+            {computed.organizerSummary.map((entry) => (
+              <div
+                key={entry.name}
+                className="flex flex-wrap items-center justify-between gap-3 py-3"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-brand-950">{entry.name}</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-brand-600">
+                    {entry.signedPaid} firmados/pagados · {entry.pending} pendientes
+                  </p>
+                </div>
+                <span className="rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+                  {entry.count} contratos
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

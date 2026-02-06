@@ -116,7 +116,7 @@ export default function TripsSection({
   const getProgressTone = (daysUntil: number | null, completed: boolean) => {
     if (completed) return "emerald";
     if (daysUntil === null) return "slate";
-    if (daysUntil < 0) return "brand";
+    if (daysUntil <= 0) return "emerald";
     if (daysUntil < 7) return "amber";
     if (daysUntil <= 30) return "brand";
     return "slate";
