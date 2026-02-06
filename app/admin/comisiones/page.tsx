@@ -31,34 +31,42 @@ function parseNumber(value?: string) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function parseDate(value?: string | null): Date | null {
+type ReservationParts = { year: number; month: number; day: number };
+
+function parseReservationParts(value?: string | null): ReservationParts | null {
   if (!value) return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
 
-  const ymdMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const ymdMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (ymdMatch) {
     const year = Number(ymdMatch[1]);
-    const month = Number(ymdMatch[2]) - 1;
+    const month = Number(ymdMatch[2]);
     const day = Number(ymdMatch[3]);
-    const date = new Date(year, month, day);
-    return Number.isNaN(date.getTime()) ? null : date;
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+      return null;
+    }
+    return { year, month, day };
   }
 
-  const slashMatch = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const slashMatch = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
   if (slashMatch) {
-    const first = Number(slashMatch[1]);
-    const second = Number(slashMatch[2]);
+    const day = Number(slashMatch[1]);
+    const month = Number(slashMatch[2]);
     const year = Number(slashMatch[3]);
-    const isDayFirst = first > 12 || second <= 12;
-    const day = isDayFirst ? first : second;
-    const month = isDayFirst ? second - 1 : first - 1;
-    const date = new Date(year, month, day);
-    return Number.isNaN(date.getTime()) ? null : date;
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+      return null;
+    }
+    return { year, month, day };
   }
 
   const date = new Date(trimmed);
-  return Number.isNaN(date.getTime()) ? null : date;
+  if (Number.isNaN(date.getTime())) return null;
+  return { year: date.getFullYear(), month: date.getMonth() + 1, day: date.getDate() };
+}
+
+function toDateKey(parts: ReservationParts) {
+  return parts.year * 10000 + parts.month * 100 + parts.day;
 }
 
 function endOfDay(date: Date) {
@@ -105,9 +113,8 @@ function getMonthBuckets(start: Date, end: Date, maxMonths = 12) {
   return buckets;
 }
 
-function inRange(date: Date | null, start: Date, end: Date) {
-  if (!date) return false;
-  return date.getTime() >= start.getTime() && date.getTime() <= end.getTime();
+function inRangeKey(key: number, start: number, end: number) {
+  return key >= start && key <= end;
 }
 
 export default async function ComisionesPage({
@@ -137,25 +144,29 @@ export default async function ComisionesPage({
   const rangeFrom = coerceParam(searchParams?.from);
   const rangeTo = coerceParam(searchParams?.to);
 
-  let filterStart: Date | null = null;
-  let filterEnd: Date | null = null;
+  let rangeStartKey: number | null = null;
+  let rangeEndKey: number | null = null;
+  let bucketStartDate: Date | null = null;
+  let bucketEndDate: Date | null = null;
   let hasFilter = true;
 
   if (mode === "range") {
-    const fromDate = parseDate(rangeFrom);
-    const toDate = parseDate(rangeTo);
-    if (fromDate && toDate) {
-      filterStart = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
-      filterEnd = endOfDay(toDate);
+    const fromParts = parseReservationParts(rangeFrom);
+    const toParts = parseReservationParts(rangeTo);
+    if (fromParts && toParts) {
+      rangeStartKey = toDateKey(fromParts);
+      rangeEndKey = toDateKey(toParts);
+      bucketStartDate = new Date(fromParts.year, fromParts.month - 1, 1);
+      bucketEndDate = endOfDay(new Date(toParts.year, toParts.month, 0));
     } else {
       hasFilter = false;
     }
   } else if (mode === "month") {
-    filterStart = new Date(selectedYear, selectedMonth - 1, 1);
-    filterEnd = endOfDay(new Date(selectedYear, selectedMonth, 0));
+    bucketStartDate = new Date(selectedYear, selectedMonth - 1, 1);
+    bucketEndDate = endOfDay(new Date(selectedYear, selectedMonth, 0));
   } else {
-    filterStart = new Date(selectedYear, 0, 1);
-    filterEnd = endOfDay(new Date(selectedYear, 11, 31));
+    bucketStartDate = new Date(selectedYear, 0, 1);
+    bucketEndDate = endOfDay(new Date(selectedYear, 11, 31));
   }
 
   const contracts = await getContracts();
@@ -164,18 +175,25 @@ export default async function ComisionesPage({
   const yearsSet = new Set<number>();
   yearsSet.add(currentYear);
   for (const contract of contracts) {
-    const date = parseDate(contract.reservationDate);
-    if (date) yearsSet.add(date.getFullYear());
+    const parts = parseReservationParts(contract.reservationDate);
+    if (parts) yearsSet.add(parts.year);
   }
   const years = Array.from(yearsSet).sort((a, b) => b - a);
 
-  const filteredContracts =
-    hasFilter && filterStart && filterEnd
-      ? contracts.filter((contract) => {
-          const date = parseDate(contract.reservationDate);
-          return inRange(date, filterStart, filterEnd);
-        })
-      : [];
+  const filteredContracts = hasFilter
+    ? contracts.filter((contract) => {
+        const parts = parseReservationParts(contract.reservationDate);
+        if (!parts) return false;
+        if (mode === "month") {
+          return parts.year === selectedYear && parts.month === selectedMonth;
+        }
+        if (mode === "year") {
+          return parts.year === selectedYear;
+        }
+        if (rangeStartKey === null || rangeEndKey === null) return false;
+        return inRangeKey(toDateKey(parts), rangeStartKey, rangeEndKey);
+      })
+    : [];
 
   const saleContracts = filteredContracts.filter(
     (contract) =>
@@ -208,19 +226,15 @@ export default async function ComisionesPage({
   );
   const tripsCount = filteredTripIds.size;
 
-  const isRangeIncomplete = mode === "range" && !(filterStart && filterEnd);
+  const isRangeIncomplete =
+    mode === "range" && (rangeStartKey === null || rangeEndKey === null);
   const noData = hasFilter && filteredContracts.length === 0;
   const showEmptyState = noData || isRangeIncomplete;
 
-  let bucketStart: Date;
-  let bucketEnd: Date;
-  if (filterStart && filterEnd) {
-    bucketStart = new Date(filterStart.getFullYear(), filterStart.getMonth(), 1);
-    bucketEnd = endOfDay(new Date(filterEnd.getFullYear(), filterEnd.getMonth() + 1, 0));
-  } else {
-    bucketStart = new Date(currentYear, currentMonth - 1, 1);
-    bucketEnd = endOfDay(new Date(currentYear, currentMonth, 0));
-  }
+  const bucketStart =
+    bucketStartDate ?? new Date(currentYear, currentMonth - 1, 1);
+  const bucketEnd =
+    bucketEndDate ?? endOfDay(new Date(currentYear, currentMonth, 0));
 
   const buckets = getMonthBuckets(bucketStart, bucketEnd);
   const bucketMap = new Map<string, { sales: number; revenue: number }>();
@@ -229,9 +243,9 @@ export default async function ComisionesPage({
   }
 
   for (const contract of saleContracts) {
-    const date = parseDate(contract.reservationDate);
-    if (!date) continue;
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    const parts = parseReservationParts(contract.reservationDate);
+    if (!parts) continue;
+    const key = `${parts.year}-${String(parts.month).padStart(2, "0")}`;
     const bucket = bucketMap.get(key);
     if (!bucket) continue;
     bucket.sales += 1;
