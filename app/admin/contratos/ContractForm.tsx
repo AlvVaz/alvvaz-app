@@ -12,15 +12,17 @@ import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 
 type ContractFormProps = {
   action: (
-    prevState: { submittedAt: number },
+    prevState: { submittedAt: number; error?: string },
     formData: FormData
-  ) => Promise<{ submittedAt: number }>;
+  ) => Promise<{ submittedAt: number; error?: string }>;
   deleteAction?: (formData: FormData) => void;
   initialContract?: Contract;
   draftContract?: Contract | null;
   submitLabel: string;
   resetOnSubmit?: boolean;
   organizerOptions?: { value: string; label: string }[];
+  suggestedContractNumber?: string;
+  canEditContractNumber?: boolean;
 };
 
 const emptyTraveler: TripTraveler = { name: "", phone: "", contract: "" };
@@ -67,6 +69,8 @@ export function ContractForm({
   submitLabel,
   resetOnSubmit = false,
   organizerOptions = [],
+  suggestedContractNumber,
+  canEditContractNumber = false,
 }: ContractFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -84,7 +88,7 @@ export function ContractForm({
     parseContractItems(seedContract?.description)
   );
   const [contractNumberValue, setContractNumberValue] = useState(
-    seedContract?.contractNumber ?? ""
+    initialContract ? initialContract.contractNumber ?? "" : suggestedContractNumber ?? ""
   );
   const [titleValue, setTitleValue] = useState(
     seedContract?.title ?? seedContract?.clientName ?? ""
@@ -278,7 +282,7 @@ export function ContractForm({
           baseContract.travelers?.length ? baseContract.travelers : [emptyTraveler]
         );
         setContractItems(parseContractItems(baseContract.description));
-        setContractNumberValue(baseContract.contractNumber ?? "");
+        setContractNumberValue(suggestedContractNumber ?? "");
         setTitleValue(baseContract.title ?? baseContract.clientName ?? "");
         setClientNameValue(baseContract.clientName ?? baseContract.title ?? "");
         setDepartureDateValue(baseContract.departureDate ?? "");
@@ -306,7 +310,7 @@ export function ContractForm({
       setTravelers([emptyTraveler]);
       setContractItems([{ ...emptyContractItem }]);
       setTitleValue("");
-      setContractNumberValue("");
+      setContractNumberValue(suggestedContractNumber ?? "");
       setDepartureDateValue("");
       setLiquidationDateValue("");
       setIsLiquidationAuto(true);
@@ -361,7 +365,7 @@ export function ContractForm({
     }
   };
 
-  const [formState, formAction] = useActionState(action, { submittedAt: 0 });
+  const [formState, formAction] = useActionState(action, { submittedAt: 0, error: "" });
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isOpeningPdf, setIsOpeningPdf] = useState(false);
   const [isSendingPdf, setIsSendingPdf] = useState(false);
@@ -409,6 +413,11 @@ export function ContractForm({
     if (!formState.submittedAt) return;
     pushToast("Cambios guardados.");
   }, [formState.submittedAt, pushToast]);
+
+  useEffect(() => {
+    if (!formState.error) return;
+    pushToast(formState.error, "error");
+  }, [formState.error, pushToast]);
 
   const handleGeneratePdf = async () => {
     if (!initialContract) return;
@@ -572,8 +581,15 @@ export function ContractForm({
           value={contractNumberValue}
           onChange={(event) => setContractNumberValue(event.target.value)}
           placeholder="#00-00"
+          readOnly={!canEditContractNumber}
+          aria-readonly={!canEditContractNumber}
           className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
+        {!canEditContractNumber ? (
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+            Se asigna automáticamente
+          </p>
+        ) : null}
       </div>
 
       <div className="space-y-2">

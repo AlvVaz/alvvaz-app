@@ -20,15 +20,16 @@ type ContractsSectionProps = {
   emptyMessage: string;
   contracts: Contract[];
   updateAction: (
-    prevState: { submittedAt: number },
+    prevState: { submittedAt: number; error?: string },
     formData: FormData
-  ) => Promise<{ submittedAt: number }>;
+  ) => Promise<{ submittedAt: number; error?: string }>;
   deleteAction?: (formData: FormData) => void;
   bulkDeleteAction: (ids: string[]) => Promise<{ ok: boolean; error?: string }>;
   enableSort?: boolean;
   hideTitle?: boolean;
   hideBadge?: boolean;
   organizerOptions?: { value: string; label: string }[];
+  canEditContractNumber?: boolean;
 };
 
 const getStatusCardStyles = (status: string) => {
@@ -68,6 +69,7 @@ export default function ContractsSection({
   hideTitle = false,
   hideBadge = false,
   organizerOptions = [],
+  canEditContractNumber = false,
 }: ContractsSectionProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sortMode, setSortMode] = useState("recent");
@@ -316,6 +318,7 @@ export default function ContractsSection({
                   initialContract={contract}
                   submitLabel="Guardar cambios"
                   organizerOptions={organizerOptions}
+                  canEditContractNumber={canEditContractNumber}
                 />
               </div>
             </details>

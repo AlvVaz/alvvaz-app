@@ -113,7 +113,7 @@ model Contract {
   tripId        String?
   client        Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
   trip          Trip?    @relation(fields: [tripId], references: [id], onDelete: SetNull)
-  contractNumber String?
+  contractNumber String?  @unique
   reservationDate String?
   seller         String?
   agency         String?

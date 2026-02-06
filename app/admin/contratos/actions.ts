@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 
+import { getAdminFromCookies } from "@/lib/auth/admin";
 import {
   createTrip,
   createContract,
@@ -13,6 +15,26 @@ import {
   type TripTraveler,
 } from "@/lib/db";
 import type { ContractStatus } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
+
+type ActionState = { submittedAt: number; error?: string };
+
+const normalizeContractNumber = (value: string) => {
+  const digits = value.replace(/[^\d]/g, "").trim();
+  return digits ? digits : null;
+};
+
+const isUniqueConstraintError = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+
+const getMaxContractNumber = async () => {
+  const result = await prisma.$queryRaw<{ max: number | null }[]>`
+    SELECT MAX(CAST("contractNumber" AS INTEGER)) AS max
+    FROM "Contract"
+    WHERE "contractNumber" ~ '^[0-9]+$'
+  `;
+  return result[0]?.max ?? 0;
+};
 
 function parseTravelers(raw: string): TripTraveler[] {
   try {
@@ -25,9 +47,14 @@ function parseTravelers(raw: string): TripTraveler[] {
 }
 
 export async function createContractAction(
-  prevState: { submittedAt: number },
+  prevState: ActionState,
   formData: FormData
-): Promise<{ submittedAt: number }> {
+): Promise<ActionState> {
+  const admin = await getAdminFromCookies();
+  if (!admin) {
+    return { ...prevState, error: "Sesión no válida. Inicia sesión de nuevo." };
+  }
+
   const title = String(formData.get("title") ?? "").trim();
   const contractNumber = String(formData.get("contractNumber") ?? "").trim();
   const reservationDate = String(formData.get("reservationDate") ?? "").trim();
@@ -60,11 +87,17 @@ export async function createContractAction(
   if (!title || !clientName || !destination || !reservationDate) return prevState;
 
   const travelers = parseTravelers(travelersRaw);
+  const canEditContractNumber = admin.role === "owner";
+  const normalizedContractNumber = normalizeContractNumber(contractNumber);
+  const applyContractNumber = (value: string | null) =>
+    travelers.map((traveler) => ({
+      ...traveler,
+      contract: value || traveler.contract || "",
+    }));
 
   const resolvedSeller = seller || organizer;
-  const contract = await createContract({
+  const basePayload = {
     title,
-    contractNumber: contractNumber || null,
     reservationDate: reservationDate || null,
     seller: resolvedSeller || null,
     agency: agency || null,
@@ -76,7 +109,6 @@ export async function createContractAction(
     passengerCount: Number.isFinite(passengerCount) ? passengerCount : travelers.length || null,
     departureDate: departureDate || null,
     returnDate: returnDate || null,
-    travelers,
     description: description || null,
     notes: notes || null,
     totalPrice: totalPrice || null,
@@ -91,7 +123,56 @@ export async function createContractAction(
     storagePath: null,
     mimeType: null,
     metadata: {},
-  });
+  };
+
+  const manualContractNumber = canEditContractNumber ? normalizedContractNumber : null;
+  let createdContract: Awaited<ReturnType<typeof createContract>> | null = null;
+  let assignedTravelers: TripTraveler[] = travelers;
+
+  if (manualContractNumber) {
+    const existing = await prisma.contract.findFirst({
+      where: { contractNumber: manualContractNumber },
+    });
+    if (existing) {
+      return { ...prevState, error: "Ese folio ya existe." };
+    }
+    try {
+      assignedTravelers = applyContractNumber(manualContractNumber);
+      createdContract = await createContract({
+        ...basePayload,
+        contractNumber: manualContractNumber,
+        travelers: assignedTravelers,
+      });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        return { ...prevState, error: "Ese folio ya existe." };
+      }
+      throw error;
+    }
+  } else {
+    const maxAttempts = 3;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const nextNumber = String((await getMaxContractNumber()) + 1);
+      try {
+        assignedTravelers = applyContractNumber(nextNumber);
+        createdContract = await createContract({
+          ...basePayload,
+          contractNumber: nextNumber,
+          travelers: assignedTravelers,
+        });
+        break;
+      } catch (error) {
+        if (isUniqueConstraintError(error)) {
+          continue;
+        }
+        throw error;
+      }
+    }
+  }
+
+  if (!createdContract) {
+    return { ...prevState, error: "No se pudo asignar el folio. Intenta de nuevo." };
+  }
 
   const trip = await createTrip({
     clientName,
@@ -102,16 +183,16 @@ export async function createContractAction(
     passengerCount: Number.isFinite(passengerCount) ? passengerCount : travelers.length || 0,
     departureDate: departureDate || null,
     returnDate: returnDate || null,
-    travelers,
+    travelers: assignedTravelers,
   });
 
-  await updateContract(contract.id, { tripId: trip.id });
+  await updateContract(createdContract.id, { tripId: trip.id });
   const primaryTraveler = clientName
     ? [
         {
           name: clientName,
           phone: travelers[0]?.phone || "",
-          contract: contractNumber || "",
+          contract: createdContract.contractNumber || "",
         },
       ]
     : [];
@@ -129,13 +210,18 @@ export async function createContractAction(
   revalidatePath("/admin/contratos");
   revalidatePath("/admin/viajes");
   revalidatePath("/admin/clients");
-  return { submittedAt: Date.now() };
+  return { submittedAt: Date.now(), error: "" };
 }
 
 export async function updateContractAction(
-  prevState: { submittedAt: number },
+  prevState: ActionState,
   formData: FormData
-): Promise<{ submittedAt: number }> {
+): Promise<ActionState> {
+  const admin = await getAdminFromCookies();
+  if (!admin) {
+    return { ...prevState, error: "Sesión no válida. Inicia sesión de nuevo." };
+  }
+
   const id = String(formData.get("id") ?? "").trim();
   if (!id) return prevState;
 
@@ -171,33 +257,56 @@ export async function updateContractAction(
   if (!title || !clientName || !destination || !reservationDate) return prevState;
 
   const travelers = parseTravelers(travelersRaw);
+  const canEditContractNumber = admin.role === "owner";
+  const normalizedContractNumber = normalizeContractNumber(contractNumber);
+  const contractNumberUpdate = canEditContractNumber ? normalizedContractNumber : undefined;
+
+  if (canEditContractNumber && normalizedContractNumber) {
+    const existing = await prisma.contract.findFirst({
+      where: {
+        contractNumber: normalizedContractNumber,
+        NOT: { id },
+      },
+    });
+    if (existing) {
+      return { ...prevState, error: "Ese folio ya existe." };
+    }
+  }
 
   const resolvedSeller = seller || organizer;
-  const updated = await updateContract(id, {
-    title,
-    contractNumber: contractNumber || null,
-    reservationDate: reservationDate || null,
-    seller: resolvedSeller || null,
-    agency: agency || null,
-    clientName: clientName || "",
-    destination: destination || "",
-    hotel: hotel || null,
-    supplier: supplier || null,
-    organizer: organizer || null,
-    passengerCount: Number.isFinite(passengerCount) ? passengerCount : travelers.length || null,
-    departureDate: departureDate || null,
-    returnDate: returnDate || null,
-    travelers,
-    description: description || null,
-    notes: notes || null,
-    totalPrice: totalPrice || null,
-    firstPayment: firstPayment || null,
-    balanceDue: balanceDue || null,
-    liquidationDate: liquidationDate || null,
-    status,
-    isSigned,
-    isPaid,
-  });
+  let updated: Awaited<ReturnType<typeof updateContract>> | null = null;
+  try {
+    updated = await updateContract(id, {
+      title,
+      ...(contractNumberUpdate !== undefined ? { contractNumber: contractNumberUpdate } : {}),
+      reservationDate: reservationDate || null,
+      seller: resolvedSeller || null,
+      agency: agency || null,
+      clientName: clientName || "",
+      destination: destination || "",
+      hotel: hotel || null,
+      supplier: supplier || null,
+      organizer: organizer || null,
+      passengerCount: Number.isFinite(passengerCount) ? passengerCount : travelers.length || null,
+      departureDate: departureDate || null,
+      returnDate: returnDate || null,
+      travelers,
+      description: description || null,
+      notes: notes || null,
+      totalPrice: totalPrice || null,
+      firstPayment: firstPayment || null,
+      balanceDue: balanceDue || null,
+      liquidationDate: liquidationDate || null,
+      status,
+      isSigned,
+      isPaid,
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return { ...prevState, error: "Ese folio ya existe." };
+    }
+    throw error;
+  }
 
   if (updated && updated.status === "paid" && !updated.tripId) {
     // TODO: Auto-generate a trip once the contract is approved.
@@ -208,7 +317,7 @@ export async function updateContractAction(
         {
           name: clientName,
           phone: travelers[0]?.phone || "",
-          contract: contractNumber || "",
+          contract: updated?.contractNumber || "",
         },
       ]
     : [];
@@ -224,7 +333,7 @@ export async function updateContractAction(
 
   revalidatePath("/admin/contratos");
   revalidatePath("/admin/clients");
-  return { submittedAt: Date.now() };
+  return { submittedAt: Date.now(), error: "" };
 }
 
 export async function deleteContractAction(formData: FormData) {

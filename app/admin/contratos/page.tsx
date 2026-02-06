@@ -21,6 +21,19 @@ export const dynamic = "force-dynamic";
 
 type ReservationParts = { year: number; month: number; day: number };
 
+function getNextContractNumber(contracts: Awaited<ReturnType<typeof getContracts>>) {
+  let max = 0;
+  contracts.forEach((contract) => {
+    const value = String(contract.contractNumber ?? "").trim();
+    if (!/^\d+$/.test(value)) return;
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > max) {
+      max = parsed;
+    }
+  });
+  return String(max + 1);
+}
+
 function parseReservationParts(value?: string | null): ReservationParts | null {
   if (!value) return null;
   const trimmed = value.trim();
@@ -115,6 +128,8 @@ export default async function ContratosAdminPage() {
       : contracts;
 
   const latestContract = visibleContracts[0] ?? null;
+  const nextContractNumber = getNextContractNumber(contracts);
+  const canEditContractNumber = admin.role === "owner";
 
   return (
     <ContractsToastProvider>
@@ -154,6 +169,8 @@ export default async function ContratosAdminPage() {
               draftContract={latestContract}
               submitLabel="Crear contrato"
               organizerOptions={organizerOptions}
+              suggestedContractNumber={nextContractNumber}
+              canEditContractNumber={canEditContractNumber}
             />
           </div>
         </details>
@@ -185,6 +202,7 @@ export default async function ContratosAdminPage() {
         deleteAction={deleteContractAction}
         bulkDeleteAction={bulkDeleteContractsAction}
         organizerOptions={organizerOptions}
+        canEditContractNumber={canEditContractNumber}
       />
     </div>
     </ContractsToastProvider>

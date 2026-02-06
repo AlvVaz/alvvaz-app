@@ -9,12 +9,13 @@ import ContractsSection from "./ContractsSection";
 type ContractsPanelProps = {
   contracts: Contract[];
   updateAction: (
-    prevState: { submittedAt: number },
+    prevState: { submittedAt: number; error?: string },
     formData: FormData
-  ) => Promise<{ submittedAt: number }>;
+  ) => Promise<{ submittedAt: number; error?: string }>;
   deleteAction?: (formData: FormData) => void;
   bulkDeleteAction: (ids: string[]) => Promise<{ ok: boolean; error?: string }>;
   organizerOptions?: { value: string; label: string }[];
+  canEditContractNumber?: boolean;
 };
 
 const normalize = (value: string) => value.trim().toLowerCase();
@@ -31,6 +32,7 @@ export default function ContractsPanel({
   deleteAction,
   bulkDeleteAction,
   organizerOptions = [],
+  canEditContractNumber = false,
 }: ContractsPanelProps) {
   const [filters, setFilters] = useState({
     id: "",
@@ -195,6 +197,7 @@ export default function ContractsPanel({
         deleteAction={deleteAction}
         bulkDeleteAction={bulkDeleteAction}
         organizerOptions={organizerOptions}
+        canEditContractNumber={canEditContractNumber}
       />
 
       <ContractsSection
@@ -207,6 +210,7 @@ export default function ContractsPanel({
         bulkDeleteAction={bulkDeleteAction}
         organizerOptions={organizerOptions}
         enableSort
+        canEditContractNumber={canEditContractNumber}
       />
 
       <ContractsSection
@@ -218,6 +222,7 @@ export default function ContractsPanel({
         deleteAction={deleteAction}
         bulkDeleteAction={bulkDeleteAction}
         organizerOptions={organizerOptions}
+        canEditContractNumber={canEditContractNumber}
       />
 
       {contracts2025.length > 0 ? (
@@ -251,6 +256,7 @@ export default function ContractsPanel({
                 enableSort
                 hideTitle
                 hideBadge
+                canEditContractNumber={canEditContractNumber}
               />
             </div>
           </details>
