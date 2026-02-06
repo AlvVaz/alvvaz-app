@@ -374,6 +374,7 @@ export function ContractForm({
   const [isOpeningPdf, setIsOpeningPdf] = useState(false);
   const [isSendingPdf, setIsSendingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [contractNumberError, setContractNumberError] = useState<string | null>(null);
 
   const getSubmitConfirmMessage = () => {
     if (initialContract) return "Seguro que quieres guardar los cambios?";
@@ -415,13 +416,19 @@ export function ContractForm({
 
   useEffect(() => {
     if (!formState.submittedAt) return;
-    pushToast("Cambios guardados.");
-  }, [formState.submittedAt, pushToast]);
+    const message = initialContract ? "Cambios guardados." : "Contrato creado.";
+    pushToast(message);
+  }, [formState.submittedAt, initialContract, pushToast]);
 
   useEffect(() => {
+    if (formState.field === "contractNumber") {
+      setContractNumberError(formState.error ?? null);
+      return;
+    }
+    setContractNumberError(null);
     if (!formState.error) return;
     pushToast(formState.error, "error");
-  }, [formState.error, pushToast]);
+  }, [formState.error, formState.field, pushToast]);
 
   const handleGeneratePdf = async () => {
     if (!initialContract) return;
@@ -583,15 +590,16 @@ export function ContractForm({
         <input
           name="contractNumber"
           value={contractNumberValue}
-          onChange={(event) =>
-            setContractNumberValue(event.target.value.replace(/[^\d]/g, ""))
-          }
+          onChange={(event) => {
+            setContractNumberValue(event.target.value.replace(/[^\d]/g, ""));
+            setContractNumberError(null);
+          }}
           placeholder="#00-00"
           inputMode="numeric"
           readOnly={!canEditContractNumber}
           aria-readonly={!canEditContractNumber}
           className={`w-full rounded-2xl border px-4 py-3 text-sm ${
-            formState.field === "contractNumber"
+            contractNumberError
               ? "border-rose-300 text-rose-700 focus-visible:border-rose-400 focus-visible:ring-2 focus-visible:ring-rose-200"
               : "border-slate-200"
           }`}
@@ -609,9 +617,9 @@ export function ContractForm({
             Estás usando un folio distinto al sugerido.
           </p>
         ) : null}
-        {formState.field === "contractNumber" && formState.error ? (
+        {contractNumberError ? (
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-rose-500">
-            {formState.error}
+            {contractNumberError}
           </p>
         ) : null}
         {!canEditContractNumber ? (
