@@ -214,7 +214,7 @@ export default function ContractsSection({
                 <div className="flex items-stretch gap-3">
                   <div
                     className={cn(
-                      "flex-1 rounded-[28px] px-6 py-4 text-brand-950",
+                      "flex-1 rounded-[28px] px-6 py-3 text-brand-950",
                       getStatusCardStyles(contract.status)
                     )}
                   >

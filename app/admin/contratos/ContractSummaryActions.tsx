@@ -78,7 +78,7 @@ export default function ContractSummaryActions({
         onClick={handleViewPdf}
         aria-label="Ver PDF"
         title="Ver PDF"
-        className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-white shadow-sm transition hover:bg-brand-700"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-brand-200 bg-white text-brand-600 shadow-sm transition hover:border-brand-300 hover:text-brand-800"
       >
         <svg
           viewBox="0 0 24 24"
@@ -95,7 +95,7 @@ export default function ContractSummaryActions({
         aria-label="Guardar PDF"
         title={isDownloading ? "Guardando..." : "Guardar PDF"}
         className={cn(
-          "inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-white shadow-sm transition hover:bg-brand-700",
+          "inline-flex h-8 w-8 items-center justify-center rounded-full border border-brand-200 bg-white text-brand-600 shadow-sm transition hover:border-brand-300 hover:text-brand-800",
           isDownloading ? "animate-pulse" : ""
         )}
       >
