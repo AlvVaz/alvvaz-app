@@ -19,10 +19,15 @@ import { prisma } from "@/lib/prisma";
 
 type ActionState = { submittedAt: number; error?: string };
 
+const MIN_CONTRACT_NUMBER = 2141;
+const MAX_CONTRACT_NUMBER = 9999;
+
 const normalizeContractNumber = (value: string) => {
   const digits = value.replace(/[^\d]/g, "").trim();
   return digits ? digits : null;
 };
+
+const isValidContractNumber = (value: string) => /^\d{4}$/.test(value);
 
 const isUniqueConstraintError = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
@@ -33,7 +38,8 @@ const getMaxContractNumber = async () => {
     FROM "Contract"
     WHERE "contractNumber" ~ '^[0-9]+$'
   `;
-  return result[0]?.max ?? 0;
+  const max = result[0]?.max ?? 0;
+  return Math.max(max, MIN_CONTRACT_NUMBER);
 };
 
 function parseTravelers(raw: string): TripTraveler[] {
@@ -89,6 +95,9 @@ export async function createContractAction(
   const travelers = parseTravelers(travelersRaw);
   const canEditContractNumber = admin.role === "owner";
   const normalizedContractNumber = normalizeContractNumber(contractNumber);
+  if (canEditContractNumber && normalizedContractNumber && !isValidContractNumber(normalizedContractNumber)) {
+    return { ...prevState, error: "El folio debe tener 4 dígitos." };
+  }
   const applyContractNumber = (value: string | null) =>
     travelers.map((traveler) => ({
       ...traveler,
@@ -152,7 +161,14 @@ export async function createContractAction(
   } else {
     const maxAttempts = 3;
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-      const nextNumber = String((await getMaxContractNumber()) + 1);
+      const nextNumberValue = (await getMaxContractNumber()) + 1;
+      if (nextNumberValue > MAX_CONTRACT_NUMBER) {
+        return {
+          ...prevState,
+          error: "Se alcanzó el máximo de folios de 4 dígitos.",
+        };
+      }
+      const nextNumber = String(nextNumberValue).padStart(4, "0");
       try {
         assignedTravelers = applyContractNumber(nextNumber);
         createdContract = await createContract({
@@ -259,6 +275,9 @@ export async function updateContractAction(
   const travelers = parseTravelers(travelersRaw);
   const canEditContractNumber = admin.role === "owner";
   const normalizedContractNumber = normalizeContractNumber(contractNumber);
+  if (canEditContractNumber && normalizedContractNumber && !isValidContractNumber(normalizedContractNumber)) {
+    return { ...prevState, error: "El folio debe tener 4 dígitos." };
+  }
   const contractNumberUpdate = canEditContractNumber ? normalizedContractNumber : undefined;
 
   if (canEditContractNumber && normalizedContractNumber) {

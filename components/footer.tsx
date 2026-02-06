@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Container } from "@/components/container";
 
 export function Footer() {
+  const showReservations = false;
+
   return (
     <footer className="border-t border-slate-100 bg-white">
       <Container className="grid gap-10 py-12 md:grid-cols-[1.3fr_1fr_1fr]">
@@ -44,9 +46,11 @@ export function Footer() {
               <Link href="/promociones" className="hover:text-brand-700">
                 Promociones
               </Link>
-              <Link href="/reservaciones" className="hover:text-brand-700">
-                Reservaciones
-              </Link>
+              {showReservations ? (
+                <Link href="/reservaciones" className="hover:text-brand-700">
+                  Reservaciones
+                </Link>
+              ) : null}
               <Link href="/contacto" className="hover:text-brand-700">
                 Contáctanos
               </Link>

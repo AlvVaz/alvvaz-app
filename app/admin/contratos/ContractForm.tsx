@@ -579,12 +579,39 @@ export function ContractForm({
         <input
           name="contractNumber"
           value={contractNumberValue}
-          onChange={(event) => setContractNumberValue(event.target.value)}
+          onChange={(event) =>
+            setContractNumberValue(
+              event.target.value.replace(/[^\d]/g, "").slice(0, 4)
+            )
+          }
           placeholder="#00-00"
+          inputMode="numeric"
+          maxLength={4}
+          pattern="\\d{4}"
           readOnly={!canEditContractNumber}
           aria-readonly={!canEditContractNumber}
           className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
+        {canEditContractNumber && suggestedContractNumber ? (
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+            Folio sugerido: {suggestedContractNumber}
+          </p>
+        ) : null}
+        {canEditContractNumber &&
+        suggestedContractNumber &&
+        contractNumberValue &&
+        contractNumberValue !== suggestedContractNumber ? (
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-500">
+            Estás usando un folio distinto al sugerido.
+          </p>
+        ) : null}
+        {canEditContractNumber &&
+        contractNumberValue &&
+        !/^\d{4}$/.test(contractNumberValue) ? (
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-rose-500">
+            El folio debe tener 4 dígitos.
+          </p>
+        ) : null}
         {!canEditContractNumber ? (
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
             Se asigna automáticamente

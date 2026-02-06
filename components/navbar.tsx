@@ -7,13 +7,15 @@ import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
+const showReservations = false;
+
 const navItems = [
   { label: "Inicio", href: "/" },
   { label: "Servicios", href: "/servicios" },
   { label: "Promociones", href: "/promociones" },
   { label: "Revista", href: "/magazine" },
   { label: "Social", href: "/social" },
-  { label: "Reservaciones", href: "/reservaciones" },
+  ...(showReservations ? [{ label: "Reservaciones", href: "/reservaciones" }] : []),
   { label: "Contáctanos", href: "/contacto" },
 ];
 

@@ -22,7 +22,8 @@ export const dynamic = "force-dynamic";
 type ReservationParts = { year: number; month: number; day: number };
 
 function getNextContractNumber(contracts: Awaited<ReturnType<typeof getContracts>>) {
-  let max = 0;
+  const base = 2141;
+  let max = base;
   contracts.forEach((contract) => {
     const value = String(contract.contractNumber ?? "").trim();
     if (!/^\d+$/.test(value)) return;
@@ -31,7 +32,7 @@ function getNextContractNumber(contracts: Awaited<ReturnType<typeof getContracts
       max = parsed;
     }
   });
-  return String(max + 1);
+  return String(max + 1).padStart(4, "0");
 }
 
 function parseReservationParts(value?: string | null): ReservationParts | null {
