@@ -29,6 +29,7 @@ export default async function ViajesAdminPage({ searchParams }: ViajesAdminPageP
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const currentYear = now.getFullYear();
   const collapsedYear = 2025;
+  const toLocalDate = (value: string) => new Date(`${value}T00:00:00`);
 
   const resolveTripYear = (trip: Trip) => {
     const base = trip.departureDate || trip.returnDate || trip.createdAt;
@@ -52,9 +53,11 @@ export default async function ViajesAdminPage({ searchParams }: ViajesAdminPageP
   };
 
   const isUpcoming = (trip: Trip) => {
-    if (!trip.departureDate) return true;
-    const departure = new Date(trip.departureDate);
-    return departure >= startOfToday;
+    if (trip.returnDate) {
+      const returnDate = toLocalDate(trip.returnDate);
+      return returnDate >= startOfToday;
+    }
+    return true;
   };
 
   const filteredTrips = trips.filter(matchesYear);
@@ -65,7 +68,6 @@ export default async function ViajesAdminPage({ searchParams }: ViajesAdminPageP
     month: "long",
     year: "numeric",
   });
-  const toLocalDate = (value: string) => new Date(`${value}T00:00:00`);
   const groupTrips = (items: Trip[]) =>
     Array.from(
       items.reduce((map, trip) => {

@@ -116,6 +116,7 @@ export default function TripsSection({
   const getProgressTone = (daysUntil: number | null, completed: boolean) => {
     if (completed) return "emerald";
     if (daysUntil === null) return "slate";
+    if (daysUntil < 0) return "brand";
     if (daysUntil < 7) return "amber";
     if (daysUntil <= 30) return "brand";
     return "slate";
@@ -124,6 +125,7 @@ export default function TripsSection({
   const getProgressLabel = (daysUntil: number | null, completed: boolean) => {
     if (completed) return "Completado";
     if (daysUntil === null) return "Sin fecha";
+    if (daysUntil < 0) return "En proceso";
     if (daysUntil === 0) return "Sale hoy";
     if (daysUntil === 1) return "Sale en 1 día";
     return `Sale en ${daysUntil} días`;
@@ -227,11 +229,7 @@ export default function TripsSection({
                     <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
                       {(() => {
                         const { departure, returnDate } = getTripDates(trip);
-                        const completed = returnDate
-                          ? returnDate < startOfToday
-                          : departure
-                          ? departure < startOfToday
-                          : false;
+                        const completed = returnDate ? returnDate < startOfToday : false;
                         const daysUntil = departure ? getDaysUntil(departure) : null;
                         const tone = getProgressTone(daysUntil, completed);
                         const label = getProgressLabel(daysUntil, completed);
