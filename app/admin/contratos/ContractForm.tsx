@@ -70,6 +70,7 @@ export function ContractForm({
 }: ContractFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement | null>(null);
+  const allowSubmitRef = useRef(false);
   const { push: pushToast } = useContractsToast();
   const { confirm, dialog } = useConfirmDialog();
   const seedContract = initialContract ?? draftContract ?? null;
@@ -347,6 +348,7 @@ export function ContractForm({
       : "este contrato";
     confirm(`Seguro que quieres eliminar ${label}?`, () => {
       pushToast("Contrato eliminado.", "info");
+      allowSubmitRef.current = true;
       submitter.form?.requestSubmit(submitter);
     });
   };
@@ -364,6 +366,37 @@ export function ContractForm({
   const [isOpeningPdf, setIsOpeningPdf] = useState(false);
   const [isSendingPdf, setIsSendingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+
+  const getSubmitConfirmMessage = () => {
+    if (initialContract) return "Seguro que quieres guardar los cambios?";
+    return "Seguro que quieres crear el contrato?";
+  };
+
+  const handleFormSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const nativeEvent = event.nativeEvent as SubmitEvent | undefined;
+    const submitter = nativeEvent?.submitter as HTMLButtonElement | null;
+    if (submitter?.dataset.skipConfirm === "true") return;
+
+    if (allowSubmitRef.current) {
+      allowSubmitRef.current = false;
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    confirm(getSubmitConfirmMessage(), () => {
+      allowSubmitRef.current = true;
+      if (submitter) {
+        submitter.form?.requestSubmit(submitter);
+      } else {
+        formRef.current?.requestSubmit();
+      }
+    }, {
+      title: "Confirmar acción",
+      confirmLabel: "Si",
+      cancelLabel: "No",
+    });
+  };
 
   useEffect(() => {
     if (!resetOnSubmit) return;
@@ -493,10 +526,22 @@ export function ContractForm({
     }
   };
 
+  const handleGeneratePdfClick = () => {
+    if (!initialContract || isGeneratingPdf) return;
+    confirm("Seguro que quieres generar el PDF?", () => {
+      void handleGeneratePdf();
+    }, {
+      title: "Generar PDF",
+      confirmLabel: "Si",
+      cancelLabel: "No",
+    });
+  };
+
   return (
     <form
       ref={formRef}
       action={formAction}
+      onSubmit={handleFormSubmit}
       onReset={handleReset}
       className="grid gap-4 md:grid-cols-2"
     >
@@ -942,7 +987,7 @@ export function ContractForm({
             <div className="flex sm:justify-end sm:pt-3">
               <button
                 type="button"
-                onClick={handleGeneratePdf}
+                onClick={handleGeneratePdfClick}
                 disabled={isGeneratingPdf}
                 className="rounded-full border border-brand-300 px-4 py-2.5 text-xs font-semibold uppercase leading-none tracking-[0.2em] text-brand-700 transition hover:border-brand-400"
               >
@@ -1000,6 +1045,7 @@ export function ContractForm({
             formAction={deleteAction}
             variant="subtle"
             className="border border-rose-300 bg-rose-50 text-rose-700 shadow-sm hover:border-rose-400 hover:text-rose-800"
+            data-skip-confirm="true"
             onClick={handleDeleteClick}
           >
             Eliminar
