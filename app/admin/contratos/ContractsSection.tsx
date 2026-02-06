@@ -44,6 +44,18 @@ const getStatusCardStyles = (status: string) => {
   return "border border-brand-200/80 bg-gradient-to-br from-white via-brand-50 to-brand-200/60 shadow-[0_12px_28px_rgba(77,143,224,0.16)]";
 };
 
+const getOrganizerInitials = (value?: string | null) => {
+  const cleaned = value?.trim();
+  if (!cleaned) return "—";
+  const base = cleaned.split("@")[0]?.trim() ?? cleaned;
+  const tokens = base.split(/[\s._-]+/).filter(Boolean);
+  if (tokens.length === 0) return "—";
+  if (tokens.length === 1) {
+    return tokens[0].slice(0, 2).toUpperCase();
+  }
+  return `${tokens[0][0]}${tokens[1][0]}`.toUpperCase();
+};
+
 export default function ContractsSection({
   title,
   badgeLabel,
@@ -206,7 +218,7 @@ export default function ContractsSection({
                       getStatusCardStyles(contract.status)
                     )}
                   >
-                    <div className="grid items-center gap-4 md:grid-cols-[auto_2fr_1.4fr_1fr_0.8fr]">
+                    <div className="grid items-center gap-4 md:grid-cols-[auto_1.8fr_0.9fr_1.4fr_1fr_0.8fr]">
                       <div className="flex items-start justify-center pt-1">
                         <input
                           type="checkbox"
@@ -227,6 +239,26 @@ export default function ContractsSection({
                         <p className="text-xs text-brand-700/80">
                           {contract.contractNumber ? `#${contract.contractNumber}` : "Sin folio"}
                         </p>
+                      </div>
+                      <div className="flex flex-col items-center gap-2 text-center">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                          Admin
+                        </p>
+                        {contract.organizer ? (
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="rounded-xl border border-brand-200 bg-white/80 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 shadow-sm">
+                              {getOrganizerInitials(contract.organizer)}
+                            </span>
+                            <span
+                              className="max-w-[120px] truncate text-[10px] uppercase tracking-[0.18em] text-brand-700/70"
+                              title={contract.organizer}
+                            >
+                              {contract.organizer}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400">Sin asignar</span>
+                        )}
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
