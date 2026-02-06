@@ -1,4 +1,7 @@
+import { redirect } from "next/navigation";
+
 import { SectionHeading } from "@/components/section-heading";
+import { getAdminFromCookies } from "@/lib/auth/admin";
 import { getContracts } from "@/lib/db";
 import { prisma } from "@/lib/prisma";
 
@@ -16,16 +19,102 @@ import { SyncClientsButton } from "./SyncClientsButton";
 
 export const dynamic = "force-dynamic";
 
+type ReservationParts = { year: number; month: number; day: number };
+
+function parseReservationParts(value?: string | null): ReservationParts | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const ymdMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymdMatch) {
+    const year = Number(ymdMatch[1]);
+    const month = Number(ymdMatch[2]);
+    const day = Number(ymdMatch[3]);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+      return null;
+    }
+    return { year, month, day };
+  }
+
+  const slashMatch = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (slashMatch) {
+    const first = Number(slashMatch[1]);
+    const second = Number(slashMatch[2]);
+    const year = Number(slashMatch[3]);
+    if (!Number.isFinite(year) || !Number.isFinite(first) || !Number.isFinite(second)) {
+      return null;
+    }
+
+    let month = first;
+    let day = second;
+
+    if (first > 12 && second <= 12) {
+      day = first;
+      month = second;
+    } else if (second > 12 && first <= 12) {
+      month = first;
+      day = second;
+    } else {
+      month = first;
+      day = second;
+    }
+
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+      const swappedMonth = second;
+      const swappedDay = first;
+      if (swappedMonth >= 1 && swappedMonth <= 12 && swappedDay >= 1 && swappedDay <= 31) {
+        return { year, month: swappedMonth, day: swappedDay };
+      }
+      return null;
+    }
+
+    return { year, month, day };
+  }
+
+  const date = new Date(trimmed);
+  if (Number.isNaN(date.getTime())) return null;
+  return { year: date.getFullYear(), month: date.getMonth() + 1, day: date.getDate() };
+}
+
 export default async function ContratosAdminPage() {
+  const admin = await getAdminFromCookies();
+  if (!admin) {
+    redirect("/admin/login");
+  }
+
   const contracts = await getContracts();
-  const latestContract = contracts[0] ?? null;
   const adminUsers = await prisma.adminUser.findMany({
     orderBy: [{ username: "asc" }, { email: "asc" }],
   });
+  const currentAdminUser = adminUsers.find((user) => user.email === admin.email);
   const organizerOptions = adminUsers.map((user) => ({
     value: user.username || user.email,
     label: `${user.username || user.email} (${user.role})`,
   }));
+
+  const normalizedOrganizerKeys = new Set(
+    [
+      currentAdminUser?.username,
+      currentAdminUser?.email,
+      admin.email,
+    ]
+      .filter(Boolean)
+      .map((value) => value!.trim().toLowerCase())
+  );
+
+  const currentYear = new Date().getFullYear();
+  const visibleContracts =
+    admin.role === "admin"
+      ? contracts.filter((contract) => {
+          const organizer = contract.organizer?.trim().toLowerCase();
+          if (!organizer || !normalizedOrganizerKeys.has(organizer)) return false;
+          const year = parseReservationParts(contract.reservationDate)?.year;
+          return year === currentYear;
+        })
+      : contracts;
+
+  const latestContract = visibleContracts[0] ?? null;
 
   return (
     <ContractsToastProvider>
@@ -91,7 +180,7 @@ export default async function ContratosAdminPage() {
         </details>
       </section>
       <ContractsPanel
-        contracts={contracts}
+        contracts={visibleContracts}
         updateAction={updateContractAction}
         deleteAction={deleteContractAction}
         bulkDeleteAction={bulkDeleteContractsAction}
