@@ -9,9 +9,9 @@ import ContractsSection from "./ContractsSection";
 type ContractsPanelProps = {
   contracts: Contract[];
   updateAction: (
-    prevState: { submittedAt: number; error?: string },
+    prevState: { submittedAt: number; error?: string; field?: "contractNumber" | "general" },
     formData: FormData
-  ) => Promise<{ submittedAt: number; error?: string }>;
+  ) => Promise<{ submittedAt: number; error?: string; field?: "contractNumber" | "general" }>;
   deleteAction?: (formData: FormData) => void;
   bulkDeleteAction: (ids: string[]) => Promise<{ ok: boolean; error?: string }>;
   organizerOptions?: { value: string; label: string }[];

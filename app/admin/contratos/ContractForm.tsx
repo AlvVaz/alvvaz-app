@@ -12,9 +12,9 @@ import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 
 type ContractFormProps = {
   action: (
-    prevState: { submittedAt: number; error?: string },
+    prevState: { submittedAt: number; error?: string; field?: "contractNumber" | "general" },
     formData: FormData
-  ) => Promise<{ submittedAt: number; error?: string }>;
+  ) => Promise<{ submittedAt: number; error?: string; field?: "contractNumber" | "general" }>;
   deleteAction?: (formData: FormData) => void;
   initialContract?: Contract;
   draftContract?: Contract | null;
@@ -365,7 +365,11 @@ export function ContractForm({
     }
   };
 
-  const [formState, formAction] = useActionState(action, { submittedAt: 0, error: "" });
+  const [formState, formAction] = useActionState(action, {
+    submittedAt: 0,
+    error: "",
+    field: undefined,
+  });
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isOpeningPdf, setIsOpeningPdf] = useState(false);
   const [isSendingPdf, setIsSendingPdf] = useState(false);
@@ -580,17 +584,17 @@ export function ContractForm({
           name="contractNumber"
           value={contractNumberValue}
           onChange={(event) =>
-            setContractNumberValue(
-              event.target.value.replace(/[^\d]/g, "").slice(0, 4)
-            )
+            setContractNumberValue(event.target.value.replace(/[^\d]/g, ""))
           }
           placeholder="#00-00"
           inputMode="numeric"
-          maxLength={4}
-          pattern="\\d{4}"
           readOnly={!canEditContractNumber}
           aria-readonly={!canEditContractNumber}
-          className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+          className={`w-full rounded-2xl border px-4 py-3 text-sm ${
+            formState.field === "contractNumber"
+              ? "border-rose-300 text-rose-700 focus-visible:border-rose-400 focus-visible:ring-2 focus-visible:ring-rose-200"
+              : "border-slate-200"
+          }`}
         />
         {canEditContractNumber && suggestedContractNumber ? (
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
@@ -605,11 +609,9 @@ export function ContractForm({
             Estás usando un folio distinto al sugerido.
           </p>
         ) : null}
-        {canEditContractNumber &&
-        contractNumberValue &&
-        !/^\d{4}$/.test(contractNumberValue) ? (
+        {formState.field === "contractNumber" && formState.error ? (
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-rose-500">
-            El folio debe tener 4 dígitos.
+            {formState.error}
           </p>
         ) : null}
         {!canEditContractNumber ? (
