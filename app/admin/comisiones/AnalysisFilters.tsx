@@ -133,7 +133,7 @@ export function AnalysisFilters({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        {(["range", "month", "year"] as FilterMode[]).map((option) => (
+        {(["month", "year"] as FilterMode[]).map((option) => (
           <button
             key={option}
             type="button"
@@ -145,7 +145,7 @@ export function AnalysisFilters({
                 : "border-brand-200 text-brand-600 hover:border-brand-400"
             )}
           >
-            {option === "range" ? "Rango" : option === "month" ? "Mes" : "Año"}
+            {option === "month" ? "Mes" : "Año"}
           </button>
         ))}
         <button
@@ -209,41 +209,39 @@ export function AnalysisFilters({
         </select>
       </div>
 
-      {mode === "range" ? (
-        <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4 text-sm md:grid-cols-[1fr_1fr_auto]">
-          <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-              Desde
-            </label>
-            <input
-              type="date"
-              value={fromValue}
-              onChange={(event) => setFromValue(event.target.value)}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-2"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-              Hasta
-            </label>
-            <input
-              type="date"
-              value={toValue}
-              onChange={(event) => setToValue(event.target.value)}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-2"
-            />
-          </div>
-          <div className="flex items-end">
-            <button
-              type="button"
-              onClick={handleApplyRange}
-              className="inline-flex w-full items-center justify-center rounded-full bg-brand-950 px-5 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-brand-900"
-            >
-              Aplicar
-            </button>
-          </div>
+      <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4 text-sm md:grid-cols-[1fr_1fr_auto]">
+        <div className="space-y-2">
+          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+            Desde
+          </label>
+          <input
+            type="date"
+            value={fromValue}
+            onChange={(event) => setFromValue(event.target.value)}
+            className="w-full rounded-2xl border border-slate-200 px-4 py-2"
+          />
         </div>
-      ) : null}
+        <div className="space-y-2">
+          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+            Hasta
+          </label>
+          <input
+            type="date"
+            value={toValue}
+            onChange={(event) => setToValue(event.target.value)}
+            className="w-full rounded-2xl border border-slate-200 px-4 py-2"
+          />
+        </div>
+        <div className="flex items-end">
+          <button
+            type="button"
+            onClick={handleApplyRange}
+            className="inline-flex w-full items-center justify-center rounded-full bg-brand-950 px-5 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-brand-900"
+          >
+            Aplicar
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
