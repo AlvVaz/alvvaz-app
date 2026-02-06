@@ -375,6 +375,7 @@ export function ContractForm({
   const [isSendingPdf, setIsSendingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [contractNumberError, setContractNumberError] = useState<string | null>(null);
+  const contractNumberToastRef = useRef<string | null>(null);
 
   const getSubmitConfirmMessage = () => {
     if (initialContract) return "Seguro que quieres guardar los cambios?";
@@ -422,10 +423,16 @@ export function ContractForm({
 
   useEffect(() => {
     if (formState.field === "contractNumber") {
-      setContractNumberError(formState.error ?? null);
+      const message = formState.error ?? null;
+      setContractNumberError(message);
+      if (message && contractNumberToastRef.current !== message) {
+        pushToast(message, "error");
+        contractNumberToastRef.current = message;
+      }
       return;
     }
     setContractNumberError(null);
+    contractNumberToastRef.current = null;
     if (!formState.error) return;
     pushToast(formState.error, "error");
   }, [formState.error, formState.field, pushToast]);
@@ -593,6 +600,7 @@ export function ContractForm({
           onChange={(event) => {
             setContractNumberValue(event.target.value.replace(/[^\d]/g, ""));
             setContractNumberError(null);
+            contractNumberToastRef.current = null;
           }}
           placeholder="#00-00"
           inputMode="numeric"

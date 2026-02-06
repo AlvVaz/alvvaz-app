@@ -163,11 +163,6 @@ export default async function ContratosAdminPage() {
           </summary>
           <div className="border-t border-slate-200 px-6 py-4">
             <ContractForm
-              key={
-                latestContract
-                  ? `${latestContract.id}-${latestContract.updatedAt}`
-                  : "new-contract"
-              }
               action={createContractAction}
               draftContract={latestContract}
               submitLabel="Crear contrato"
