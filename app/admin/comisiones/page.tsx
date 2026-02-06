@@ -208,7 +208,9 @@ export default async function ComisionesPage({
   );
   const tripsCount = filteredTripIds.size;
 
+  const isRangeIncomplete = mode === "range" && !(filterStart && filterEnd);
   const noData = hasFilter && filteredContracts.length === 0;
+  const showEmptyState = noData || isRangeIncomplete;
 
   let bucketStart: Date;
   let bucketEnd: Date;
@@ -268,9 +270,9 @@ export default async function ComisionesPage({
         />
       </section>
 
-      {noData ? (
+      {showEmptyState ? (
         <div className="inline-flex w-fit rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
-          No se encontró data
+          {isRangeIncomplete ? "Selecciona un rango y presiona aplicar" : "No se encontró data"}
         </div>
       ) : null}
 
@@ -280,7 +282,7 @@ export default async function ComisionesPage({
             Ventas (firmadas + pagadas)
           </p>
           <p className="mt-3 font-display text-3xl text-brand-950">
-            {noData ? "—" : saleContracts.length}
+            {showEmptyState ? "—" : saleContracts.length}
           </p>
           <p className="mt-1 text-sm text-slate-500">Contratos en el periodo</p>
         </div>
@@ -289,7 +291,7 @@ export default async function ComisionesPage({
             Ingresos netos
           </p>
           <p className="mt-3 font-display text-3xl text-brand-950">
-            {noData ? "—" : formatCurrency(totalRevenue)}
+            {showEmptyState ? "—" : formatCurrency(totalRevenue)}
           </p>
           <p className="mt-1 text-sm text-slate-500">Basado en Precio Neto</p>
         </div>
@@ -298,7 +300,7 @@ export default async function ComisionesPage({
             Viajes programados
           </p>
           <p className="mt-3 font-display text-3xl text-brand-950">
-            {noData ? "—" : tripsCount}
+            {showEmptyState ? "—" : tripsCount}
           </p>
           <p className="mt-1 text-sm text-slate-500">Salidas registradas</p>
         </div>
@@ -307,7 +309,7 @@ export default async function ComisionesPage({
             Pendientes
           </p>
           <p className="mt-3 font-display text-3xl text-brand-950">
-            {noData ? "—" : pendingContracts.length}
+            {showEmptyState ? "—" : pendingContracts.length}
           </p>
           <p className="mt-1 text-sm text-slate-500">Por firmar o pagar</p>
         </div>

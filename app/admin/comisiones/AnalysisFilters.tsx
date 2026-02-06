@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ type Option = {
 };
 
 const monthOptions: Option[] = [
+  { value: "all", label: "Todos" },
   { value: "01", label: "Enero" },
   { value: "02", label: "Febrero" },
   { value: "03", label: "Marzo" },
@@ -37,90 +38,6 @@ const monthOptions: Option[] = [
   { value: "11", label: "Noviembre" },
   { value: "12", label: "Diciembre" },
 ];
-
-function Dropdown({
-  value,
-  options,
-  active,
-  ariaLabel,
-  onChange,
-}: {
-  value: string;
-  options: Option[];
-  active: boolean;
-  ariaLabel: string;
-  onChange: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const selected = options.find((option) => option.value === value) ?? options[0];
-
-  return (
-    <div
-      ref={wrapperRef}
-      className="relative"
-      tabIndex={0}
-      onBlur={(event) => {
-        const next = event.relatedTarget as Node | null;
-        if (!wrapperRef.current || (next && wrapperRef.current.contains(next))) return;
-        setOpen(false);
-      }}
-    >
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          setOpen((prev) => !prev);
-        }}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={ariaLabel}
-        className={cn(
-          "inline-flex items-center gap-2 rounded-full border bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]",
-          active
-            ? "border-brand-500 text-brand-700"
-            : "border-brand-200 text-brand-600 hover:border-brand-400"
-        )}
-      >
-        <span>{selected?.label ?? value}</span>
-        <span className="text-[10px]">▼</span>
-      </button>
-
-      {open ? (
-        <div
-          role="listbox"
-          className="absolute right-0 z-20 mt-2 min-w-[160px] rounded-2xl border border-brand-200 bg-white p-1 shadow-lg"
-        >
-          {options.map((option) => {
-            const isSelected = option.value === value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="option"
-                aria-selected={isSelected}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onChange(option.value);
-                  setOpen(false);
-                }}
-                className={cn(
-                  "flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em]",
-                  isSelected
-                    ? "bg-brand-50 text-brand-700"
-                    : "text-slate-600 hover:bg-brand-50 hover:text-brand-700"
-                )}
-              >
-                <span>{option.label}</span>
-                {isSelected ? <span className="text-[10px]">●</span> : null}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-    </div>
-  );
-}
 
 export function AnalysisFilters({
   mode,
@@ -175,6 +92,11 @@ export function AnalysisFilters({
   };
 
   const handleMonthChange = (value: string) => {
+    if (value === "all") {
+      const yearValue = String(selectedYear || currentYear);
+      router.push(`/admin/comisiones?mode=year&year=${encodeURIComponent(yearValue)}`);
+      return;
+    }
     const yearValue = String(selectedYear || currentYear);
     router.push(
       `/admin/comisiones?mode=month&year=${encodeURIComponent(
@@ -235,6 +157,58 @@ export function AnalysisFilters({
         </button>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="sr-only" htmlFor="analysis-month">
+          Mes
+        </label>
+        <select
+          id="analysis-month"
+          value={
+            mode === "month"
+              ? String(selectedMonth || currentMonth).padStart(2, "0")
+              : "all"
+          }
+          onChange={(event) => handleMonthChange(event.target.value)}
+          disabled={mode === "range"}
+          className={cn(
+            "rounded-full border bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]",
+            mode === "month"
+              ? "border-brand-500 text-brand-700"
+              : "border-brand-200 text-brand-600 hover:border-brand-400",
+            "disabled:cursor-not-allowed disabled:opacity-50"
+          )}
+        >
+          {monthOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        <label className="sr-only" htmlFor="analysis-year">
+          Año
+        </label>
+        <select
+          id="analysis-year"
+          value={String(selectedYear || currentYear)}
+          onChange={(event) => handleYearChange(event.target.value)}
+          disabled={mode === "range"}
+          className={cn(
+            "rounded-full border bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]",
+            mode === "month" || mode === "year"
+              ? "border-brand-500 text-brand-700"
+              : "border-brand-200 text-brand-600 hover:border-brand-400",
+            "disabled:cursor-not-allowed disabled:opacity-50"
+          )}
+        >
+          {yearOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {mode === "range" ? (
         <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4 text-sm md:grid-cols-[1fr_1fr_auto]">
           <div className="space-y-2">
@@ -269,26 +243,7 @@ export function AnalysisFilters({
             </button>
           </div>
         </div>
-      ) : (
-        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          {mode === "month" ? (
-            <Dropdown
-              value={String(selectedMonth || currentMonth).padStart(2, "0")}
-              options={monthOptions}
-              active
-              ariaLabel="Selecciona mes"
-              onChange={handleMonthChange}
-            />
-          ) : null}
-          <Dropdown
-            value={String(selectedYear || currentYear)}
-            options={yearOptions}
-            active
-            ariaLabel="Selecciona año"
-            onChange={handleYearChange}
-          />
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }
