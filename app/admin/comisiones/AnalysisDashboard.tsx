@@ -122,6 +122,43 @@ function parseNumber(value?: string | null) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizeOrganizerName(value?: string | null) {
+  const cleaned = value?.trim();
+  if (!cleaned) {
+    return { key: "sin-asignar", label: "Sin asignar" };
+  }
+  const normalized = cleaned.toLowerCase();
+  if (normalized === "miguel" || normalized === "miguel alvarado") {
+    return { key: "miguel alvarado", label: "miguel alvarado" };
+  }
+  return { key: normalized, label: cleaned };
+}
+
+const shortDateFormatter = new Intl.DateTimeFormat("es-MX", {
+  day: "2-digit",
+  month: "short",
+});
+
+function formatShortDate(value?: string | null) {
+  if (!value) return "Sin fecha";
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return shortDateFormatter.format(date);
+}
+
+function formatTripRange(departure?: string | null, returnDate?: string | null) {
+  if (departure && returnDate) {
+    return `${formatShortDate(departure)} → ${formatShortDate(returnDate)}`;
+  }
+  if (departure) {
+    return `${formatShortDate(departure)} → Sin regreso`;
+  }
+  if (returnDate) {
+    return `Salida sin fecha → ${formatShortDate(returnDate)}`;
+  }
+  return "Sin fechas";
+}
+
 export function AnalysisDashboard({
   contracts,
   trips,
@@ -224,20 +261,34 @@ export function AnalysisDashboard({
 
     const organizerMap = new Map<
       string,
-      { name: string; count: number; signedPaid: number; pending: number }
+      {
+        name: string;
+        count: number;
+        signedPaid: number;
+        pending: number;
+        contracts: Contract[];
+      }
     >();
 
     for (const contract of filteredContracts) {
-      const name = contract.organizer?.trim() || "Sin asignar";
-      const key = name.toLowerCase();
+      const organizer = normalizeOrganizerName(contract.organizer);
+      const name = organizer.label;
+      const key = organizer.key;
       const entry =
-        organizerMap.get(key) ?? { name, count: 0, signedPaid: 0, pending: 0 };
+        organizerMap.get(key) ?? {
+          name,
+          count: 0,
+          signedPaid: 0,
+          pending: 0,
+          contracts: [],
+        };
       entry.count += 1;
       if (contract.status === "signed" || contract.status === "paid" || contract.isSigned || contract.isPaid) {
         entry.signedPaid += 1;
       } else {
         entry.pending += 1;
       }
+      entry.contracts.push(contract);
       organizerMap.set(key, entry);
     }
 
@@ -504,23 +555,88 @@ export function AnalysisDashboard({
             No hay contratos para este filtro.
           </div>
         ) : (
-          <div className="mt-4 divide-y divide-slate-200">
-            {computed.organizerSummary.map((entry) => (
-              <div
-                key={entry.name}
-                className="flex flex-wrap items-center justify-between gap-3 py-3"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-brand-950">{entry.name}</p>
-                  <p className="text-xs uppercase tracking-[0.2em] text-brand-600">
-                    {entry.signedPaid} firmados/pagados · {entry.pending} pendientes
-                  </p>
-                </div>
-                <span className="rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
-                  {entry.count} contratos
-                </span>
-              </div>
-            ))}
+          <div className="mt-4 space-y-3">
+            {computed.organizerSummary.map((entry) => {
+              const sortedContracts = [...entry.contracts].sort((a, b) => {
+                const aParts = parseReservationParts(a.reservationDate);
+                const bParts = parseReservationParts(b.reservationDate);
+                const aKey = aParts ? toDateKey(aParts) : 0;
+                const bKey = bParts ? toDateKey(bParts) : 0;
+                return bKey - aKey;
+              });
+
+              return (
+                <details
+                  key={entry.name}
+                  className="rounded-2xl border border-slate-200 bg-white"
+                >
+                  <summary className="cursor-pointer list-none px-4 py-3 [&::-webkit-details-marker]:hidden">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-brand-950">{entry.name}</p>
+                        <p className="text-xs uppercase tracking-[0.2em] text-brand-600">
+                          {entry.signedPaid} firmados/pagados · {entry.pending} pendientes
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+                        {entry.count} contratos
+                      </span>
+                    </div>
+                  </summary>
+                  <div className="border-t border-slate-200 px-4 py-3">
+                    <div className="grid gap-2 text-xs text-slate-600">
+                      {sortedContracts.map((contract) => (
+                        <div
+                          key={contract.id}
+                          className="grid gap-2 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2 md:grid-cols-[0.8fr_1.2fr_0.8fr_1fr_0.9fr]"
+                        >
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
+                              Contrato
+                            </p>
+                            <p className="text-sm text-brand-950">
+                              {contract.contractNumber ? `#${contract.contractNumber}` : "Sin folio"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
+                              Fechas de viaje
+                            </p>
+                            <p className="text-sm text-slate-700">
+                              {formatTripRange(contract.departureDate, contract.returnDate)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
+                              Costo
+                            </p>
+                            <p className="text-sm text-slate-700">
+                              {formatCurrency(parseMoney(contract.totalPrice))}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
+                              Proveedor
+                            </p>
+                            <p className="text-sm text-slate-700">
+                              {contract.supplier || "Sin proveedor"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
+                              Fecha de reserva
+                            </p>
+                            <p className="text-sm text-slate-700">
+                              {contract.reservationDate || "Sin fecha"}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </details>
+              );
+            })}
           </div>
         )}
       </section>
