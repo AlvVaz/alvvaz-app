@@ -59,25 +59,59 @@ const parseDate = (value?: string | null) => {
   return `${day} DE ${months[month - 1]} ${year}`;
 };
 
-const parseDateShort = (value?: string | null) => {
-  if (!value) return "";
+const shortMonths = [
+  "ENE",
+  "FEB",
+  "MAR",
+  "ABR",
+  "MAY",
+  "JUN",
+  "JUL",
+  "AGO",
+  "SEP",
+  "OCT",
+  "NOV",
+  "DIC",
+];
+
+const parseDateParts = (value?: string | null) => {
+  if (!value) return null;
   const [year, month, day] = value.split("-").map((part) => Number(part));
-  if (!year || !month || !day) return value;
-  const months = [
-    "ENE",
-    "FEB",
-    "MAR",
-    "ABR",
-    "MAY",
-    "JUN",
-    "JUL",
-    "AGO",
-    "SEP",
-    "OCT",
-    "NOV",
-    "DIC",
-  ];
-  return `${day} ${months[month - 1]} ${year}`;
+  if (!year || !month || !day) return null;
+  if (month < 1 || month > 12) return null;
+  return { year, month, day };
+};
+
+const formatDateShort = (value?: string | null) => {
+  const parts = parseDateParts(value);
+  if (!parts) return value ?? "";
+  return `${parts.day} ${shortMonths[parts.month - 1]} ${parts.year}`;
+};
+
+const formatDateRangeShort = (start?: string | null, end?: string | null) => {
+  const startParts = parseDateParts(start);
+  const endParts = parseDateParts(end);
+
+  if (startParts && endParts) {
+    if (startParts.year === endParts.year && startParts.month === endParts.month) {
+      if (startParts.day === endParts.day) {
+        return `${startParts.day} ${shortMonths[startParts.month - 1]} ${startParts.year}`;
+      }
+      return `${startParts.day} AL ${endParts.day} ${shortMonths[startParts.month - 1]} ${startParts.year}`;
+    }
+    if (startParts.year === endParts.year) {
+      return `${startParts.day} ${shortMonths[startParts.month - 1]} AL ${endParts.day} ${
+        shortMonths[endParts.month - 1]
+      } ${startParts.year}`;
+    }
+    return `${startParts.day} ${shortMonths[startParts.month - 1]} ${startParts.year} AL ${endParts.day} ${
+      shortMonths[endParts.month - 1]
+    } ${endParts.year}`;
+  }
+
+  if (startParts) return formatDateShort(start);
+  if (endParts) return formatDateShort(end);
+  return [start, end].filter(Boolean).join(" AL ");
 };
 
 const drawWrapped = (
@@ -168,7 +202,7 @@ export async function POST(
   }
 
   const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([595.28, 841.89]); // A4 portrait
+  const page = pdfDoc.addPage([612, 792]); // US Letter portrait
   const { width, height } = page.getSize();
   const loadFont = async (fileName: string, fallback: StandardFonts) => {
     try {
@@ -213,25 +247,25 @@ export async function POST(
   }
 
   const titleText = (contract.title || "RESERVA DE VIAJE").toUpperCase();
-  const titleSize = 12;
+  const titleSize = 15;
   const titleWidth = headingBold.widthOfTextAtSize(titleText, titleSize);
   page.drawText(titleText, {
     x: headerRight - titleWidth,
-    y: headerTop - 18,
-    size: 12,
+    y: headerTop - 14,
+    size: titleSize,
     font: headingBold,
     color: brand.ink,
   });
 
   const contractLabel = "CONTRATO";
   const contractNumber = `#${contract.contractNumber ?? ""}`;
-  const contractLabelSize = 11;
-  const contractNumberSize = 11;
+  const contractLabelSize = 13;
+  const contractNumberSize = 13;
   const labelWidth = headingBold.widthOfTextAtSize(contractLabel, contractLabelSize);
   const numberWidth = headingBold.widthOfTextAtSize(contractNumber, contractNumberSize);
   const badgePaddingX = 4;
   const badgeHeight = 14;
-  const badgeY = headerTop - 40;
+  const badgeY = headerTop - 34;
   const badgeGap = 6;
   const badgeGroupWidth =
     labelWidth + badgePaddingX * 2 + badgeGap + numberWidth;
@@ -259,7 +293,7 @@ export async function POST(
   });
 
   const headerInfoX = headerRight;
-  let headerInfoY = headerTop - 58;
+  let headerInfoY = headerTop - 48;
   const headerLines = [
     `FECHA DE RESERVA: ${parseDate(contract.reservationDate)}`,
     "AGENCIA DE VIAJES ALVVAZ",
@@ -267,7 +301,7 @@ export async function POST(
     `NOMBRE DEL CLIENTE: ${contract.clientName}`,
   ];
   headerLines.forEach((line, index) => {
-    const size = index === 0 ? 8 : 7;
+    const size = index === 0 ? 9 : 8;
     const usedFont = index === 0 ? headingBold : headingFont;
     const lineWidth = usedFont.widthOfTextAtSize(line, size);
     page.drawText(line, {
@@ -277,7 +311,7 @@ export async function POST(
       font: usedFont,
       color: brand.ink,
     });
-    headerInfoY -= index === 0 ? 11 : 9;
+    headerInfoY -= index === 0 ? 10 : 8;
   });
 
   page.drawText("Mas de 9 Años nos Respalda!...", {
@@ -308,10 +342,7 @@ export async function POST(
     (contract.seller ?? contract.organizer ?? "").toUpperCase(),
     (contract.agency ?? "").toUpperCase(),
     contract.destination ?? "",
-    [contract.departureDate, contract.returnDate]
-      .filter(Boolean)
-      .map((value) => parseDateShort(value))
-      .join(" AL "),
+    formatDateRangeShort(contract.departureDate, contract.returnDate),
   ];
   let labelX = rowX;
   colLabels.forEach((label, index) => {
@@ -482,7 +513,13 @@ export async function POST(
   cursorY -= 10;
   const notesWidth = tableWidth;
   const notesLines = notesText
-    ? wrapText(notesText, notesWidth - 10, bodyFont, 8)
+    ? notesText
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line, index, arr) => line.length > 0 || index === arr.length - 1)
+        .flatMap((line) =>
+          line ? wrapText(line, notesWidth - 10, bodyFont, 8) : [""]
+        )
     : [""];
   const notesHeight = Math.max(32, notesLines.length * 9 + 8);
   page.drawRectangle({
