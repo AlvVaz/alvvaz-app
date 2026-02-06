@@ -66,31 +66,6 @@ export function AnalysisFilters({
     [years]
   );
 
-  const handleModeChange = (nextMode: FilterMode) => {
-    if (nextMode === "range") {
-      const params = new URLSearchParams();
-      params.set("mode", "range");
-      if (fromValue) params.set("from", fromValue);
-      if (toValue) params.set("to", toValue);
-      router.push(`/admin/comisiones?${params.toString()}`);
-      return;
-    }
-
-    if (nextMode === "month") {
-      const monthValue = String(selectedMonth || currentMonth).padStart(2, "0");
-      const yearValue = String(selectedYear || currentYear);
-      router.push(
-        `/admin/comisiones?mode=month&year=${encodeURIComponent(
-          yearValue
-        )}&month=${encodeURIComponent(monthValue)}`
-      );
-      return;
-    }
-
-    const yearValue = String(selectedYear || currentYear);
-    router.push(`/admin/comisiones?mode=year&year=${encodeURIComponent(yearValue)}`);
-  };
-
   const handleMonthChange = (value: string) => {
     if (value === "all") {
       const yearValue = String(selectedYear || currentYear);
@@ -118,10 +93,6 @@ export function AnalysisFilters({
     router.push(`/admin/comisiones?mode=year&year=${encodeURIComponent(value)}`);
   };
 
-  const handleClear = () => {
-    router.push(`/admin/comisiones?mode=year&year=${encodeURIComponent(currentYear)}`);
-  };
-
   const handleApplyRange = () => {
     const params = new URLSearchParams();
     params.set("mode", "range");
@@ -132,31 +103,6 @@ export function AnalysisFilters({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        {(["month", "year"] as FilterMode[]).map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => handleModeChange(option)}
-            className={cn(
-              "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]",
-              mode === option
-                ? "border-brand-500 bg-white text-brand-700"
-                : "border-brand-200 text-brand-600 hover:border-brand-400"
-            )}
-          >
-            {option === "month" ? "Mes" : "Año"}
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={handleClear}
-          className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-700 hover:border-amber-300"
-        >
-          Limpiar selección
-        </button>
-      </div>
-
       <div className="flex flex-wrap items-center gap-2">
         <label className="sr-only" htmlFor="analysis-month">
           Mes
@@ -169,13 +115,21 @@ export function AnalysisFilters({
               : "all"
           }
           onChange={(event) => handleMonthChange(event.target.value)}
-          disabled={mode === "range"}
+          onFocus={() => {
+            if (mode === "month") return;
+            const monthValue = String(currentMonth).padStart(2, "0");
+            const yearValue = String(selectedYear || currentYear);
+            router.push(
+              `/admin/comisiones?mode=month&year=${encodeURIComponent(
+                yearValue
+              )}&month=${encodeURIComponent(monthValue)}`
+            );
+          }}
           className={cn(
             "rounded-full border bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]",
             mode === "month"
               ? "border-brand-500 text-brand-700"
-              : "border-brand-200 text-brand-600 hover:border-brand-400",
-            "disabled:cursor-not-allowed disabled:opacity-50"
+              : "border-brand-200 text-brand-600 hover:border-brand-400"
           )}
         >
           {monthOptions.map((option) => (
@@ -192,13 +146,16 @@ export function AnalysisFilters({
           id="analysis-year"
           value={String(selectedYear || currentYear)}
           onChange={(event) => handleYearChange(event.target.value)}
-          disabled={mode === "range"}
+          onFocus={() => {
+            if (mode === "month") return;
+            const yearValue = String(selectedYear || currentYear);
+            router.push(`/admin/comisiones?mode=year&year=${encodeURIComponent(yearValue)}`);
+          }}
           className={cn(
             "rounded-full border bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]",
             mode === "month" || mode === "year"
               ? "border-brand-500 text-brand-700"
-              : "border-brand-200 text-brand-600 hover:border-brand-400",
-            "disabled:cursor-not-allowed disabled:opacity-50"
+              : "border-brand-200 text-brand-600 hover:border-brand-400"
           )}
         >
           {yearOptions.map((option) => (

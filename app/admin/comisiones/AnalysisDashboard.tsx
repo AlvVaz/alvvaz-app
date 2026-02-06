@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { SectionHeading } from "@/components/section-heading";
 import type { Contract, Trip } from "@/lib/db";
@@ -129,6 +129,7 @@ export function AnalysisDashboard({
   contracts: Contract[];
   trips: Trip[];
 }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const now = new Date();
@@ -307,6 +308,17 @@ export function AnalysisDashboard({
               Ajusta el periodo para ver ventas y rendimiento.
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() =>
+              router.push(
+                `/admin/comisiones?mode=year&year=${encodeURIComponent(currentYear)}`
+              )
+            }
+            className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 hover:border-brand-300"
+          >
+            Limpiar selección
+          </button>
         </div>
         <AnalysisFilters
           mode={mode}
