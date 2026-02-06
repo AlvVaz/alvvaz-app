@@ -95,6 +95,23 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+function buildSparklinePoints(values: number[], maxValue: number) {
+  const points = values.map((value, index) => {
+    const x = values.length === 1 ? 50 : (index / (values.length - 1)) * 100;
+    const y = 100 - (value / maxValue) * 100;
+    return `${x},${y}`;
+  });
+  return points.join(" ");
+}
+
+function buildSparklineDots(values: number[], maxValue: number) {
+  return values.map((value, index) => {
+    const x = values.length === 1 ? 50 : (index / (values.length - 1)) * 100;
+    const y = 100 - (value / maxValue) * 100;
+    return { x, y, value };
+  });
+}
+
 function getMonthBuckets(start: Date, end: Date, maxMonths = 12) {
   const buckets: Array<{ key: string; label: string; month: number; year: number }> = [];
   const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
@@ -291,6 +308,17 @@ export function AnalysisDashboard({
   ]);
 
   const showEmptyState = computed.noData || computed.isRangeIncomplete;
+  const salesSeries = computed.buckets.map(
+    (bucket) => computed.bucketMap.get(bucket.key)?.sales ?? 0
+  );
+  const revenueSeries = computed.buckets.map(
+    (bucket) => computed.bucketMap.get(bucket.key)?.revenue ?? 0
+  );
+  const salesLine = buildSparklinePoints(salesSeries, computed.maxSales);
+  const revenueLine = buildSparklinePoints(revenueSeries, computed.maxRevenue);
+  const salesDots = buildSparklineDots(salesSeries, computed.maxSales);
+  const revenueDots = buildSparklineDots(revenueSeries, computed.maxRevenue);
+  const isSingleMonth = computed.buckets.length === 1;
 
   return (
     <div className="space-y-8">
@@ -383,27 +411,41 @@ export function AnalysisDashboard({
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="font-display text-lg text-brand-950">Ventas por mes</h3>
           <p className="mt-1 text-sm text-slate-500">Contratos firmados o pagados.</p>
-          <div className="mt-6 flex items-end gap-3">
-            {computed.buckets.map((bucket) => {
-              const data = computed.bucketMap.get(bucket.key) ?? {
-                sales: 0,
-                revenue: 0,
-              };
-              const height = Math.round((data.sales / computed.maxSales) * 100);
-              return (
-                <div key={bucket.key} className="flex flex-1 flex-col items-center gap-2">
-                  <div className="flex h-28 w-full items-end">
-                    <div
-                      className="w-full rounded-full bg-brand-500/80"
-                      style={{ height: `${height}%` }}
-                    />
-                  </div>
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500">
-                    {bucket.label}
-                  </span>
-                </div>
-              );
-            })}
+          <div className="mt-6">
+            <div className="relative h-24">
+              <svg viewBox="0 0 100 100" className="h-full w-full overflow-visible">
+                <line x1="0" y1="98" x2="100" y2="98" stroke="#E2E8F0" strokeWidth="2" />
+                <polyline
+                  points={salesLine}
+                  fill="none"
+                  stroke="#3B82F6"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                {salesDots.map((dot, index) => (
+                  <circle
+                    key={index}
+                    cx={dot.x}
+                    cy={dot.y}
+                    r={isSingleMonth ? 5 : 3}
+                    fill="#2563EB"
+                    stroke="#ffffff"
+                    strokeWidth={isSingleMonth ? 2 : 1.5}
+                  />
+                ))}
+              </svg>
+              {isSingleMonth ? (
+                <span className="absolute right-0 top-0 text-[10px] uppercase tracking-[0.2em] text-slate-400">
+                  Solo 1 mes
+                </span>
+              ) : null}
+            </div>
+            <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-slate-500">
+              {computed.buckets.map((bucket) => (
+                <span key={bucket.key}>{bucket.label}</span>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -412,27 +454,41 @@ export function AnalysisDashboard({
             Ingresos Netos por Mes
           </h3>
           <p className="mt-1 text-sm text-slate-500">Precio Neto Acumulado.</p>
-          <div className="mt-6 flex items-end gap-3">
-            {computed.buckets.map((bucket) => {
-              const data = computed.bucketMap.get(bucket.key) ?? {
-                sales: 0,
-                revenue: 0,
-              };
-              const height = Math.round((data.revenue / computed.maxRevenue) * 100);
-              return (
-                <div key={bucket.key} className="flex flex-1 flex-col items-center gap-2">
-                  <div className="flex h-28 w-full items-end">
-                    <div
-                      className="w-full rounded-full bg-gradient-to-t from-brand-400 to-brand-600"
-                      style={{ height: `${height}%` }}
-                    />
-                  </div>
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500">
-                    {bucket.label}
-                  </span>
-                </div>
-              );
-            })}
+          <div className="mt-6">
+            <div className="relative h-24">
+              <svg viewBox="0 0 100 100" className="h-full w-full overflow-visible">
+                <line x1="0" y1="98" x2="100" y2="98" stroke="#E2E8F0" strokeWidth="2" />
+                <polyline
+                  points={revenueLine}
+                  fill="none"
+                  stroke="#1D4ED8"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                {revenueDots.map((dot, index) => (
+                  <circle
+                    key={index}
+                    cx={dot.x}
+                    cy={dot.y}
+                    r={isSingleMonth ? 5 : 3}
+                    fill="#1D4ED8"
+                    stroke="#ffffff"
+                    strokeWidth={isSingleMonth ? 2 : 1.5}
+                  />
+                ))}
+              </svg>
+              {isSingleMonth ? (
+                <span className="absolute right-0 top-0 text-[10px] uppercase tracking-[0.2em] text-slate-400">
+                  Solo 1 mes
+                </span>
+              ) : null}
+            </div>
+            <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-slate-500">
+              {computed.buckets.map((bucket) => (
+                <span key={bucket.key}>{bucket.label}</span>
+              ))}
+            </div>
           </div>
         </div>
       </section>
