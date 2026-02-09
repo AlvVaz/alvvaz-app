@@ -166,7 +166,7 @@ export function AnalysisDashboard({
 }: {
   contracts: Contract[];
   trips: Trip[];
-  adminOptions?: Array<{ value: string; label: string }>;
+  adminOptions: Array<{ value: string; label: string }>;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -194,8 +194,24 @@ export function AnalysisDashboard({
 
   const selectedYear = rawYear ?? currentYear;
   const selectedMonth = rawMonth ?? currentMonth;
+  const allowedAdminKeys = useMemo(() => {
+    const set = new Set<string>();
+    adminOptions.forEach((option) => {
+      if (!option.value) return;
+      set.add(normalizeOrganizerName(option.value).key);
+    });
+    return set;
+  }, [adminOptions]);
+
   const selectedAdminKey =
-    rawAdmin && rawAdmin !== "all" ? normalizeOrganizerName(rawAdmin).key : "all";
+    rawAdmin && rawAdmin !== "all"
+      ? normalizeOrganizerName(rawAdmin).key
+      : "all";
+
+  const effectiveAdminKey =
+    selectedAdminKey !== "all" && !allowedAdminKeys.has(selectedAdminKey)
+      ? "all"
+      : selectedAdminKey;
 
   const years = useMemo(() => {
     const yearsSet = new Set<number>();
@@ -223,32 +239,17 @@ export function AnalysisDashboard({
       addOption(option.value, option.label);
     });
 
-    if (rawAdmin && rawAdmin !== "all") {
-      addOption(rawAdmin);
-    }
-
-    contracts.forEach((contract) => {
-      addOption(contract.seller || contract.organizer);
-    });
-
-    trips.forEach((trip) => {
-      addOption(trip.organizer);
-    });
-
     const entries = Array.from(map.entries())
       .map(([value, label]) => ({ value, label }))
       .filter((option) => option.value !== "sin-asignar");
 
     entries.sort((a, b) => a.label.localeCompare(b.label, "es", { sensitivity: "base" }));
 
-    const hasUnassigned = map.has("sin-asignar");
-
     return [
       { value: "all", label: "Todos" },
-      ...(hasUnassigned ? [{ value: "sin-asignar", label: "Sin asignar" }] : []),
       ...entries,
     ];
-  }, [adminOptions, contracts, trips, rawAdmin]);
+  }, [adminOptions]);
 
   const computed = useMemo(() => {
     let rangeStartKey: number | null = null;
@@ -293,13 +294,13 @@ export function AnalysisDashboard({
       : [];
 
     const adminFilteredContracts =
-      selectedAdminKey === "all"
+      effectiveAdminKey === "all"
         ? filteredContracts
         : filteredContracts.filter((contract) => {
             const organizerKey = normalizeOrganizerName(
               contract.seller || contract.organizer
             ).key;
-            return organizerKey === selectedAdminKey;
+            return organizerKey === effectiveAdminKey;
           });
 
     const saleContracts = adminFilteredContracts.filter(
@@ -361,10 +362,10 @@ export function AnalysisDashboard({
     );
 
     const adminFilteredTrips =
-      selectedAdminKey === "all"
+      effectiveAdminKey === "all"
         ? trips
         : trips.filter(
-            (trip) => normalizeOrganizerName(trip.organizer).key === selectedAdminKey
+            (trip) => normalizeOrganizerName(trip.organizer).key === effectiveAdminKey
           );
     const tripIdSet = new Set(adminFilteredTrips.map((trip) => trip.id));
     const filteredTripIds = new Set(
@@ -427,7 +428,7 @@ export function AnalysisDashboard({
     rangeTo,
     selectedYear,
     selectedMonth,
-    selectedAdminKey,
+    effectiveAdminKey,
     currentYear,
     currentMonth,
   ]);
@@ -464,8 +465,8 @@ export function AnalysisDashboard({
                 const params = new URLSearchParams();
                 params.set("mode", "year");
                 params.set("year", String(currentYear));
-                if (selectedAdminKey !== "all") {
-                  params.set("admin", selectedAdminKey);
+                if (effectiveAdminKey !== "all") {
+                  params.set("admin", effectiveAdminKey);
                 }
                 router.push(`/admin/comisiones?${params.toString()}`);
               })()
@@ -484,7 +485,7 @@ export function AnalysisDashboard({
           selectedMonth={selectedMonth}
           rangeFrom={rangeFrom}
           rangeTo={rangeTo}
-          selectedAdmin={selectedAdminKey}
+          selectedAdmin={effectiveAdminKey}
           adminOptions={adminFilterOptions}
         />
       </section>
@@ -509,7 +510,7 @@ export function AnalysisDashboard({
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-            Ingresos netos
+            Ingresos acumulados neto
           </p>
           <p className="mt-3 font-display text-3xl text-brand-950">
             {showEmptyState ? "—" : formatCurrency(computed.totalRevenue)}
