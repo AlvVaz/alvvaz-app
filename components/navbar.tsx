@@ -8,13 +8,14 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const showReservations = false;
+const showSocial = false;
 
 const navItems = [
   { label: "Inicio", href: "/" },
   { label: "Servicios", href: "/servicios" },
   { label: "Promociones", href: "/promociones" },
   { label: "Revista", href: "/magazine" },
-  { label: "Social", href: "/social" },
+  ...(showSocial ? [{ label: "Social", href: "/social" }] : []),
   ...(showReservations ? [{ label: "Reservaciones", href: "/reservaciones" }] : []),
   { label: "Contáctanos", href: "/contacto" },
 ];

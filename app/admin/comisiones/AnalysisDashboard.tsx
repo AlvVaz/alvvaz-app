@@ -505,7 +505,7 @@ export function AnalysisDashboard({
       <section className="grid gap-4 md:grid-cols-2">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-            Ventas (firmadas + pagadas)
+            Ventas acumuladas grupales
           </p>
           <p className="mt-3 font-display text-3xl text-brand-950">
             {showEmptyState ? "—" : computed.saleContracts.length}
@@ -638,9 +638,9 @@ export function AnalysisDashboard({
               const sortedContracts = [...entry.contracts].sort((a, b) => {
                 const aParts = parseReservationParts(a.reservationDate);
                 const bParts = parseReservationParts(b.reservationDate);
-                const aKey = aParts ? toDateKey(aParts) : 0;
-                const bKey = bParts ? toDateKey(bParts) : 0;
-                return bKey - aKey;
+                const aKey = aParts ? toDateKey(aParts) : Number.POSITIVE_INFINITY;
+                const bKey = bParts ? toDateKey(bParts) : Number.POSITIVE_INFINITY;
+                return aKey - bKey;
               });
 
               return (
