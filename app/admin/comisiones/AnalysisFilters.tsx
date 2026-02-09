@@ -16,6 +16,8 @@ type AnalysisFiltersProps = {
   selectedMonth: number;
   rangeFrom: string;
   rangeTo: string;
+  selectedAdmin: string;
+  adminOptions: Option[];
 };
 
 type Option = {
@@ -48,6 +50,8 @@ export function AnalysisFilters({
   selectedMonth,
   rangeFrom,
   rangeTo,
+  selectedAdmin,
+  adminOptions,
 }: AnalysisFiltersProps) {
   const router = useRouter();
   const [fromValue, setFromValue] = useState(rangeFrom);
@@ -66,31 +70,44 @@ export function AnalysisFilters({
     [years]
   );
 
+  const pushWithAdmin = (params: URLSearchParams) => {
+    if (selectedAdmin && selectedAdmin !== "all") {
+      params.set("admin", selectedAdmin);
+    }
+    router.push(`/admin/comisiones?${params.toString()}`);
+  };
+
   const handleMonthChange = (value: string) => {
     if (value === "all") {
       const yearValue = String(selectedYear || currentYear);
-      router.push(`/admin/comisiones?mode=year&year=${encodeURIComponent(yearValue)}`);
+      const params = new URLSearchParams();
+      params.set("mode", "year");
+      params.set("year", yearValue);
+      pushWithAdmin(params);
       return;
     }
     const yearValue = String(selectedYear || currentYear);
-    router.push(
-      `/admin/comisiones?mode=month&year=${encodeURIComponent(
-        yearValue
-      )}&month=${encodeURIComponent(value)}`
-    );
+    const params = new URLSearchParams();
+    params.set("mode", "month");
+    params.set("year", yearValue);
+    params.set("month", value);
+    pushWithAdmin(params);
   };
 
   const handleYearChange = (value: string) => {
     if (mode === "month") {
       const monthValue = String(selectedMonth || currentMonth).padStart(2, "0");
-      router.push(
-        `/admin/comisiones?mode=month&year=${encodeURIComponent(
-          value
-        )}&month=${encodeURIComponent(monthValue)}`
-      );
+      const params = new URLSearchParams();
+      params.set("mode", "month");
+      params.set("year", value);
+      params.set("month", monthValue);
+      pushWithAdmin(params);
       return;
     }
-    router.push(`/admin/comisiones?mode=year&year=${encodeURIComponent(value)}`);
+    const params = new URLSearchParams();
+    params.set("mode", "year");
+    params.set("year", value);
+    pushWithAdmin(params);
   };
 
   const handleApplyRange = () => {
@@ -98,6 +115,31 @@ export function AnalysisFilters({
     params.set("mode", "range");
     if (fromValue) params.set("from", fromValue);
     if (toValue) params.set("to", toValue);
+    pushWithAdmin(params);
+  };
+
+  const handleAdminChange = (value: string) => {
+    const params = new URLSearchParams();
+    if (mode === "month") {
+      const monthValue = String(selectedMonth || currentMonth).padStart(2, "0");
+      const yearValue = String(selectedYear || currentYear);
+      params.set("mode", "month");
+      params.set("year", yearValue);
+      params.set("month", monthValue);
+    } else if (mode === "range") {
+      params.set("mode", "range");
+      if (fromValue) params.set("from", fromValue);
+      if (toValue) params.set("to", toValue);
+    } else {
+      const yearValue = String(selectedYear || currentYear);
+      params.set("mode", "year");
+      params.set("year", yearValue);
+    }
+
+    if (value && value !== "all") {
+      params.set("admin", value);
+    }
+
     router.push(`/admin/comisiones?${params.toString()}`);
   };
 
@@ -119,11 +161,11 @@ export function AnalysisFilters({
             if (mode === "month") return;
             const monthValue = String(currentMonth).padStart(2, "0");
             const yearValue = String(selectedYear || currentYear);
-            router.push(
-              `/admin/comisiones?mode=month&year=${encodeURIComponent(
-                yearValue
-              )}&month=${encodeURIComponent(monthValue)}`
-            );
+            const params = new URLSearchParams();
+            params.set("mode", "month");
+            params.set("year", yearValue);
+            params.set("month", monthValue);
+            pushWithAdmin(params);
           }}
           className={cn(
             "rounded-full border bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]",
@@ -149,7 +191,10 @@ export function AnalysisFilters({
           onFocus={() => {
             if (mode === "month") return;
             const yearValue = String(selectedYear || currentYear);
-            router.push(`/admin/comisiones?mode=year&year=${encodeURIComponent(yearValue)}`);
+            const params = new URLSearchParams();
+            params.set("mode", "year");
+            params.set("year", yearValue);
+            pushWithAdmin(params);
           }}
           className={cn(
             "rounded-full border bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]",
@@ -159,6 +204,27 @@ export function AnalysisFilters({
           )}
         >
           {yearOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        <label className="sr-only" htmlFor="analysis-admin">
+          Asesor
+        </label>
+        <select
+          id="analysis-admin"
+          value={selectedAdmin || "all"}
+          onChange={(event) => handleAdminChange(event.target.value)}
+          className={cn(
+            "rounded-full border bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]",
+            selectedAdmin && selectedAdmin !== "all"
+              ? "border-brand-500 text-brand-700"
+              : "border-brand-200 text-brand-600 hover:border-brand-400"
+          )}
+        >
+          {adminOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
