@@ -95,6 +95,15 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+function formatCurrencyDetailed(value: number) {
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 function getMonthBuckets(start: Date, end: Date, maxMonths = 12) {
   const buckets: Array<{ key: string; label: string; month: number; year: number }> = [];
   const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
@@ -325,6 +334,7 @@ export function AnalysisDashboard({
         count: number;
         signedPaid: number;
         pending: number;
+        total: number;
         contracts: Contract[];
       }
     >();
@@ -339,6 +349,7 @@ export function AnalysisDashboard({
           count: 0,
           signedPaid: 0,
           pending: 0,
+          total: 0,
           contracts: [],
         };
       entry.count += 1;
@@ -347,6 +358,7 @@ export function AnalysisDashboard({
       } else {
         entry.pending += 1;
       }
+      entry.total += parseMoney(contract.totalPrice);
       entry.contracts.push(contract);
       organizerMap.set(key, entry);
     }
@@ -652,6 +664,9 @@ export function AnalysisDashboard({
                           {entry.signedPaid} firmados/pagados · {entry.pending} pendientes
                         </p>
                       </div>
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                        Acumulado: {formatCurrencyDetailed(entry.total)}
+                      </span>
                       <span className="rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
                         {entry.count} contratos
                       </span>
