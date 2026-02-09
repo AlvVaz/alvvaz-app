@@ -473,15 +473,7 @@ export function AnalysisDashboard({
           <button
             type="button"
             onClick={() =>
-              (() => {
-                const params = new URLSearchParams();
-                params.set("mode", "year");
-                params.set("year", String(currentYear));
-                if (effectiveAdminKey !== "all") {
-                  params.set("admin", effectiveAdminKey);
-                }
-                router.push(`/admin/comisiones?${params.toString()}`);
-              })()
+              router.push(`/admin/comisiones?mode=year&year=${encodeURIComponent(currentYear)}`)
             }
             className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 hover:border-brand-300"
           >
