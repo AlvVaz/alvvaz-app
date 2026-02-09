@@ -62,6 +62,7 @@ export type Trip = {
   returnDate: string | null;
   travelers: TripTraveler[];
   notes: string;
+  status: ContractStatus;
   prepStage: number;
   createdAt: string;
   updatedAt: string;

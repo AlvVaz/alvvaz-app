@@ -197,6 +197,7 @@ function mapTrip(trip: {
   returnDate: string | null;
   travelers: unknown;
   notes: string;
+  status: ContractStatus;
   prepStage: number;
   createdAt: Date;
   updatedAt: Date;
@@ -644,6 +645,7 @@ export async function createTrip(input: {
   returnDate?: string | null;
   travelers?: TripTraveler[];
   notes?: string;
+  status?: ContractStatus;
   prepStage?: number;
 }) {
   const normalizedTravelers = normalizeTravelers(input.travelers);
@@ -659,6 +661,7 @@ export async function createTrip(input: {
       returnDate: input.returnDate ?? null,
       travelers: normalizedTravelers,
       notes: input.notes ?? "",
+      status: input.status ?? "pending",
       prepStage: input.prepStage ?? 0,
     },
   });
@@ -679,6 +682,7 @@ export async function updateTrip(
     returnDate: string | null;
     travelers: TripTraveler[];
     notes: string;
+    status: ContractStatus;
     prepStage: number;
   }>
 ) {
@@ -704,11 +708,47 @@ export async function updateTrip(
         ? { travelers: normalizeTravelers(updates.travelers) }
         : {}),
       ...(updates.notes !== undefined ? { notes: updates.notes } : {}),
+      ...(updates.status !== undefined ? { status: updates.status } : {}),
       ...(updates.prepStage !== undefined ? { prepStage: updates.prepStage } : {}),
     },
   });
 
   return mapTrip(trip);
+}
+
+function buildTripPayloadFromContract(contract: Contract) {
+  const travelers = normalizeTravelers(contract.travelers);
+  const passengerCount =
+    typeof contract.passengerCount === "number" && Number.isFinite(contract.passengerCount)
+      ? contract.passengerCount
+      : travelers.length;
+
+  return {
+    clientName: contract.clientName || "",
+    destination: contract.destination || "",
+    hotel: contract.hotel ?? "",
+    supplier: contract.supplier ?? "",
+    organizer: contract.organizer ?? "",
+    passengerCount,
+    departureDate: contract.departureDate ?? null,
+    returnDate: contract.returnDate ?? null,
+    travelers,
+    notes: contract.notes ?? "",
+    status: contract.status ?? "pending",
+  };
+}
+
+export async function syncTripFromContract(contract: Contract) {
+  const payload = buildTripPayloadFromContract(contract);
+
+  if (contract.tripId) {
+    const updated = await updateTrip(contract.tripId, payload);
+    if (updated) return updated;
+  }
+
+  const created = await createTrip(payload);
+  await updateContract(contract.id, { tripId: created.id });
+  return created;
 }
 
 export async function deleteTrip(id: string) {

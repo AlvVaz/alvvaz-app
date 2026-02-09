@@ -5,12 +5,15 @@ import { Prisma } from "@prisma/client";
 
 import { getAdminFromCookies } from "@/lib/auth/admin";
 import {
-  createTrip,
   createContract,
   deleteContract,
   deleteContractsByIds,
   getContracts,
+  getContractById,
+  deleteTrip,
+  deleteTripsByIds,
   updateContract,
+  syncTripFromContract,
   syncClientsFromTravelers,
   type TripTraveler,
 } from "@/lib/db";
@@ -180,19 +183,7 @@ export async function createContractAction(
     return { ...prevState, error: "No se pudo asignar el folio. Intenta de nuevo." };
   }
 
-  const trip = await createTrip({
-    clientName,
-    destination,
-    hotel: hotel || undefined,
-    supplier: supplier || undefined,
-    organizer: organizer || undefined,
-    passengerCount: Number.isFinite(passengerCount) ? passengerCount : travelers.length || 0,
-    departureDate: departureDate || null,
-    returnDate: returnDate || null,
-    travelers: assignedTravelers,
-  });
-
-  await updateContract(createdContract.id, { tripId: trip.id });
+  await syncTripFromContract(createdContract);
   const primaryTraveler = clientName
     ? [
         {
@@ -315,8 +306,8 @@ export async function updateContractAction(
     throw error;
   }
 
-  if (updated && updated.status === "paid" && !updated.tripId) {
-    // TODO: Auto-generate a trip once the contract is approved.
+  if (updated) {
+    await syncTripFromContract(updated);
   }
 
   const primaryTraveler = clientName
@@ -339,6 +330,7 @@ export async function updateContractAction(
   });
 
   revalidatePath("/admin/contratos");
+  revalidatePath("/admin/viajes");
   revalidatePath("/admin/clients");
   return { submittedAt: Date.now(), error: "" };
 }
@@ -347,16 +339,34 @@ export async function deleteContractAction(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
   if (!id) return;
 
+  const existing = await getContractById(id);
   await deleteContract(id);
+  if (existing?.tripId) {
+    await deleteTrip(existing.tripId);
+  }
   revalidatePath("/admin/contratos");
+  revalidatePath("/admin/viajes");
+  revalidatePath("/admin/clients");
 }
 
 export async function bulkDeleteContractsAction(ids: string[]) {
   if (!ids.length) {
     return { ok: false, error: "Selecciona al menos un contrato." };
   }
+  const contracts = await prisma.contract.findMany({
+    where: { id: { in: ids } },
+    select: { tripId: true },
+  });
   await deleteContractsByIds(ids);
+  const tripIds = Array.from(
+    new Set(contracts.map((contract) => contract.tripId).filter(Boolean))
+  ) as string[];
+  if (tripIds.length) {
+    await deleteTripsByIds(tripIds);
+  }
   revalidatePath("/admin/contratos");
+  revalidatePath("/admin/viajes");
+  revalidatePath("/admin/clients");
   return { ok: true };
 }
 

@@ -101,6 +101,7 @@ model Trip {
   returnDate     String?
   travelers      Json
   notes          String
+  status         ContractStatus @default(pending)
   prepStage      Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

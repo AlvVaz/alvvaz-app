@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 
 import { prisma } from "@/lib/prisma";
-import { createContract, createTrip, updateContract, syncClientsFromTravelers } from "@/lib/db";
+import { createContract, syncClientsFromTravelers, syncTripFromContract } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -173,19 +173,6 @@ export async function POST(request: Request) {
             ? [{ name: clientNameRaw, phone, contract: contractNumber ?? "" }]
             : [];
 
-        const trip = await createTrip({
-          clientName,
-          destination,
-          hotel,
-          supplier,
-          organizer: seller,
-          passengerCount: passengerCount || travelers.length,
-          departureDate,
-          returnDate,
-          travelers,
-          notes: "",
-        });
-
         const contract = await createContract({
           title: clientName,
           contractNumber,
@@ -213,7 +200,7 @@ export async function POST(request: Request) {
           metadata: { source: "excel", year },
         });
 
-        await updateContract(contract.id, { tripId: trip.id });
+        await syncTripFromContract(contract);
 
         await syncClientsFromTravelers(travelers, {
           source: "contract",

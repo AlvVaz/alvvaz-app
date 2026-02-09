@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { updateContract } from "@/lib/db";
+import { syncTripFromContract, updateContract } from "@/lib/db";
 import type { ContractStatus } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -36,5 +36,6 @@ export async function POST(
     return NextResponse.json({ error: "Contrato no encontrado." }, { status: 404 });
   }
 
+  await syncTripFromContract(updated);
   return NextResponse.json({ status: updated.status });
 }

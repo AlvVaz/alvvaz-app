@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS trips (
   passenger_count INT NOT NULL DEFAULT 0,
   departure_date DATE,
   return_date DATE,
+  status TEXT NOT NULL DEFAULT 'pending',
   notes TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
