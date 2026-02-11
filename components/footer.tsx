@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 
@@ -21,7 +21,7 @@ export function Footer() {
           </div>
           <p className="text-sm text-slate-600">
             Agencia de viajes mexicana especializada en experiencias premium en
-            playas de México y destinos internacionales.
+            playas de MÃ©xico y destinos internacionales.
           </p>
         </div>
 
@@ -52,7 +52,7 @@ export function Footer() {
                 </Link>
               ) : null}
               <Link href="/contacto" className="hover:text-brand-700">
-                Contáctanos
+                ContÃ¡ctanos
               </Link>
             </div>
           </div>
@@ -61,30 +61,8 @@ export function Footer() {
               Redes
             </p>
             <div className="flex flex-wrap gap-3">
-              <a
-                href="https://instagram.com"
-                className="hover:text-brand-700"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Instagram
-              </a>
-              <a
-                href="https://facebook.com"
-                className="hover:text-brand-700"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Facebook
-              </a>
-              <a
-                href="https://linkedin.com"
-                className="hover:text-brand-700"
-                target="_blank"
-                rel="noreferrer"
-              >
-                LinkedIn
-              </a>
+              <span className="text-slate-600">Instagram</span>
+              <span className="text-slate-600">Facebook</span>
             </div>
           </div>
         </div>
@@ -98,7 +76,7 @@ export function Footer() {
               href="/politicas-de-privacidad"
               className="transition-colors hover:text-brand-600"
             >
-              Políticas de privacidad
+              PolÃ­ticas de privacidad
             </Link>
             <Link
               href="/admin/login"
@@ -112,3 +90,5 @@ export function Footer() {
     </footer>
   );
 }
+
+
