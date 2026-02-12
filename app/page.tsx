@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 import { Container } from "@/components/container";
 import { ImageCarousel } from "@/components/image-carousel";
@@ -405,7 +405,7 @@ export default function Home() {
               autoPlay
               interval={6000}
               className="border border-slate-200 shadow-lg"
-              aspectClassName="aspect-[4/3] sm:aspect-[16/9]"
+              aspectClassName="aspect-[16/10] sm:aspect-[21/9]"
               roundedClassName="rounded-[36px]"
               priority
               ariaLabel="Galería principal de destinos AlvVaz"
