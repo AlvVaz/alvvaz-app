@@ -21,7 +21,7 @@ export function Footer() {
           </div>
           <p className="text-sm text-slate-600">
             Agencia de viajes mexicana especializada en experiencias premium en
-            playas de MÃ©xico y destinos internacionales.
+            playas de México y destinos internacionales.
           </p>
         </div>
 
@@ -52,7 +52,7 @@ export function Footer() {
                 </Link>
               ) : null}
               <Link href="/contacto" className="hover:text-brand-700">
-                ContÃ¡ctanos
+                Contáctanos
               </Link>
             </div>
           </div>
@@ -76,7 +76,7 @@ export function Footer() {
               href="/politicas-de-privacidad"
               className="transition-colors hover:text-brand-600"
             >
-              PolÃ­ticas de privacidad
+              Políticas de privacidad
             </Link>
             <Link
               href="/admin/login"
@@ -90,5 +90,4 @@ export function Footer() {
     </footer>
   );
 }
-
 

@@ -161,7 +161,7 @@ const vallartaImages = [
   },
   {
     src: "/Vallarta/vallarta-2.jpg",
-    alt: "Playa icÃ³nica de Puerto Vallarta",
+    alt: "Playa icónica de Puerto Vallarta",
   },
   {
     src: "/Vallarta/vallarta-3.webp",
@@ -249,7 +249,7 @@ const cancunImages = [
 
 const destinos = [
   {
-    name: "CancÃºn",
+    name: "Cancún",
     description: "Playas turquesa y resorts de lujo.",
     images: cancunImages,
   },
@@ -260,7 +260,7 @@ const destinos = [
   },
   {
     name: "Puerto Vallarta",
-    description: "TradiciÃ³n mexicana y atardeceres Ã©picos.",
+    description: "Tradición mexicana y atardeceres épicos.",
     images: vallartaImages,
   },
   {
@@ -270,20 +270,20 @@ const destinos = [
   },
   {
     name: "Europa",
-    description: "Ciudades icÃ³nicas con estilo boutique.",
+    description: "Ciudades icónicas con estilo boutique.",
     images: europaImages,
   },
   {
-    name: "TurquÃ­a",
-    description: "Capadocia, Estambul y rutas histÃ³ricas premium.",
+    name: "Turquía",
+    description: "Capadocia, Estambul y rutas históricas premium.",
     images: turquiaImages,
   },
 ];
 
 const beneficios = [
   {
-    title: "AtenciÃ³n personalizada",
-    description: "AsesorÃ­a experta para diseÃ±ar tu itinerario ideal.",
+    title: "Atención personalizada",
+    description: "Asesoría experta para diseñar tu itinerario ideal.",
   },
   {
     title: "Pagos seguros",
@@ -291,11 +291,11 @@ const beneficios = [
   },
   {
     title: "Itinerarios a medida",
-    description: "Experiencias curadas segÃºn tu estilo y presupuesto.",
+    description: "Experiencias curadas según tu estilo y presupuesto.",
   },
   {
     title: "Soporte 24/7",
-    description: "AcompaÃ±amiento durante todo el viaje.",
+    description: "Acompañamiento durante todo el viaje.",
   },
 ];
 
@@ -303,7 +303,7 @@ const testimonios = [
   {
     name: "Andrea L.",
     quote:
-      "Todo fue impecable. Nos encantÃ³ la atenciÃ³n y las recomendaciones premium.",
+      "Todo fue impecable. Nos encantó la atención y las recomendaciones premium.",
   },
   {
     name: "Carlos M.",
@@ -335,11 +335,11 @@ export default function Home() {
               <Badge className="w-fit">Agencia premium</Badge>
               <div className="space-y-4">
                 <h1 className="font-display text-4xl font-semibold tracking-tight text-brand-950 md:text-5xl">
-                  Viaja con AlvVaz: playas de MÃ©xico y destinos por todo el
+                  Viaja con AlvVaz: playas de México y destinos por todo el
                   mundo
                 </h1>
                 <p className="text-base text-slate-600 md:text-lg">
-                  DiseÃ±amos viajes exclusivos con un servicio elegante y
+                  Diseñamos viajes exclusivos con un servicio elegante y
                   transparente. Experiencias de alto nivel, sin complicaciones.
                 </p>
               </div>
@@ -358,9 +358,9 @@ export default function Home() {
                 </Link>
               </div>
               <div className="flex flex-wrap gap-6 text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                <span>AsesorÃ­a experta</span>
+                <span>Asesoría experta</span>
                 <span>Experiencias boutique</span>
-                <span>AtenciÃ³n 24/7</span>
+                <span>Atención 24/7</span>
               </div>
             </div>
 
@@ -376,7 +376,7 @@ export default function Home() {
                       Experiencias premium
                     </p>
                     <p className="font-display text-3xl font-semibold text-brand-950">
-                      Planeamos cada detalle para que viajes sin estrÃ©s.
+                      Planeamos cada detalle para que viajes sin estrés.
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-sm text-slate-600">
@@ -408,7 +408,7 @@ export default function Home() {
               aspectClassName="aspect-[4/3] sm:aspect-[16/9]"
               roundedClassName="rounded-[36px]"
               priority
-              ariaLabel="GalerÃ­a principal de destinos AlvVaz"
+              ariaLabel="Galería principal de destinos AlvVaz"
             />
           </div>
         </Container>
@@ -418,7 +418,7 @@ export default function Home() {
         <Container className="space-y-12">
           <SectionHeading
             title="Destinos destacados"
-            subtitle="SelecciÃ³n de destinos en MÃ©xico y el mundo."
+            subtitle="Selección de destinos en México y el mundo."
             kicker="Explora"
           />
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -433,7 +433,7 @@ export default function Home() {
                   aspectClassName="aspect-[4/3]"
                   roundedClassName="rounded-2xl"
                   showIndicators={false}
-                  ariaLabel={`GalerÃ­a de ${destino.name}`}
+                  ariaLabel={`Galería de ${destino.name}`}
                 />
                 <h3 className="font-display text-xl font-semibold text-brand-950">
                   {destino.name}
@@ -450,7 +450,7 @@ export default function Home() {
       <section className="bg-white py-16">
         <Container className="grid gap-12 lg:grid-cols-[1fr_1.1fr] lg:items-center">
           <SectionHeading
-            title="Por quÃ© AlvVaz"
+            title="Por qué AlvVaz"
             subtitle="Un servicio premium pensado para viajeros exigentes."
             kicker="Experiencia"
           />
