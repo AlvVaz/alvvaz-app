@@ -6,11 +6,13 @@ type ConfirmOptions = {
   title?: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  note?: string;
 };
 
 type ConfirmState = {
   open: boolean;
   message: string;
+  note?: string;
   onConfirm?: () => void;
   title?: string;
   confirmLabel?: string;
@@ -29,6 +31,7 @@ export function useConfirmDialog() {
         open: true,
         message,
         onConfirm,
+        note: options?.note,
         title: options?.title,
         confirmLabel: options?.confirmLabel,
         cancelLabel: options?.cancelLabel,
@@ -58,6 +61,9 @@ export function useConfirmDialog() {
           {state.title ?? "Confirmar eliminación"}
         </p>
         <p className="mt-3 text-sm text-slate-700">{state.message}</p>
+        {state.note ? (
+          <p className="mt-1 text-sm italic text-slate-500">{state.note}</p>
+        ) : null}
         <div className="mt-6 flex justify-end gap-3">
           <button
             type="button"
