@@ -20,6 +20,7 @@ import {
 import type { ContractStatus } from "@/lib/db";
 import { prisma } from "@/lib/prisma";
 import { ALLOW_CONTRACT_NUMBER_EDIT_FOR_ALL_ROLES } from "@/lib/contracts/config";
+import { canEditContractByRole } from "@/lib/contracts/edit-policy";
 
 type ActionState = { submittedAt: number; error?: string; field?: "contractNumber" | "general" };
 
@@ -221,6 +222,13 @@ export async function updateContractAction(
 
   const id = String(formData.get("id") ?? "").trim();
   if (!id) return prevState;
+
+  const existingContract = await getContractById(id);
+  if (!existingContract) return prevState;
+
+  if (!canEditContractByRole(admin.role, existingContract.createdAt)) {
+    return { ...prevState, error: "Este contrato ya no se puede editar.", field: "general" };
+  }
 
   const title = String(formData.get("title") ?? "").trim();
   const contractNumber = String(formData.get("contractNumber") ?? "").trim();

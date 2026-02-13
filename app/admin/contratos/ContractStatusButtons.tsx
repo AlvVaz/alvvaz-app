@@ -7,10 +7,12 @@ import { useContractsToast } from "./ContractsToastProvider";
 
 type ContractStatusButtonsProps = {
   contractId: string;
+  isLocked?: boolean;
 };
 
 export default function ContractStatusButtons({
   contractId,
+  isLocked = false,
 }: ContractStatusButtonsProps) {
   const router = useRouter();
   const { push: pushToast } = useContractsToast();
@@ -35,7 +37,7 @@ export default function ContractStatusButtons({
   ];
 
   const handleUpdateStatus = async (value: string, label: string) => {
-    if (isUpdating) return;
+    if (isUpdating || isLocked) return;
     setIsUpdating(true);
     try {
       const response = await fetch(`/api/admin/contracts/${contractId}/status`, {
@@ -61,7 +63,7 @@ export default function ContractStatusButtons({
         <button
           key={status.value}
           type="button"
-          disabled={isUpdating}
+          disabled={isUpdating || isLocked}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -69,7 +71,7 @@ export default function ContractStatusButtons({
           }}
           title={status.label}
           aria-label={`Marcar como ${status.label}`}
-          className={`h-4 w-4 rounded-full transition hover:scale-110 disabled:opacity-60 ${status.className}`}
+          className={`h-4 w-4 rounded-full transition hover:scale-110 disabled:opacity-50 ${status.className}`}
         >
           <span className="sr-only">{status.label}</span>
         </button>

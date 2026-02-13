@@ -201,6 +201,7 @@ export default async function ContratosAdminPage() {
         bulkDeleteAction={bulkDeleteContractsAction}
         organizerOptions={organizerOptions}
         canEditContractNumber={canEditContractNumber}
+        currentAdminRole={admin.role}
       />
     </div>
     </ContractsToastProvider>

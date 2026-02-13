@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { syncTripFromContract, updateContract } from "@/lib/db";
+import { getContractById, syncTripFromContract, updateContract } from "@/lib/db";
+import { getAdminFromCookies } from "@/lib/auth/admin";
+import { canEditContractByRole } from "@/lib/contracts/edit-policy";
 import type { ContractStatus } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -13,6 +15,20 @@ export async function POST(
   const id = resolvedParams?.id;
   if (!id) {
     return NextResponse.json({ error: "Falta el id del contrato." }, { status: 400 });
+  }
+
+  const admin = await getAdminFromCookies();
+  if (!admin) {
+    return NextResponse.json({ error: "Sesion no valida." }, { status: 401 });
+  }
+
+  const contract = await getContractById(id);
+  if (!contract) {
+    return NextResponse.json({ error: "Contrato no encontrado." }, { status: 404 });
+  }
+
+  if (!canEditContractByRole(admin.role, contract.createdAt)) {
+    return NextResponse.json({ error: "Este contrato ya no se puede editar." }, { status: 403 });
   }
 
   const body = await request.json().catch(() => ({}));

@@ -23,6 +23,7 @@ type ContractFormProps = {
   organizerOptions?: { value: string; label: string }[];
   suggestedContractNumber?: string;
   canEditContractNumber?: boolean;
+  isEditLocked?: boolean;
 };
 
 const emptyTraveler: TripTraveler = { name: "", phone: "", contract: "" };
@@ -71,6 +72,7 @@ export function ContractForm({
   organizerOptions = [],
   suggestedContractNumber,
   canEditContractNumber = false,
+  isEditLocked = false,
 }: ContractFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -78,6 +80,7 @@ export function ContractForm({
   const { push: pushToast } = useContractsToast();
   const { confirm, dialog } = useConfirmDialog();
   const seedContract = initialContract ?? draftContract ?? null;
+  const isLocked = Boolean(initialContract) && isEditLocked;
   const initialTravelers = seedContract?.travelers?.length
     ? seedContract.travelers
     : [emptyTraveler];
@@ -383,6 +386,12 @@ export function ContractForm({
   };
 
   const handleFormSubmit = (event: FormEvent<HTMLFormElement>) => {
+    if (isLocked) {
+      event.preventDefault();
+      event.stopPropagation();
+      pushToast("Este contrato ya no se puede editar.", "info");
+      return;
+    }
     const nativeEvent = event.nativeEvent as SubmitEvent | undefined;
     const submitter = nativeEvent?.submitter as HTMLButtonElement | null;
     if (submitter?.dataset.skipConfirm === "true") return;
@@ -570,7 +579,7 @@ export function ContractForm({
       action={formAction}
       onSubmit={handleFormSubmit}
       onReset={handleReset}
-      className="grid gap-4 md:grid-cols-2"
+      className={`grid gap-4 md:grid-cols-2 ${isLocked ? "opacity-75" : ""}`}
     >
       {initialContract ? <input type="hidden" name="id" value={initialContract.id} /> : null}
       <input type="hidden" name="travelers" value={travelersPayload} />
@@ -1034,6 +1043,12 @@ export function ContractForm({
         })()}
       </div>
 
+      {isLocked ? (
+        <p className="md:col-span-2 text-[11px] uppercase tracking-[0.18em] text-slate-400">
+          Edicion disponible solo durante los primeros 3 dias para rol admin.
+        </p>
+      ) : null}
+
       {initialContract ? (
         <div className="md:col-span-2 rounded-2xl border border-brand-200 bg-white/70 p-4">
           <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
@@ -1099,7 +1114,7 @@ export function ContractForm({
         >
           Cerrar
         </Button>
-        <Button type="submit">{submitLabel}</Button>
+        <Button type="submit" disabled={isLocked}>{submitLabel}</Button>
         {deleteAction ? (
           <Button
             type="submit"
@@ -1108,6 +1123,7 @@ export function ContractForm({
             className="border border-rose-300 bg-rose-50 text-rose-700 shadow-sm hover:border-rose-400 hover:text-rose-800"
             data-skip-confirm="true"
             onClick={handleDeleteClick}
+            disabled={isLocked}
           >
             Eliminar
           </Button>

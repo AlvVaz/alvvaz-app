@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import type { Contract } from "@/lib/db";
+import type { AdminRoleForContracts } from "@/lib/contracts/edit-policy";
 
 import ContractsSection from "./ContractsSection";
 
@@ -16,6 +17,7 @@ type ContractsPanelProps = {
   bulkDeleteAction: (ids: string[]) => Promise<{ ok: boolean; error?: string }>;
   organizerOptions?: { value: string; label: string }[];
   canEditContractNumber?: boolean;
+  currentAdminRole: AdminRoleForContracts;
 };
 
 const normalize = (value: string) => value.trim().toLowerCase();
@@ -33,6 +35,7 @@ export default function ContractsPanel({
   bulkDeleteAction,
   organizerOptions = [],
   canEditContractNumber = false,
+  currentAdminRole,
 }: ContractsPanelProps) {
   const [filters, setFilters] = useState({
     id: "",
@@ -198,6 +201,7 @@ export default function ContractsPanel({
         bulkDeleteAction={bulkDeleteAction}
         organizerOptions={organizerOptions}
         canEditContractNumber={canEditContractNumber}
+        currentAdminRole={currentAdminRole}
       />
 
       <ContractsSection
@@ -211,6 +215,7 @@ export default function ContractsPanel({
         organizerOptions={organizerOptions}
         enableSort
         canEditContractNumber={canEditContractNumber}
+        currentAdminRole={currentAdminRole}
       />
 
       <ContractsSection
@@ -223,6 +228,7 @@ export default function ContractsPanel({
         bulkDeleteAction={bulkDeleteAction}
         organizerOptions={organizerOptions}
         canEditContractNumber={canEditContractNumber}
+        currentAdminRole={currentAdminRole}
       />
 
       {contracts2025.length > 0 ? (
@@ -257,6 +263,7 @@ export default function ContractsPanel({
                 hideTitle
                 hideBadge
                 canEditContractNumber={canEditContractNumber}
+        currentAdminRole={currentAdminRole}
               />
             </div>
           </details>

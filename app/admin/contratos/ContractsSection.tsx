@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ThemedSelect } from "@/components/ui/themed-select";
 import { cn } from "@/lib/utils";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
+import { canEditContractByRole, type AdminRoleForContracts } from "@/lib/contracts/edit-policy";
 
 import { ContractForm } from "./ContractForm";
 import ContractSummaryActions from "./ContractSummaryActions";
@@ -30,6 +31,7 @@ type ContractsSectionProps = {
   hideBadge?: boolean;
   organizerOptions?: { value: string; label: string }[];
   canEditContractNumber?: boolean;
+  currentAdminRole: AdminRoleForContracts;
 };
 
 const getStatusCardStyles = (status: string) => {
@@ -70,6 +72,7 @@ export default function ContractsSection({
   hideBadge = false,
   organizerOptions = [],
   canEditContractNumber = false,
+  currentAdminRole,
 }: ContractsSectionProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sortMode, setSortMode] = useState("recent");
@@ -306,7 +309,10 @@ export default function ContractsSection({
                     </div>
                   </div>
                   <div className="flex items-center">
-                    <ContractStatusButtons contractId={contract.id} />
+                    <ContractStatusButtons
+                      contractId={contract.id}
+                      isLocked={!canEditContractByRole(currentAdminRole, contract.createdAt)}
+                    />
                   </div>
                 </div>
               </summary>
@@ -319,6 +325,7 @@ export default function ContractsSection({
                   submitLabel="Guardar cambios"
                   organizerOptions={organizerOptions}
                   canEditContractNumber={canEditContractNumber}
+                  isEditLocked={!canEditContractByRole(currentAdminRole, contract.createdAt)}
                 />
               </div>
             </details>
