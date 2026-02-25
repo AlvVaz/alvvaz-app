@@ -314,7 +314,7 @@ export async function POST(
     headerInfoY -= index === 0 ? 10 : 8;
   });
 
-  page.drawText("Mas de 9 AÃ±os nos Respalda!...", {
+  page.drawText("Mas de 9 A\u00f1os nos Respalda!...", {
     x: margin + 6,
     y: logoBottomY - 18,
     size: 8,
@@ -431,7 +431,7 @@ export async function POST(
     font: headingFont,
     color: brand.ink,
   });
-  page.drawText("DescripciÃ³n de lo contratado:", {
+  page.drawText("Descripci\u00f3n de lo contratado:", {
     x: tableX + tableCols[0] + 4,
     y: headerTextY,
     size: 8,
@@ -643,7 +643,7 @@ export async function POST(
   const policyGap = 5;
   const policySubGap = 2;
   policies.forEach((policy) => {
-    const bullet = policy.level === 0 ? "â€¢" : "";
+    const bullet = policy.level === 0 ? "\u2022" : "";
     const bulletIndent = policy.level === 0 ? 12 : 26;
     const bulletMaxWidth = width - margin * 2 - bulletIndent;
     if (bullet) {
@@ -748,7 +748,7 @@ export async function GET(
     "contracts";
 
   if (!storagePath) {
-    return NextResponse.json({ error: "PDF no generado aÃºn." }, { status: 404 });
+    return NextResponse.json({ error: "PDF no generado a\u00fan." }, { status: 404 });
   }
 
   const supabase = getSupabaseAdmin();
@@ -762,6 +762,8 @@ export async function GET(
 
   return NextResponse.json({ signedUrl: data.signedUrl });
 }
+
+
 
 
 
