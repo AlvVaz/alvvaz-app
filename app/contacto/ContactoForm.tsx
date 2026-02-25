@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { ChangeEvent, FormEvent } from "react";
 import { useState } from "react";
@@ -49,6 +49,15 @@ export function ContactoForm() {
       onSubmit={handleSubmit}
       className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6"
     >
+      <div className="space-y-1">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+          Contacto
+        </p>
+        <h3 className="font-display text-2xl text-brand-950">
+          Formulario de contacto
+        </h3>
+      </div>
+
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
           Nombre
@@ -64,6 +73,7 @@ export function ContactoForm() {
           placeholder="Tu nombre"
         />
       </div>
+
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
           Email (Opcional)
@@ -79,6 +89,7 @@ export function ContactoForm() {
           placeholder="tucorreo@email.com"
         />
       </div>
+
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
           Mensaje
@@ -89,9 +100,10 @@ export function ContactoForm() {
           onChange={handleChange}
           required
           className="min-h-[120px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 transition-colors duration-200 focus:border-brand-400 focus:outline-none"
-          placeholder="Cuéntanos cómo podemos ayudarte"
+          placeholder="Cuentanos como podemos ayudarte"
         />
       </div>
+
       <Button type="submit">Enviar mensaje</Button>
       {status === "success" ? (
         <p className="text-sm text-brand-700">
