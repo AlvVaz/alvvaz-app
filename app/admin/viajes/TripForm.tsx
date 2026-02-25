@@ -149,7 +149,7 @@ export function TripForm({ action, deleteAction, initialTrip, submitLabel }: Tri
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          N?mero de pasajeros
+          Número de pasajeros
         </label>
         <input
           type="number"
@@ -180,7 +180,7 @@ export function TripForm({ action, deleteAction, initialTrip, submitLabel }: Tri
                   className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
                 />
                 <input
-                  placeholder="Tel?fono"
+                  placeholder="Teléfono"
                   value={traveler.phone}
                   onChange={(event) => handleTravelerChange(index, "phone", event.target.value)}
                   className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
@@ -258,4 +258,5 @@ export function TripForm({ action, deleteAction, initialTrip, submitLabel }: Tri
     </form>
   );
 }
+
 

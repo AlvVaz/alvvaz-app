@@ -420,7 +420,7 @@ export function ContractForm({
       cancelLabel: "No",
       ...(initialContract
         ? {}
-        : { note: "Este contrato no se podr? editar despues de 36hrs." }),
+        : { note: "Este contrato no se podrá editar después de 36hrs." }),
     });
   };
 
@@ -594,7 +594,7 @@ export function ContractForm({
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          T?tulo del contrato
+          Título del contrato
         </label>
         <input
           name="title"
@@ -608,7 +608,7 @@ export function ContractForm({
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          N?mero de contrato
+          Número de contrato
         </label>
         <input
           name="contractNumber"
@@ -638,7 +638,7 @@ export function ContractForm({
         contractNumberValue &&
         contractNumberValue !== suggestedContractNumber ? (
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-500">
-            Est?s usando un folio distinto al sugerido.
+            Estás usando un folio distinto al sugerido.
           </p>
         ) : null}
         {contractNumberError ? (
@@ -648,7 +648,7 @@ export function ContractForm({
         ) : null}
         {!canEditContractNumber ? (
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-            Se asigna autom?ticamente
+            Se asigna automáticamente
           </p>
         ) : null}
       </div>
@@ -757,7 +757,7 @@ export function ContractForm({
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          N?mero de pasajeros
+          Número de pasajeros
         </label>
         <input
           type="number"
@@ -797,7 +797,7 @@ export function ContractForm({
                   }
                 />
                 <input
-                  placeholder="Tel?fono"
+                  placeholder="Teléfono"
                   value={traveler.phone}
                   onChange={(event) => handleTravelerChange(index, "phone", event.target.value)}
                   className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
@@ -982,7 +982,7 @@ export function ContractForm({
         <textarea
           name="notes"
           defaultValue={seedContract?.notes ?? ""}
-          placeholder="Agrega cl?usulas, observaciones o notas internas."
+          placeholder="Agrega cláusulas, observaciones o notas internas."
           className="min-h-[120px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
       </div>
@@ -1141,5 +1141,6 @@ export function ContractForm({
     </form>
   );
 }
+
 
 
