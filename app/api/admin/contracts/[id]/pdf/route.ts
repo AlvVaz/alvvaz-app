@@ -447,60 +447,78 @@ export async function POST(
   });
 
   cursorY = tableHeaderBottomY;
-  const descriptionLines = (contract.description ?? "")
-    .split("\n")
-    .filter(Boolean)
-    .slice(0, 4);
+  const descriptionRawLines = (contract.description ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  const descriptionLines = descriptionRawLines.length > 0 ? descriptionRawLines : [""];
   const total = formatMoney(contract.totalPrice ?? "");
+  const minDescriptionRowHeight = tableRowHeight;
+  const descriptionLineHeight = 10;
+
   descriptionLines.forEach((line, index) => {
-    const rowY = cursorY - tableRowHeight * index;
+    const qtyMatch = line.match(/^(\d+)\s*[xX]\s*(.+)$/);
+    const qty = qtyMatch ? qtyMatch[1] : "1";
+    const details = qtyMatch ? qtyMatch[2] : line;
+    const detailLines = wrapText(details || "-", tableCols[1] - 8, bodyFont, 8);
+    const renderedDetailLines = detailLines.length > 0 ? detailLines : [""];
+    const rowHeight = Math.max(
+      minDescriptionRowHeight,
+      renderedDetailLines.length * descriptionLineHeight + 10
+    );
+
+    const rowTopY = cursorY;
+    const rowBottomY = rowTopY - rowHeight;
+
     page.drawRectangle({
       x: tableX,
-      y: rowY - tableRowHeight,
+      y: rowBottomY,
       width: tableWidth,
-      height: tableRowHeight,
+      height: rowHeight,
       borderWidth: 0.5,
       borderColor: brand.line,
     });
     tableColumnEdges.forEach((edgeX) => {
       page.drawLine({
-        start: { x: edgeX, y: rowY },
-        end: { x: edgeX, y: rowY - tableRowHeight },
+        start: { x: edgeX, y: rowTopY },
+        end: { x: edgeX, y: rowBottomY },
         thickness: 0.5,
         color: brand.line,
       });
     });
-    const qtyMatch = line.match(/^(\d+)\s*[xX]\s*(.+)$/);
-    const qty = qtyMatch ? qtyMatch[1] : "1";
-    const details = qtyMatch ? qtyMatch[2] : line;
+
     page.drawText(qty, {
       x: tableX + 4,
-      y: rowY - 16,
+      y: rowTopY - 14,
       size: 8,
       font: bodyFont,
       color: brand.ink,
     });
-    const detailLines = wrapText(details, tableCols[1] - 8, bodyFont, 8).slice(0, 2);
-    detailLines.forEach((detailLine, detailIndex) => {
+
+    renderedDetailLines.forEach((detailLine, detailIndex) => {
       page.drawText(detailLine, {
         x: tableX + tableCols[0] + 4,
-        y: rowY - 12 - detailIndex * 9,
+        y: rowTopY - 12 - detailIndex * descriptionLineHeight,
         size: 8,
         font: bodyFont,
         color: brand.ink,
       });
     });
+
     if (index === 0 && total) {
       page.drawText(`$${total}`, {
         x: tableX + tableCols[0] + tableCols[1] + 6,
-        y: rowY - 16,
+        y: rowTopY - 14,
         size: 8,
         font: bodyFont,
         color: brand.ink,
       });
     }
+
+    cursorY = rowBottomY;
   });
-  cursorY -= tableRowHeight * descriptionLines.length + 10;
+
+  cursorY -= 10;
 
   const notesText = contract.notes?.trim() || "";
   const notesLabel = "NOTAS";
@@ -522,7 +540,8 @@ export async function POST(
           line ? wrapText(line, notesWidth - 10, bodyFont, 8) : [""]
         )
     : [""];
-  const notesHeight = Math.max(44, notesLines.length * 9 + 10);
+  const notesLineHeight = 10;
+  const notesHeight = Math.max(50, notesLines.length * notesLineHeight + 12);
   page.drawRectangle({
     x: tableX,
     y: cursorY - notesHeight,
@@ -540,7 +559,7 @@ export async function POST(
       font: bodyFont,
       color: brand.ink,
     });
-    notesY -= 9;
+    notesY -= notesLineHeight;
   });
   cursorY -= notesHeight + 14;
 
@@ -762,6 +781,11 @@ export async function GET(
 
   return NextResponse.json({ signedUrl: data.signedUrl });
 }
+
+
+
+
+
 
 
 
