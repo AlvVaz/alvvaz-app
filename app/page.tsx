@@ -368,7 +368,7 @@ export default function Home() {
               <div className="animate-fade-up rounded-[32px] border border-slate-200 bg-gradient-to-br from-brand-200 via-white to-white p-10 shadow-lg md:p-12">
                 <div className="space-y-6">
                   <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                    <span>Temporada 2025</span>
+                    <span>Temporada 2026 - 2027</span>
                     <span>Playa & Mundo</span>
                   </div>
                   <div className="space-y-2">
@@ -497,4 +497,5 @@ export default function Home() {
     </div>
   );
 }
+
 
