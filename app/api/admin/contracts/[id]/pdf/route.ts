@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -314,7 +314,7 @@ export async function POST(
     headerInfoY -= index === 0 ? 10 : 8;
   });
 
-  page.drawText("Mas de 9 Años nos Respalda!...", {
+  page.drawText("Mas de 9 AÃ±os nos Respalda!...", {
     x: margin + 6,
     y: logoBottomY - 18,
     size: 8,
@@ -398,8 +398,8 @@ export async function POST(
   const tableX = margin;
   const tableWidth = rowWidth;
   const tableHeaderHeight = 16;
-  const tableRowHeight = 18;
-  const tableCols = [tableWidth * 0.12, tableWidth * 0.62, tableWidth * 0.26];
+  const tableRowHeight = 26;
+  const tableCols = [tableWidth * 0.08, tableWidth * 0.66, tableWidth * 0.26];
   const tableHeaderBottomY = cursorY - tableHeaderHeight;
   const tableColumnEdges = [
     tableX + tableCols[0],
@@ -431,7 +431,7 @@ export async function POST(
     font: headingFont,
     color: brand.ink,
   });
-  page.drawText("Descripción de lo contratado:", {
+  page.drawText("DescripciÃ³n de lo contratado:", {
     x: tableX + tableCols[0] + 4,
     y: headerTextY,
     size: 8,
@@ -475,30 +475,31 @@ export async function POST(
     const details = qtyMatch ? qtyMatch[2] : line;
     page.drawText(qty, {
       x: tableX + 4,
-      y: rowY - 12,
+      y: rowY - 16,
       size: 8,
       font: bodyFont,
       color: brand.ink,
     });
-    const detailLines = wrapText(details, tableCols[1] - 8, bodyFont, 8);
-    page.drawText(detailLines[0] ?? "", {
-      x: tableX + tableCols[0] + 4,
-      y: rowY - 12,
-      size: 8,
-      font: bodyFont,
-      color: brand.ink,
+    const detailLines = wrapText(details, tableCols[1] - 8, bodyFont, 8).slice(0, 2);
+    detailLines.forEach((detailLine, detailIndex) => {
+      page.drawText(detailLine, {
+        x: tableX + tableCols[0] + 4,
+        y: rowY - 12 - detailIndex * 9,
+        size: 8,
+        font: bodyFont,
+        color: brand.ink,
+      });
     });
     if (index === 0 && total) {
       page.drawText(`$${total}`, {
         x: tableX + tableCols[0] + tableCols[1] + 6,
-        y: rowY - 12,
+        y: rowY - 16,
         size: 8,
         font: bodyFont,
         color: brand.ink,
       });
     }
   });
-
   cursorY -= tableRowHeight * descriptionLines.length + 10;
 
   const notesText = contract.notes?.trim() || "";
@@ -521,7 +522,7 @@ export async function POST(
           line ? wrapText(line, notesWidth - 10, bodyFont, 8) : [""]
         )
     : [""];
-  const notesHeight = Math.max(32, notesLines.length * 9 + 8);
+  const notesHeight = Math.max(44, notesLines.length * 9 + 10);
   page.drawRectangle({
     x: tableX,
     y: cursorY - notesHeight,
@@ -642,7 +643,7 @@ export async function POST(
   const policyGap = 5;
   const policySubGap = 2;
   policies.forEach((policy) => {
-    const bullet = policy.level === 0 ? "•" : "";
+    const bullet = policy.level === 0 ? "â€¢" : "";
     const bulletIndent = policy.level === 0 ? 12 : 26;
     const bulletMaxWidth = width - margin * 2 - bulletIndent;
     if (bullet) {
@@ -747,7 +748,7 @@ export async function GET(
     "contracts";
 
   if (!storagePath) {
-    return NextResponse.json({ error: "PDF no generado aún." }, { status: 404 });
+    return NextResponse.json({ error: "PDF no generado aÃºn." }, { status: 404 });
   }
 
   const supabase = getSupabaseAdmin();
@@ -761,3 +762,8 @@ export async function GET(
 
   return NextResponse.json({ signedUrl: data.signedUrl });
 }
+
+
+
+
+
