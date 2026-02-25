@@ -7,7 +7,7 @@ const servicios = [
     description: "Escapadas premium a los destinos más icónicos del país.",
   },
   {
-    title: "Vuelos + hotel",
+    title: "Paquetes Completos",
     description: "Combinaciones flexibles con hoteles boutique o resorts.",
   },
   {
@@ -19,11 +19,11 @@ const servicios = [
     description: "Coberturas completas para viajar con tranquilidad.",
   },
   {
-    title: "Visas y documentación",
-    description: "Asesoría para trámites y requisitos internacionales.",
+    title: "Descubre Sud-America",
+    description: "Rutas fascinantes por cultura, naturaleza y aventura.",
   },
   {
-    title: "Viajes a medida internacionales",
+    title: "Visita Europa y Asia de la Mejor Manera",
     description: "Diseño integral de rutas a Europa, Asia o América.",
   },
 ];

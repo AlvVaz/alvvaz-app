@@ -118,19 +118,19 @@ export function PromocionesGrid({ promotions }: PromocionesGridProps) {
     <div className="space-y-12">
       <div className="grid gap-8 rounded-3xl border border-slate-200 bg-white p-6 lg:grid-cols-3">
         <FilterGroup
-          label="Categoría"
+          label="Filtrar por categoria"
           options={categoryOptions}
           value={category}
           onChange={setCategory}
         />
         <FilterGroup
-          label="Duración"
+          label="Filtrar por duracion"
           options={durationOptions}
           value={duration}
           onChange={setDuration}
         />
         <FilterGroup
-          label="Presupuesto"
+          label="Filtrar por presupuesto"
           options={budgetOptions}
           value={budget}
           onChange={setBudget}

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 
@@ -31,7 +31,7 @@ export function Footer() {
           </p>
           <p>WhatsApp: +52 (444) 171-74-05</p>
           <p>Email: miguelalvarado@alvvaz.com</p>
-          <p>Horario: Lun a Sab - 9:00 a 20:00</p>
+          <p>Horario: Lunes a Sabado</p>
         </div>
 
         <div className="space-y-4 text-sm text-slate-600">

@@ -961,6 +961,15 @@ export async function deleteClientsByIds(ids: string[]) {
   return result.count;
 }
 
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
+
+function isMissingDatabaseUrlError(error: unknown) {
+  return (
+    error instanceof Error &&
+    error.message.includes("Environment variable not found: DATABASE_URL")
+  );
+}
+
 function normalizePromotionStatus(status?: string): PromotionStatus {
   const value = (status ?? "draft").toLowerCase();
   if (value === "live" || value === "paused") return value;
@@ -970,6 +979,8 @@ function normalizePromotionStatus(status?: string): PromotionStatus {
 export async function getPromotions(options?: {
   status?: PromotionStatus | PromotionStatus[];
 }) {
+  if (!hasDatabaseUrl) return [];
+
   const where =
     options?.status === undefined
       ? undefined
@@ -977,30 +988,50 @@ export async function getPromotions(options?: {
       ? { status: { in: options.status } }
       : { status: options.status };
 
-  const promotions = await prisma.promotion.findMany({
-    where,
-    orderBy: [{ status: "asc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
-    include: { images: { orderBy: { sortOrder: "asc" } } },
-  });
-  return promotions.map(mapPromotion);
+  try {
+    const promotions = await prisma.promotion.findMany({
+      where,
+      orderBy: [{ status: "asc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
+      include: { images: { orderBy: { sortOrder: "asc" } } },
+    });
+    return promotions.map(mapPromotion);
+  } catch (error) {
+    if (isMissingDatabaseUrlError(error)) return [];
+    throw error;
+  }
 }
 
 export async function getPromotionBySlug(slug: string) {
+  if (!hasDatabaseUrl) return null;
+
   const safeSlug = slug?.trim();
   if (!safeSlug) return null;
-  const promotion = await prisma.promotion.findFirst({
-    where: { slug: { equals: safeSlug, mode: "insensitive" } },
-    include: { images: { orderBy: { sortOrder: "asc" } } },
-  });
-  return promotion ? mapPromotion(promotion) : null;
+
+  try {
+    const promotion = await prisma.promotion.findFirst({
+      where: { slug: { equals: safeSlug, mode: "insensitive" } },
+      include: { images: { orderBy: { sortOrder: "asc" } } },
+    });
+    return promotion ? mapPromotion(promotion) : null;
+  } catch (error) {
+    if (isMissingDatabaseUrlError(error)) return null;
+    throw error;
+  }
 }
 
 export async function getPromotionById(id: string) {
-  const promotion = await prisma.promotion.findUnique({
-    where: { id },
-    include: { images: { orderBy: { sortOrder: "asc" } } },
-  });
-  return promotion ? mapPromotion(promotion) : null;
+  if (!hasDatabaseUrl) return null;
+
+  try {
+    const promotion = await prisma.promotion.findUnique({
+      where: { id },
+      include: { images: { orderBy: { sortOrder: "asc" } } },
+    });
+    return promotion ? mapPromotion(promotion) : null;
+  } catch (error) {
+    if (isMissingDatabaseUrlError(error)) return null;
+    throw error;
+  }
 }
 
 export async function createPromotion(input: {

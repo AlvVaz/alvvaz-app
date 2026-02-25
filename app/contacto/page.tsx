@@ -58,12 +58,7 @@ export default function ContactoPage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
                   Horario
                 </p>
-                <p className="text-sm text-slate-600">
-                  Lunes a sábado - 11:30 am a 6:30 pm (Industrial Aviación)
-                </p>
-                <p className="text-sm text-slate-600">
-                  1 pm a 7 pm (corrido) (Villas del Sol)
-                </p>
+                <p className="text-sm text-slate-600">Lunes a Sabado</p>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">

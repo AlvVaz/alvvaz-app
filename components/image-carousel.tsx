@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -35,10 +35,11 @@ export function ImageCarousel({
   priority = false,
   ariaLabel = "Galería de imágenes",
 }: ImageCarouselProps) {
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(() => (images.length <= 1 ? 0 : 1));
   const [isTransitioning, setIsTransitioning] = useState(true);
   const length = images.length;
   const navigationLock = useRef(false);
+  const preloadedSrcSet = useRef(new Set<string>());
 
   const slideImages = useMemo(() => {
     if (length <= 1) return images;
@@ -46,14 +47,6 @@ export function ImageCarousel({
     const last = images[length - 1];
     return [last, ...images, first];
   }, [images, length]);
-
-  useEffect(() => {
-    if (length <= 1) {
-      setIndex(0);
-      return;
-    }
-    setIndex(1);
-  }, [length]);
 
   useEffect(() => {
     if (!autoPlay || length <= 1) return;
@@ -77,6 +70,32 @@ export function ImageCarousel({
       return () => window.cancelAnimationFrame(id);
     }
   }, [isTransitioning]);
+
+  const activeIndex = length > 1 ? (index - 1 + length) % length : index;
+
+  const preloadSrc = useCallback((src: string) => {
+    if (!src || preloadedSrcSet.current.has(src)) return;
+    preloadedSrcSet.current.add(src);
+    const img = new window.Image();
+    img.decoding = "async";
+    img.src = src;
+  }, []);
+
+  useEffect(() => {
+    if (length === 0) return;
+
+    if (priority) {
+      for (const image of images) preloadSrc(image.src);
+      return;
+    }
+
+    const next = (activeIndex + 1) % length;
+    const prev = (activeIndex - 1 + length) % length;
+
+    preloadSrc(images[activeIndex]?.src ?? "");
+    preloadSrc(images[next]?.src ?? "");
+    preloadSrc(images[prev]?.src ?? "");
+  }, [activeIndex, images, length, preloadSrc, priority]);
 
   if (length === 0) return null;
 
@@ -114,8 +133,6 @@ export function ImageCarousel({
     }
   };
 
-  const activeIndex = length > 1 ? ((index - 1 + length) % length) : index;
-
   return (
     <div
       className={cn(
@@ -130,10 +147,8 @@ export function ImageCarousel({
     >
       <div
         className={cn(
-          "flex h-full w-full ease-out",
-          isTransitioning
-            ? "transition-transform duration-300"
-            : "transition-none"
+          "flex h-full w-full ease-out will-change-transform",
+          isTransitioning ? "transition-transform duration-300" : "transition-none"
         )}
         style={{ transform: `translateX(-${index * 100}%)` }}
         onTransitionEnd={handleTransitionEnd}
@@ -141,15 +156,16 @@ export function ImageCarousel({
         {slideImages.map((image, imageIndex) => (
           <div
             key={`${image.src}-${imageIndex}`}
-            className="relative h-full w-full flex-shrink-0"
+            className="relative h-full w-full flex-shrink-0 bg-brand-100/30"
             aria-hidden={index !== imageIndex}
           >
             <Image
               src={image.src}
               alt={image.alt}
               fill
-              priority={priority && imageIndex === 0}
+              priority={priority && (length <= 1 ? imageIndex === 0 : imageIndex === 1)}
               className="object-cover"
+              loading={priority ? undefined : imageIndex <= 2 ? "eager" : "lazy"}
               sizes="(max-width: 768px) 100vw, 60vw"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-brand-950/40 via-transparent to-transparent" />
@@ -192,9 +208,7 @@ export function ImageCarousel({
               aria-label={`Ir a imagen ${dotIndex + 1}`}
               className={cn(
                 "h-2 w-2 rounded-full transition-all duration-200",
-                dotIndex === activeIndex
-                  ? "w-6 bg-white"
-                  : "bg-white/60 hover:bg-white"
+                dotIndex === activeIndex ? "w-6 bg-white" : "bg-white/60 hover:bg-white"
               )}
             />
           ))}

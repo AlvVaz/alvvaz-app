@@ -357,10 +357,19 @@ export default function Home() {
                   Reservar
                 </Link>
               </div>
-              <div className="flex flex-wrap gap-6 text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                <span>Asesoría experta</span>
-                <span>Experiencias boutique</span>
-                <span>Atención 24/7</span>
+              <div className="grid grid-cols-1 gap-4 text-xs font-semibold uppercase tracking-[0.2em] text-brand-600 sm:grid-cols-3 sm:gap-6">
+                <span className="flex w-full flex-col items-center text-center leading-relaxed">
+                  <span>Asesoria</span>
+                  <span>Experta</span>
+                </span>
+                <span className="flex w-full flex-col items-center text-center leading-relaxed sm:border-l sm:border-brand-400/40 sm:px-6">
+                  <span>Experiencias</span>
+                  <span>Boutique</span>
+                </span>
+                <span className="flex w-full flex-col items-center text-center leading-relaxed sm:border-l sm:border-brand-400/40 sm:px-6">
+                  <span>Atencion</span>
+                  <span>Personalizada</span>
+                </span>
               </div>
             </div>
 
