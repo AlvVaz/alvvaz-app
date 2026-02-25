@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import type { FormEvent, MouseEvent } from "react";
+import type { FormEvent, MouseEvent, WheelEvent } from "react";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -51,6 +51,10 @@ const parseMoney = (value: string) => {
   if (!cleaned) return null;
   const parsed = Number(cleaned);
   return Number.isFinite(parsed) ? parsed : null;
+};
+
+const preventNumberInputWheel = (event: WheelEvent<HTMLInputElement>) => {
+  event.currentTarget.blur();
 };
 
 const formatMoney = (value: string) => {
@@ -411,7 +415,7 @@ export function ContractForm({
         formRef.current?.requestSubmit();
       }
     }, {
-      title: "Confirmar acción",
+      title: "Confirmar acciÃ³n",
       confirmLabel: "Si",
       cancelLabel: "No",
       ...(initialContract
@@ -559,7 +563,7 @@ export function ContractForm({
       window.open(whatsappUrl, "_blank", "noopener,noreferrer");
       pushToast("PDF descargado. Adjunta el archivo en WhatsApp.");
     } catch (error) {
-      setPdfError("No se pudo preparar el envío.");
+      setPdfError("No se pudo preparar el envÃ­o.");
     } finally {
       setIsSendingPdf(false);
     }
@@ -590,7 +594,7 @@ export function ContractForm({
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          Título del contrato
+          TÃ­tulo del contrato
         </label>
         <input
           name="title"
@@ -604,7 +608,7 @@ export function ContractForm({
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          Número de contrato
+          NÃºmero de contrato
         </label>
         <input
           name="contractNumber"
@@ -634,7 +638,7 @@ export function ContractForm({
         contractNumberValue &&
         contractNumberValue !== suggestedContractNumber ? (
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-500">
-            Estás usando un folio distinto al sugerido.
+            EstÃ¡s usando un folio distinto al sugerido.
           </p>
         ) : null}
         {contractNumberError ? (
@@ -644,7 +648,7 @@ export function ContractForm({
         ) : null}
         {!canEditContractNumber ? (
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-            Se asigna automáticamente
+            Se asigna automÃ¡ticamente
           </p>
         ) : null}
       </div>
@@ -684,7 +688,7 @@ export function ContractForm({
           name="destination"
           required
           defaultValue={seedContract?.destination ?? ""}
-          placeholder="Cancún"
+          placeholder="CancÃºn"
           className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
       </div>
@@ -698,7 +702,7 @@ export function ContractForm({
           defaultValue={seedContract?.agency ?? ""}
           placeholder="Selecciona una agencia"
           options={[
-            { value: "AlvVaz Aviación", label: "AlvVaz Aviación" },
+            { value: "AlvVaz AviaciÃ³n", label: "AlvVaz AviaciÃ³n" },
             { value: "AlvVaz Oriente", label: "AlvVaz Oriente" },
           ]}
           buttonClassName="admin-select w-full rounded-2xl border border-brand-200 bg-gradient-to-b from-white to-brand-50/40 px-4 py-3 text-sm text-brand-900 shadow-sm"
@@ -732,7 +736,7 @@ export function ContractForm({
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          Quién organizó / vendió
+          QuiÃ©n organizÃ³ / vendiÃ³
         </label>
         {organizerChoices.length > 0 ? (
           <ThemedSelect
@@ -753,7 +757,7 @@ export function ContractForm({
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          Número de pasajeros
+          NÃºmero de pasajeros
         </label>
         <input
           type="number"
@@ -761,10 +765,11 @@ export function ContractForm({
           name="passengerCount"
           value={passengerCountValue}
           onChange={(event) => setPassengerCountValue(event.target.value)}
+          onWheel={preventNumberInputWheel}
           className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
         <p className="text-xs text-slate-500">
-          Se actualiza con la lista; puedes ajustar si aún no tienes todos los nombres.
+          Se actualiza con la lista; puedes ajustar si aÃºn no tienes todos los nombres.
         </p>
       </div>
 
@@ -792,7 +797,7 @@ export function ContractForm({
                   }
                 />
                 <input
-                  placeholder="Teléfono"
+                  placeholder="TelÃ©fono"
                   value={traveler.phone}
                   onChange={(event) => handleTravelerChange(index, "phone", event.target.value)}
                   className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
@@ -854,14 +859,14 @@ export function ContractForm({
 
       <div className="md:col-span-2 space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          Descripción de lo contratado y costos
+          DescripciÃ³n de lo contratado y costos
         </label>
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
           <div className="grid md:grid-cols-[minmax(0,1fr)_220px]">
             <div className="border-b border-slate-200 md:border-b-0 md:border-r">
               <div className="grid grid-cols-[90px_minmax(0,1fr)] bg-slate-50 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
                 <div className="border-r border-slate-200 px-3 py-2">Cant.</div>
-                <div className="px-3 py-2">Descripción de lo contratado</div>
+                <div className="px-3 py-2">DescripciÃ³n de lo contratado</div>
               </div>
               <div className="divide-y divide-slate-200">
                 {contractItems.map((item, index) => (
@@ -977,14 +982,14 @@ export function ContractForm({
         <textarea
           name="notes"
           defaultValue={seedContract?.notes ?? ""}
-          placeholder="Agrega cláusulas, observaciones o notas internas."
+          placeholder="Agrega clÃ¡usulas, observaciones o notas internas."
           className="min-h-[120px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
       </div>
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          Liquidación del viaje
+          LiquidaciÃ³n del viaje
         </label>
         <input
           type="date"
@@ -1096,7 +1101,7 @@ export function ContractForm({
               </>
             ) : (
               <span className="rounded-full border border-slate-200 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Aún no se genera PDF
+                AÃºn no se genera PDF
               </span>
             )}
             {pdfError ? <span className="text-rose-600">{pdfError}</span> : null}
@@ -1104,7 +1109,7 @@ export function ContractForm({
         </div>
       ) : (
         <div className="md:col-span-2 rounded-2xl border border-dashed border-brand-200 bg-white/70 p-4 text-xs text-slate-600">
-          El PDF final se generará desde la plantilla y se almacenará en Supabase.
+          El PDF final se generarÃ¡ desde la plantilla y se almacenarÃ¡ en Supabase.
         </div>
       )}
 
@@ -1136,3 +1141,4 @@ export function ContractForm({
     </form>
   );
 }
+

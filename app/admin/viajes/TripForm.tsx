@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import type { FormEvent, MouseEvent } from "react";
+import type { FormEvent, MouseEvent, WheelEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Trip, TripTraveler } from "@/lib/db";
@@ -15,6 +15,10 @@ type TripFormProps = {
 };
 
 const emptyTraveler: TripTraveler = { name: "", phone: "", contract: "" };
+
+const preventNumberInputWheel = (event: WheelEvent<HTMLInputElement>) => {
+  event.currentTarget.blur();
+};
 
 export function TripForm({ action, deleteAction, initialTrip, submitLabel }: TripFormProps) {
   const { confirm, dialog } = useConfirmDialog();
@@ -133,7 +137,7 @@ export function TripForm({ action, deleteAction, initialTrip, submitLabel }: Tri
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          Quién organizó / vendió
+          QuiÃ©n organizÃ³ / vendiÃ³
         </label>
         <input
           name="organizer"
@@ -145,7 +149,7 @@ export function TripForm({ action, deleteAction, initialTrip, submitLabel }: Tri
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          Número de pasajeros
+          NÃºmero de pasajeros
         </label>
         <input
           type="number"
@@ -153,10 +157,11 @@ export function TripForm({ action, deleteAction, initialTrip, submitLabel }: Tri
           name="passengerCount"
           value={passengerCountValue}
           onChange={(event) => setPassengerCountValue(event.target.value)}
+          onWheel={preventNumberInputWheel}
           className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
         <p className="text-xs text-slate-500">
-          Se actualiza con la lista; puedes ajustar si aún no tienes todos los nombres.
+          Se actualiza con la lista; puedes ajustar si aÃºn no tienes todos los nombres.
         </p>
       </div>
 
@@ -175,7 +180,7 @@ export function TripForm({ action, deleteAction, initialTrip, submitLabel }: Tri
                   className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
                 />
                 <input
-                  placeholder="Teléfono"
+                  placeholder="TelÃ©fono"
                   value={traveler.phone}
                   onChange={(event) => handleTravelerChange(index, "phone", event.target.value)}
                   className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
@@ -253,3 +258,4 @@ export function TripForm({ action, deleteAction, initialTrip, submitLabel }: Tri
     </form>
   );
 }
+
