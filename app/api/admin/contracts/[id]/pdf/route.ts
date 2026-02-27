@@ -966,7 +966,7 @@ policiesBody.forEach((policy) => {
 
   if (policy.level === 0) {
     if (lines.length > 0) {
-      footerPage.drawText(`\\u2022 ${lines[0]}`, {
+      footerPage.drawText(`\u2022 ${lines[0]}`, {
         x: policyMainX,
         y: cursorY,
         size: policySize,
