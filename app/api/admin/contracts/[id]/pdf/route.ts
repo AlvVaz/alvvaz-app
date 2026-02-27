@@ -1,5 +1,6 @@
-ï»¿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -60,18 +61,18 @@ const parseDate = (value?: string | null) => {
 };
 
 const shortMonths = [
-  "ENE",
-  "FEB",
-  "MAR",
-  "ABR",
-  "MAY",
-  "JUN",
-  "JUL",
-  "AGO",
-  "SEP",
-  "OCT",
-  "NOV",
-  "DIC",
+  "ENERO",
+  "FEBRERO",
+  "MARZO",
+  "ABRIL",
+  "MAYO",
+  "JUNIO",
+  "JULIO",
+  "AGOSTO",
+  "SEPTIEMBRE",
+  "OCTUBRE",
+  "NOVIEMBRE",
+  "DICIEMBRE",
 ];
 
 const parseDateParts = (value?: string | null) => {
@@ -202,42 +203,60 @@ export async function POST(
   }
 
   const pdfDoc = await PDFDocument.create();
+  pdfDoc.registerFontkit(fontkit);
   const page = pdfDoc.addPage([612, 792]); // US Letter portrait
   const { width, height } = page.getSize();
-  const loadFont = async (fileName: string, fallback: StandardFonts) => {
-    try {
-      const fontBytes = await readFile(path.join(process.cwd(), "public", "fonts", fileName));
-      return await pdfDoc.embedFont(fontBytes);
-    } catch {
-      return await pdfDoc.embedFont(fallback);
+  const loadFont = async (fileNames: string[], fallback: StandardFonts) => {
+    for (const fileName of fileNames) {
+      try {
+        const fontBytes = await readFile(path.join(process.cwd(), "public", "fonts", fileName));
+        return await pdfDoc.embedFont(fontBytes);
+      } catch {
+        // Try next candidate.
+      }
     }
+    return await pdfDoc.embedFont(fallback);
   };
 
-  const headingFont = await loadFont("Montserrat-Regular.ttf", StandardFonts.Helvetica);
-  const headingBold = await loadFont("Montserrat-Bold.ttf", StandardFonts.HelveticaBold);
-  const bodyFont = await loadFont("Rubik-Regular.ttf", StandardFonts.Helvetica);
-  const bodyBold = await loadFont("Rubik-Bold.ttf", StandardFonts.HelveticaBold);
+  const headingFont = await loadFont(
+    ["CenturyGothic-Regular.ttf", "Montserrat-Regular.ttf"],
+    StandardFonts.Helvetica
+  );
+  const headingBold = await loadFont(
+    ["CenturyGothic-Bold.ttf", "Montserrat-Bold.ttf"],
+    StandardFonts.HelveticaBold
+  );
+  const headingBoldItalic = await loadFont(
+    ["CenturyGothic-BoldItalic.ttf", "CenturyGothic-Bold.ttf", "Montserrat-Bold.ttf"],
+    StandardFonts.HelveticaBoldOblique
+  );
+  const bodyFont = await loadFont(
+    ["Dubai-Regular.ttf", "Rubik-Regular.ttf"],
+    StandardFonts.Helvetica
+  );
+  const bodyBold = await loadFont(
+    ["Dubai-Bold.ttf", "Rubik-Bold.ttf"],
+    StandardFonts.HelveticaBold
+  );
 
-  const margin = 38;
+  const margin = 42;
   const brand = {
     ink: rgb(0, 0, 0),
-    muted: rgb(0.32, 0.32, 0.32),
+    muted: rgb(0.2, 0.2, 0.2),
     line: rgb(0.7, 0.7, 0.7),
-    highlight: rgb(1, 1, 0.47), // #FFFF77
   };
-  const headerTop = height - margin;
   const headerRight = width - margin;
 
   // Logo
-  let logoBottomY = headerTop - 80;
+  let logoBottomY = height - 112;
   try {
     const logoPath = path.join(process.cwd(), "public", "logoalvvaz.png");
     const logoBytes = await readFile(logoPath);
     const logoImage = await pdfDoc.embedPng(logoBytes);
     const logoDims = logoImage.scale(0.16);
-    logoBottomY = headerTop - logoDims.height;
+    logoBottomY = height - logoDims.height - 10;
     page.drawImage(logoImage, {
-      x: margin + 6,
+      x: margin - 1,
       y: logoBottomY,
       width: logoDims.width,
       height: logoDims.height,
@@ -247,82 +266,58 @@ export async function POST(
   }
 
   const titleText = (contract.title || "RESERVA DE VIAJE").toUpperCase();
-  const titleSize = 15;
-  const titleWidth = headingBold.widthOfTextAtSize(titleText, titleSize);
+  const titleSize = 15.12;
+  const titleWidth = headingFont.widthOfTextAtSize(titleText, titleSize);
   page.drawText(titleText, {
     x: headerRight - titleWidth,
-    y: headerTop - 14,
+    y: 786.8,
     size: titleSize,
-    font: headingBold,
+    font: headingFont,
     color: brand.ink,
   });
 
-  const contractLabel = "CONTRATO";
-  const contractNumber = `#${contract.contractNumber ?? ""}`;
-  const contractLabelSize = 13;
-  const contractNumberSize = 13;
-  const labelWidth = headingBold.widthOfTextAtSize(contractLabel, contractLabelSize);
-  const numberWidth = headingBold.widthOfTextAtSize(contractNumber, contractNumberSize);
-  const badgePaddingX = 4;
-  const badgeHeight = 14;
-  const badgeY = headerTop - 34;
-  const badgeGap = 6;
-  const badgeGroupWidth =
-    labelWidth + badgePaddingX * 2 + badgeGap + numberWidth;
-  const badgeX = headerRight - badgeGroupWidth;
-  page.drawRectangle({
-    x: badgeX,
-    y: badgeY - 2,
-    width: labelWidth + badgePaddingX * 2,
-    height: badgeHeight,
-    color: brand.highlight,
-  });
-  page.drawText(contractLabel, {
-    x: badgeX + badgePaddingX,
-    y: badgeY,
-    size: contractLabelSize,
-    font: headingBold,
-    color: brand.ink,
-  });
-  page.drawText(contractNumber, {
-    x: badgeX + labelWidth + badgePaddingX * 2 + badgeGap,
-    y: badgeY,
-    size: contractNumberSize,
-    font: headingBold,
+  const contractLine = `CONTRATO #${contract.contractNumber ?? ""}`.trim();
+  const contractLineSize = 15.12;
+  const contractLineWidth = headingFont.widthOfTextAtSize(contractLine, contractLineSize);
+  page.drawText(contractLine, {
+    x: headerRight - contractLineWidth,
+    y: 767.1,
+    size: contractLineSize,
+    font: headingFont,
     color: brand.ink,
   });
 
-  const headerInfoX = headerRight;
-  let headerInfoY = headerTop - 48;
   const headerLines = [
-    `FECHA DE RESERVA: ${parseDate(contract.reservationDate)}`,
-    "AGENCIA DE VIAJES ALVVAZ",
-    "HERNAN CORTES #508-A COL. INDUSTRIAL AVIACION",
-    `NOMBRE DEL CLIENTE: ${contract.clientName}`,
+    { text: `FECHA DE RESERVA: ${parseDate(contract.reservationDate)}`, size: 9.12, font: headingBold, y: 755.9 },
+    { text: "AGENCIA DE VIAJES ALVVAZ", size: 6.96, font: headingFont, y: 747.5 },
+    { text: "HERNAN CORTES #508-A COL. INDUSTRIAL AVIACION", size: 7.92, font: headingFont, y: 737.0 },
+    {
+      text: `NOMBRE DEL CLIENTE: ${(contract.clientName ?? "").toUpperCase()}`,
+      size: 9.12,
+      font: headingFont,
+      y: 725.7,
+    },
   ];
-  headerLines.forEach((line, index) => {
-    const size = index === 0 ? 9 : 8;
-    const usedFont = index === 0 ? headingBold : headingFont;
-    const lineWidth = usedFont.widthOfTextAtSize(line, size);
-    page.drawText(line, {
-      x: headerInfoX - lineWidth,
-      y: headerInfoY,
-      size,
-      font: usedFont,
+  headerLines.forEach((line) => {
+    const lineWidth = line.font.widthOfTextAtSize(line.text, line.size);
+    page.drawText(line.text, {
+      x: headerRight - lineWidth,
+      y: line.y,
+      size: line.size,
+      font: line.font,
       color: brand.ink,
     });
-    headerInfoY -= index === 0 ? 10 : 8;
   });
 
-  page.drawText("Mas de 9 A\u00f1os nos Respalda!...", {
-    x: margin + 6,
-    y: logoBottomY - 18,
-    size: 8,
-    font: bodyFont,
-    color: brand.muted,
+  page.drawText("Mas de 9 Años nos Respaldan!...", {
+    x: 41.3,
+    y: 714.6,
+    size: 9.12,
+    font: headingBoldItalic,
+    color: brand.ink,
   });
 
-  let cursorY = headerTop - 150;
+  let cursorY = 655.6;
 
   // Vendor/Agency/Destination/Dates row
   const rowX = margin;
@@ -331,12 +326,7 @@ export async function POST(
   const rowLabelY = cursorY;
   const rowBoxTopY = rowLabelY - 6;
   const rowBoxBottomY = rowBoxTopY - rowHeight;
-  const colWidths = [
-    rowWidth * 0.24,
-    rowWidth * 0.24,
-    rowWidth * 0.26,
-    rowWidth * 0.26,
-  ];
+  const colWidths = [125.8, 118.8, 131.3, rowWidth - 375.9];
   const colLabels = ["Vendedor", "AGENCIA", "DESTINO", "FECHAS DE VIAJE"];
   const colValues = [
     (contract.seller ?? contract.organizer ?? "").toUpperCase(),
@@ -347,9 +337,9 @@ export async function POST(
   let labelX = rowX;
   colLabels.forEach((label, index) => {
     page.drawText(label, {
-      x: labelX + 2,
+      x: labelX + 5,
       y: rowLabelY,
-      size: 7,
+      size: 10.08,
       font: headingFont,
       color: brand.ink,
     });
@@ -367,10 +357,10 @@ export async function POST(
   colValues.forEach((value, index) => {
     const valueText = colValues[index] || "-";
     const maxTextWidth = colWidths[index] - 8;
-    let valueSize = 8;
+    let valueSize = 10.08;
     while (
-      valueSize > 6 &&
-      headingBold.widthOfTextAtSize(valueText, valueSize) > maxTextWidth
+      valueSize > 8.4 &&
+      headingFont.widthOfTextAtSize(valueText, valueSize) > maxTextWidth
     ) {
       valueSize -= 0.5;
     }
@@ -378,7 +368,7 @@ export async function POST(
       x: colX + 4,
       y: rowBoxBottomY + 5,
       size: valueSize,
-      font: headingBold,
+      font: headingFont,
       color: brand.ink,
     });
     if (index < colValues.length - 1) {
@@ -392,14 +382,14 @@ export async function POST(
     colX += colWidths[index];
   });
 
-  cursorY = rowBoxBottomY - 26;
+  cursorY = rowBoxBottomY - 11;
 
   // Description table
   const tableX = margin;
   const tableWidth = rowWidth;
-  const tableHeaderHeight = 16;
-  const tableRowHeight = 26;
-  const tableCols = [tableWidth * 0.08, tableWidth * 0.66, tableWidth * 0.26];
+  const tableHeaderHeight = 16.8;
+  const tableRowHeight = 24.4;
+  const tableCols = [66.5, 368.0, tableWidth - 434.5];
   const tableHeaderBottomY = cursorY - tableHeaderHeight;
   const tableColumnEdges = [
     tableX + tableCols[0],
@@ -423,25 +413,25 @@ export async function POST(
     });
   });
 
-  const headerTextY = cursorY - 11;
+  const headerTextY = cursorY - 11.8;
   page.drawText("Cant.", {
     x: tableX + 4,
     y: headerTextY,
-    size: 8,
+    size: 10.08,
     font: headingFont,
     color: brand.ink,
   });
   page.drawText("Descripci\u00f3n de lo contratado:", {
     x: tableX + tableCols[0] + 4,
     y: headerTextY,
-    size: 8,
+    size: 10.08,
     font: headingFont,
     color: brand.ink,
   });
   page.drawText("COSTOS", {
     x: tableX + tableCols[0] + tableCols[1] + 4,
     y: headerTextY,
-    size: 8,
+    size: 10.08,
     font: headingFont,
     color: brand.ink,
   });
@@ -480,7 +470,7 @@ export async function POST(
 
   const total = formatMoney(contract.totalPrice ?? "");
   const minDescriptionRowHeight = tableRowHeight;
-  const descriptionLineHeight = 10;
+  const descriptionLineHeight = 12.2;
 
   descriptionRows.forEach((item, index) => {
     const qty = item.qty || "1";
@@ -489,7 +479,7 @@ export async function POST(
       .split(/\r?\n/)
       .flatMap((segment) => {
         const trimmed = segment.trim();
-        return trimmed ? wrapText(trimmed, tableCols[1] - 8, bodyFont, 8) : [""];
+        return trimmed ? wrapText(trimmed, tableCols[1] - 8, headingFont, 10.08) : [""];
       });
 
     const renderedDetailLines = detailLines.length > 0 ? detailLines : [""];
@@ -521,27 +511,27 @@ export async function POST(
     page.drawText(qty, {
       x: tableX + 4,
       y: rowTopY - 14,
-      size: 8,
-      font: bodyFont,
+      size: 10.08,
+      font: headingFont,
       color: brand.ink,
     });
 
     renderedDetailLines.forEach((detailLine, detailIndex) => {
       page.drawText(detailLine, {
         x: tableX + tableCols[0] + 4,
-        y: rowTopY - 12 - detailIndex * descriptionLineHeight,
-        size: 8,
-        font: bodyFont,
+        y: rowTopY - 14 - detailIndex * descriptionLineHeight,
+        size: 10.08,
+        font: headingFont,
         color: brand.ink,
       });
     });
 
     if (index === 0 && total) {
       page.drawText(`$${total}`, {
-        x: tableX + tableCols[0] + tableCols[1] + 6,
-        y: rowTopY - 14,
-        size: 8,
-        font: bodyFont,
+        x: tableX + tableCols[0] + tableCols[1] + 24.2,
+        y: rowTopY - 13.8,
+        size: 9.12,
+        font: headingFont,
         color: brand.ink,
       });
     }
@@ -549,50 +539,61 @@ export async function POST(
     cursorY = rowBottomY;
   });
 
-  cursorY -= 10;
+  cursorY -= 8;
 
-  const notesText = contract.notes?.trim() || "";
-  const notesLabel = "NOTAS";
-  page.drawText(notesLabel, {
-    x: tableX,
-    y: cursorY,
-    size: 8,
-    font: headingFont,
-    color: brand.ink,
+  const noteSourceLines = (contract.notes ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const normalizedNotes = noteSourceLines.flatMap((line) => {
+    const normalized = line
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase();
+
+    if (
+      normalized.includes("CHECAR TU FECHA DE LIQUIDACION") &&
+      normalized.includes("CANCELACIONES")
+    ) {
+      return [
+        "CHECAR TU FECHA DE LIQUIDACION PARA EVITAR",
+        "CANCELACIONES",
+      ];
+    }
+
+    return [line.toUpperCase()];
   });
-  cursorY -= 10;
-  const notesWidth = tableWidth;
-  const notesLines = notesText
-    ? notesText
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter((line, index, arr) => line.length > 0 || index === arr.length - 1)
-        .flatMap((line) =>
-          line ? wrapText(line, notesWidth - 10, bodyFont, 8) : [""]
-        )
-    : [""];
-  const notesLineHeight = 10;
-  const notesHeight = Math.max(50, notesLines.length * notesLineHeight + 12);
-  page.drawRectangle({
-    x: tableX,
-    y: cursorY - notesHeight,
-    width: notesWidth,
-    height: notesHeight,
-    borderWidth: 0.5,
-    borderColor: brand.line,
-  });
-  let notesY = cursorY - 14;
-  notesLines.forEach((line) => {
-    page.drawText(line, {
-      x: tableX + 4,
-      y: notesY,
-      size: 8,
-      font: bodyFont,
-      color: brand.ink,
+
+  const renderedNotes = normalizedNotes.length
+    ? normalizedNotes
+    : ["CHECAR TU FECHA DE LIQUIDACION PARA EVITAR", "CANCELACIONES"];
+
+  const noteLineHeight = 12.2;
+  const notesX = tableX + tableCols[0] + 0.2;
+  renderedNotes.forEach((line) => {
+    const normalized = line
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase();
+    const isWarningBold =
+      normalized.startsWith("CHECAR TU FECHA DE LIQUIDACION") ||
+      normalized === "CANCELACIONES";
+
+    const wrapped = wrapText(line, tableCols[1] - 8, headingFont, 10.08);
+    wrapped.forEach((noteLine) => {
+      page.drawText(noteLine, {
+        x: notesX,
+        y: cursorY,
+        size: 10.08,
+        font: isWarningBold ? headingBold : headingFont,
+        color: brand.ink,
+      });
+      cursorY -= noteLineHeight;
     });
-    notesY -= notesLineHeight;
   });
-  cursorY -= notesHeight + 14;
+
+  cursorY -= 45;
 
   const startNewFooterPage = () => {
   footerPage = pdfDoc.addPage([612, 792]);
@@ -610,86 +611,91 @@ ensureFooterSpace(margin + 130);
 
 const liquidationText = `LIQUIDACION DEL VIAJE: ${parseDate(contract.liquidationDate) || "-"}`;
 footerPage.drawText(liquidationText, {
-  x: tableX + 140,
+  x: tableX + tableCols[0] + 0.2,
   y: cursorY,
-  size: 8,
+  size: 10.08,
   font: headingFont,
   color: brand.ink,
 });
 
-const costBoxX = tableX + tableWidth * 0.7;
-const costBoxY = cursorY + 4;
-const costBoxWidth = tableWidth * 0.3;
-const costBoxHeight = 48;
+const costLabelX = 396.2;
+const costValueX = 515.9;
+const costLineY = [cursorY + 19.2, cursorY + 1.2, cursorY - 16.6];
+const costTopY = costLineY[0] + 5.8;
+const costBottomY = costLineY[2] - 6;
+const costBoxX = costLabelX - 4;
+const costBoxWidth = width - margin - costBoxX;
 footerPage.drawRectangle({
   x: costBoxX,
-  y: costBoxY - costBoxHeight,
+  y: costBottomY,
   width: costBoxWidth,
-  height: costBoxHeight,
+  height: costTopY - costBottomY,
   borderWidth: 0.5,
   borderColor: brand.line,
 });
+
 const first = formatMoney(contract.firstPayment ?? "");
 const balance = formatMoney(contract.balanceDue ?? "");
 const costLines = [
-  ["PRECIO NETO:", total ? `$${total}` : "MXN"],
-  ["PRIMER PAGO:", first ? `$${first}` : "MXN"],
-  ["RESTO POR PAGAR:", balance ? `$${balance}` : "MXN"],
+  { label: "PRECIO NETO:", value: total ? "$" + total : "MXN", size: 10.08, font: headingFont },
+  { label: "PRIMER PAGO:", value: first ? "$" + first : "MXN", size: 9.12, font: headingFont },
+  { label: "RESTO POR PAGAR:", value: balance ? "$" + balance : "MXN", size: 7.44, font: headingBold },
 ];
 costLines.forEach((line, index) => {
-  const lineY = costBoxY - 12 - index * 14;
-  footerPage.drawText(line[0], {
-    x: costBoxX + 6,
+  const lineY = costLineY[index];
+  footerPage.drawText(line.label, {
+    x: costLabelX,
     y: lineY,
-    size: 7,
+    size: line.size,
+    font: line.font,
+    color: brand.ink,
+  });
+  footerPage.drawText(line.value, {
+    x: costValueX,
+    y: lineY,
+    size: 9.12,
     font: headingFont,
     color: brand.ink,
   });
-  footerPage.drawText(line[1], {
-    x: costBoxX + costBoxWidth - 50,
-    y: lineY,
-    size: 7,
-    font: bodyFont,
-    color: brand.ink,
-  });
 });
 
-cursorY -= 70;
+cursorY -= 62.2;
 ensureFooterSpace(margin + 80);
 
 const consultaText = "CONSULTA PLAN DE PAGOS PARA LA LIQUIDACION DE TU RESERVA";
-const consultaWidth = headingFont.widthOfTextAtSize(consultaText, 7);
+const consultaWidth = headingFont.widthOfTextAtSize(consultaText, 10.08);
 footerPage.drawText(consultaText, {
   x: (width - consultaWidth) / 2,
   y: cursorY,
-  size: 7,
+  size: 10.08,
   font: headingFont,
-  color: brand.muted,
-});
-cursorY -= 14;
-const graciasText = "Gracias por tu confianza.";
-const graciasWidth = headingBold.widthOfTextAtSize(graciasText, 8);
-footerPage.drawText(graciasText, {
-  x: (width - graciasWidth) / 2,
-  y: cursorY,
-  size: 8,
-  font: headingBold,
   color: brand.ink,
 });
 
-cursorY -= 30;
+cursorY -= 17.3;
+const graciasText = "Gracias por tu confianza.";
+const graciasWidth = headingBoldItalic.widthOfTextAtSize(graciasText, 10.08);
+footerPage.drawText(graciasText, {
+  x: (width - graciasWidth) / 2,
+  y: cursorY,
+  size: 10.08,
+  font: headingBoldItalic,
+  color: brand.ink,
+});
+
+cursorY -= 38.1;
 ensureFooterSpace(margin + 60);
 const policyTitle = "POLITICAS GENERALES:";
-const policyTitleWidth = headingFont.widthOfTextAtSize(policyTitle, 8);
+const policyTitleWidth = headingFont.widthOfTextAtSize(policyTitle, 10.08);
 footerPage.drawText(policyTitle, {
   x: (width - policyTitleWidth) / 2,
   y: cursorY,
-  size: 8,
+  size: 10.08,
   font: headingFont,
-  color: brand.muted,
+  color: brand.ink,
 });
 
-cursorY -= 12;
+cursorY -= 11.8;
 const policies = [
   { text: "PRIMER ANTICIPO ES NO REEMBOLSABLE, ENDOSABLE O TRANSFERIBLE A CUALQUIER OTRO PRODUCTO", level: 0 },
   { text: "REALIZAR LOS PAGOS CONFORME AL CALENDARIO DE PAGOS, LA OMISION PUEDE OCASIONAR AJUSTES TARIFARIOS O CANCELACIONES EN LOS SERVICIOS DESCRITOS.", level: 0 },
@@ -705,69 +711,124 @@ const policies = [
   { text: "AL SER FIRMADO ESTE DOCUMENTO POR EL CLIENTE, ACEPTA HABER LEIDO Y ESTAR CONFORME CON LAS POLITICAS.", level: 0 },
 ];
 
-const policyLineHeight = 1.35;
-const policyGap = 5;
-const policySubGap = 2;
-policies.forEach((policy) => {
-  const bullet = policy.level === 0 ? "\u2022" : "";
-  const bulletIndent = policy.level === 0 ? 12 : 26;
-  const bulletMaxWidth = width - margin * 2 - bulletIndent;
-  const estimatedLines = wrapText(policy.text, bulletMaxWidth, bodyFont, 6.5).length;
-  const estimatedHeight = estimatedLines * 6.5 * policyLineHeight + (policy.level === 0 ? policyGap : policySubGap) + 4;
+const policySize = 6.96;
+const policyLineHeight = 11.76 / policySize;
+const policyMainX = 44.4;
+const policyContinueX = 53;
+const policyMaxWidth = width - margin - policyContinueX;
+
+if (cursorY - policySize * policyLineHeight < margin + 20) {
+  startNewFooterPage();
+}
+
+footerPage.drawText("•", {
+  x: 54,
+  y: cursorY + 2.4,
+  size: policySize,
+  font: bodyFont,
+  color: brand.ink,
+});
+cursorY = drawWrapped(
+  footerPage,
+  policies[0].text,
+  72,
+  cursorY,
+  width - margin - 72,
+  bodyBold,
+  policySize,
+  brand.ink,
+  policyLineHeight
+);
+
+const policiesBody = policies.slice(1, -1);
+policiesBody.forEach((policy) => {
+  const lines = wrapText(policy.text, policyMaxWidth, bodyFont, policySize);
+  const estimatedHeight = lines.length * policySize * policyLineHeight + 2;
 
   if (cursorY - estimatedHeight < margin + 20) {
     startNewFooterPage();
   }
 
-  if (bullet) {
-    footerPage.drawText(bullet, {
-      x: margin + 2,
-      y: cursorY,
-      size: 6.5,
-      font: bodyFont,
-      color: brand.muted,
-    });
+  if (policy.level === 0) {
+    if (lines.length > 0) {
+      footerPage.drawText(`• ${lines[0]}`, {
+        x: policyMainX,
+        y: cursorY,
+        size: policySize,
+        font: bodyFont,
+        color: brand.ink,
+      });
+      cursorY -= policySize * policyLineHeight;
+
+      lines.slice(1).forEach((line) => {
+        footerPage.drawText(line, {
+          x: policyContinueX,
+          y: cursorY,
+          size: policySize,
+          font: bodyFont,
+          color: brand.ink,
+        });
+        cursorY -= policySize * policyLineHeight;
+      });
+    }
+    return;
   }
-  cursorY = drawWrapped(
-    footerPage,
-    policy.text,
-    margin + bulletIndent,
-    cursorY,
-    bulletMaxWidth,
-    bodyFont,
-    6.5,
-    brand.muted,
-    policyLineHeight
-  );
-  cursorY -= policy.level === 0 ? policyGap : policySubGap;
+
+  lines.forEach((line) => {
+    footerPage.drawText(line, {
+      x: policyContinueX,
+      y: cursorY,
+      size: policySize,
+      font: bodyFont,
+      color: brand.ink,
+    });
+    cursorY -= policySize * policyLineHeight;
+  });
 });
 
 if (cursorY < margin + 28) {
   startNewFooterPage();
 }
-cursorY -= 6;
+
+const finalPolicy = `• ${policies[policies.length - 1].text}`;
+const finalPolicyWidth = bodyFont.widthOfTextAtSize(finalPolicy, policySize);
+footerPage.drawText(finalPolicy, {
+  x: (width - finalPolicyWidth) / 2,
+  y: cursorY,
+  size: policySize,
+  font: bodyFont,
+  color: brand.ink,
+});
+
+cursorY -= 31.9;
+if (cursorY < margin + 22) {
+  startNewFooterPage();
+}
+
 const addressLine =
   "HERNAN CORTES #508-A COL. INDUSTRIAL AVIACION / CALLE 30 #689 VILLAS DEL SOL";
-const addressWidth = headingBold.widthOfTextAtSize(addressLine, 7);
+const addressWidth = bodyBold.widthOfTextAtSize(addressLine, 12);
 footerPage.drawText(addressLine, {
   x: (width - addressWidth) / 2,
   y: cursorY,
-  size: 7,
-  font: headingBold,
-  color: brand.muted,
+  size: 12,
+  font: bodyBold,
+  color: brand.ink,
 });
-cursorY -= 16;
+
+cursorY -= 12;
 if (cursorY < margin + 10) {
   startNewFooterPage();
 }
-const firmaLine = "FIRMA:______________________________ AGENCIA ALVVAZ";
-const firmaWidth = bodyFont.widthOfTextAtSize(firmaLine, 7);
+
+const firmaLine = "FIRMA:___________________________AGENCIA ALVVAZ";
+const firmaWidth = bodyFont.widthOfTextAtSize(firmaLine, policySize);
 footerPage.drawText(firmaLine, {
   x: (width - firmaWidth) / 2,
   y: cursorY,
-  size: 7,
+  size: policySize,
   font: bodyFont,
-  color: brand.muted,
+  color: brand.ink,
 });
 
 const pdfBytes = await pdfDoc.save();
