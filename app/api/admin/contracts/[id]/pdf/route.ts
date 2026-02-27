@@ -443,6 +443,9 @@ export async function POST(
   const tableHeaderHeight = 16.8;
   const tableRowHeight = 24.4;
   const tableCols = [66.5, 368.0, tableWidth - 434.5];
+  const tableFontSize = 9.6;
+  const tableCostSize = 8.88;
+  const tableLineHeight = 11.4;
   const tableHeaderBottomY = cursorY - tableHeaderHeight;
   const tableColumnEdges = [
     tableX + tableCols[0],
@@ -466,25 +469,25 @@ export async function POST(
     });
   });
 
-  const headerTextY = cursorY - 11.8;
+  const headerTextY = cursorY - 11.2;
   page.drawText("Cant.", {
     x: tableX + 4,
     y: headerTextY,
-    size: 10.08,
+    size: tableFontSize,
     font: headingFont,
     color: brand.ink,
   });
   page.drawText("Descripci\u00f3n de lo contratado:", {
     x: tableX + tableCols[0] + 4,
     y: headerTextY,
-    size: 10.08,
+    size: tableFontSize,
     font: headingFont,
     color: brand.ink,
   });
   page.drawText("COSTOS", {
     x: tableX + tableCols[0] + tableCols[1] + 4,
     y: headerTextY,
-    size: 10.08,
+    size: tableFontSize,
     font: headingFont,
     color: brand.ink,
   });
@@ -542,7 +545,7 @@ export async function POST(
 
   const total = formatMoney(contract.totalPrice ?? "");
   const minDescriptionRowHeight = tableRowHeight;
-  const descriptionLineHeight = 12.2;
+  const descriptionLineHeight = tableLineHeight;
 
   descriptionRows.forEach((item, index) => {
     const qty = item.qty || "1";
@@ -551,7 +554,7 @@ export async function POST(
       .split(/\r?\n/)
       .flatMap((segment) => {
         const trimmed = segment.trim();
-        return trimmed ? wrapText(trimmed, tableCols[1] - 8, headingFont, 10.08) : [""];
+        return trimmed ? wrapText(trimmed, tableCols[1] - 8, headingFont, tableFontSize) : [""];
       });
 
     const renderedDetailLines = detailLines.length > 0 ? detailLines : [""];
@@ -582,8 +585,8 @@ export async function POST(
 
     page.drawText(qty, {
       x: tableX + 4,
-      y: rowTopY - 14,
-      size: 10.08,
+      y: rowTopY - 13.2,
+      size: tableFontSize,
       font: headingFont,
       color: brand.ink,
     });
@@ -591,8 +594,8 @@ export async function POST(
     renderedDetailLines.forEach((detailLine, detailIndex) => {
       page.drawText(detailLine, {
         x: tableX + tableCols[0] + 4,
-        y: rowTopY - 14 - detailIndex * descriptionLineHeight,
-        size: 10.08,
+        y: rowTopY - 13.2 - detailIndex * descriptionLineHeight,
+        size: tableFontSize,
         font: headingFont,
         color: brand.ink,
       });
@@ -601,8 +604,8 @@ export async function POST(
     if (index === 0 && total) {
       page.drawText(`$${total}`, {
         x: tableX + tableCols[0] + tableCols[1] + 24.2,
-        y: rowTopY - 13.8,
-        size: 9.12,
+        y: rowTopY - 12.9,
+        size: tableCostSize,
         font: headingFont,
         color: brand.ink,
       });
@@ -662,7 +665,7 @@ export async function POST(
       normalized.startsWith("CHECAR TU FECHA DE LIQUIDACION") ||
       normalized === "CANCELACIONES";
 
-    const wrapped = wrapText(line, tableCols[1] - 8, headingFont, 10.08);
+    const wrapped = wrapText(line, tableCols[1] - 8, headingFont, tableFontSize);
     const renderedLines = wrapped.length ? wrapped : [line];
     const rowHeight = Math.max(
       minDescriptionRowHeight,
@@ -691,8 +694,8 @@ export async function POST(
     renderedLines.forEach((noteLine, noteIndex) => {
       page.drawText(noteLine, {
         x: tableX + tableCols[0] + 4,
-        y: rowTopY - 14 - noteIndex * descriptionLineHeight,
-        size: 10.08,
+        y: rowTopY - 13.2 - noteIndex * descriptionLineHeight,
+        size: tableFontSize,
         font: isWarningBold ? headingBold : headingFont,
         color: brand.ink,
       });
@@ -701,7 +704,8 @@ export async function POST(
     cursorY = rowBottomY;
   });
 
-  cursorY -= 36;
+  const tableBottomY = cursorY;
+  cursorY = tableBottomY - 30;
 
   const startNewFooterPage = () => {
   footerPage = pdfDoc.addPage([612, 792]);
@@ -717,22 +721,31 @@ const ensureFooterSpace = (minY: number) => {
 
 ensureFooterSpace(margin + 130);
 
+const connectedCostTopY = footerPage === page ? tableBottomY : cursorY + 30;
+const liquidationY = connectedCostTopY - 30;
+
 const liquidationText = `LIQUIDACION DEL VIAJE: ${parseDate(contract.liquidationDate) || "-"}`;
 footerPage.drawText(liquidationText, {
   x: tableX + tableCols[0] + 0.2,
-  y: cursorY,
+  y: liquidationY,
   size: 10.08,
   font: headingFont,
   color: brand.ink,
 });
 
+cursorY = liquidationY;
+
 const costLabelX = 396.2;
-const costLineY = [cursorY + 19.2, cursorY + 1.2, cursorY - 16.6];
-const costTopY = costLineY[0] + 5.8;
-const costBottomY = costLineY[2] - 6;
+const costTopY = connectedCostTopY;
+const costBottomY = costTopY - 47.6;
+const costRowHeight = (costTopY - costBottomY) / 3;
+const costLineY = [
+  costTopY - 10.8,
+  costTopY - 10.8 - costRowHeight,
+  costTopY - 10.8 - costRowHeight * 2,
+];
 const costBoxX = costLabelX - 4;
 const costBoxWidth = width - margin - costBoxX;
-const costRowHeight = (costTopY - costBottomY) / 3;
 const costDividerX = costBoxX + costBoxWidth - 92;
 
 footerPage.drawRectangle({
