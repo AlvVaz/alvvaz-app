@@ -207,6 +207,31 @@ const drawWrappedTokens = (
   return cursorY;
 };
 
+const percentageHighlights = new Set(["10%", "30%", "55%", "85%", "100%"]);
+
+const tokenizePolicyPercentages = (text: string) => {
+  const parts = text.split(/(\s+)/).filter((part) => part.length > 0);
+  const tokens: { text: string; bold: boolean }[] = [];
+
+  parts.forEach((part) => {
+    if (/^\s+$/.test(part)) {
+      tokens.push({ text: part, bold: false });
+      return;
+    }
+
+    const match = part.match(/^(\d+%)([.,;:]?)$/);
+    if (match && percentageHighlights.has(match[1])) {
+      tokens.push({ text: match[1], bold: true });
+      if (match[2]) tokens.push({ text: match[2], bold: false });
+      return;
+    }
+
+    tokens.push({ text: part, bold: false });
+  });
+
+  return tokens;
+};
+
 export async function POST(
   request: Request,
   { params }: { params: { id: string } | Promise<{ id: string }> }
@@ -746,16 +771,38 @@ const costLineY = [
 ];
 const costBoxX = costLabelX - 4;
 const costBoxWidth = width - margin - costBoxX;
-const costDividerX = costBoxX + costBoxWidth - 92;
+const costDividerX = tableColumnEdges[1];
 
-footerPage.drawRectangle({
-  x: costBoxX,
-  y: costBottomY,
-  width: costBoxWidth,
-  height: costTopY - costBottomY,
-  borderWidth: 0.5,
-  borderColor: brand.line,
-});
+if (footerPage === page) {
+  // Connected to the main table: do not redraw the top edge to avoid a stray overlap line.
+  footerPage.drawLine({
+    start: { x: costBoxX, y: costTopY },
+    end: { x: costBoxX, y: costBottomY },
+    thickness: 0.5,
+    color: brand.line,
+  });
+  footerPage.drawLine({
+    start: { x: costBoxX + costBoxWidth, y: costTopY },
+    end: { x: costBoxX + costBoxWidth, y: costBottomY },
+    thickness: 0.5,
+    color: brand.line,
+  });
+  footerPage.drawLine({
+    start: { x: costBoxX, y: costBottomY },
+    end: { x: costBoxX + costBoxWidth, y: costBottomY },
+    thickness: 0.5,
+    color: brand.line,
+  });
+} else {
+  footerPage.drawRectangle({
+    x: costBoxX,
+    y: costBottomY,
+    width: costBoxWidth,
+    height: costTopY - costBottomY,
+    borderWidth: 0.5,
+    borderColor: brand.line,
+  });
+}
 
 footerPage.drawLine({
   start: { x: costDividerX, y: costTopY },
@@ -893,7 +940,8 @@ cursorY = drawWrapped(
 
 const policiesBody = policies.slice(1, -1);
 policiesBody.forEach((policy) => {
-  const lines = wrapText(policy.text, policyMaxWidth, bodyFont, policySize);
+  const estimateFont = policy.level === 1 ? bodyBold : bodyFont;
+  const lines = wrapText(policy.text, policyMaxWidth, estimateFont, policySize);
   const estimatedHeight = lines.length * policySize * policyLineHeight + 2;
 
   if (cursorY - estimatedHeight < margin + 20) {
@@ -902,7 +950,7 @@ policiesBody.forEach((policy) => {
 
   if (policy.level === 0) {
     if (lines.length > 0) {
-      footerPage.drawText(`\u2022 ${lines[0]}`, {
+      footerPage.drawText(`\\u2022 ${lines[0]}`, {
         x: policyMainX,
         y: cursorY,
         size: policySize,
@@ -925,16 +973,20 @@ policiesBody.forEach((policy) => {
     return;
   }
 
-  lines.forEach((line) => {
-    footerPage.drawText(line, {
-      x: policyContinueX,
-      y: cursorY,
-      size: policySize,
-      font: bodyFont,
-      color: brand.ink,
-    });
-    cursorY -= policySize * policyLineHeight;
-  });
+  const tokens = tokenizePolicyPercentages(policy.text);
+  cursorY = drawWrappedTokens(
+    footerPage,
+    tokens,
+    policyContinueX,
+    cursorY,
+    policyMaxWidth,
+    bodyFont,
+    bodyBold,
+    policySize,
+    brand.ink,
+    brand.ink,
+    policyLineHeight
+  );
 });
 
 if (cursorY < margin + 28) {
