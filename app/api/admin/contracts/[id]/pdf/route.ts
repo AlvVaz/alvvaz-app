@@ -14,8 +14,9 @@ const formatMoney = (value: string | null) => {
   const cleaned = value.replace(/[^\d.-]/g, "");
   const parsed = Number(cleaned);
   if (!Number.isFinite(parsed)) return value;
+  const isWhole = Math.abs(parsed - Math.trunc(parsed)) < 0.005;
   return new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 2,
+    minimumFractionDigits: isWhole ? 0 : 2,
     maximumFractionDigits: 2,
   }).format(parsed);
 };
@@ -113,6 +114,25 @@ const formatDateRangeShort = (start?: string | null, end?: string | null) => {
   if (startParts) return formatDateShort(start);
   if (endParts) return formatDateShort(end);
   return [start, end].filter(Boolean).join(" AL ");
+};
+
+
+const normalizeTextLine = (line: string) =>
+  line
+    .replace(/\u00a0/g, " ")
+    .replace(/[\u2022\u25CF\u25AA\u25E6\u25FE\u25FC\u25FB\u25A1\u25A0]/g, " ")
+    .replace(/[|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const isNoiseLine = (line: string) => {
+  if (!line) return true;
+  const normalized = line
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (/^[zZxX]+$/.test(normalized)) return true;
+  if (!/[A-Za-z0-9]/.test(normalized)) return true;
+  return false;
 };
 
 const drawWrapped = (
@@ -344,13 +364,13 @@ export async function POST(
   const taglineX = 44;
   page.drawText(taglineText, {
     x: taglineX,
-    y: logoBottomY - 4,
+    y: logoBottomY - 18,
     size: taglineSize,
     font: headingBoldItalic,
-    color: brand.ink,
+    color: brand.muted,
   });
 
-  let cursorY = 655.6;
+  let cursorY = 598;
 
   // Vendor/Agency/Destination/Dates row
   const rowX = margin;
@@ -475,13 +495,32 @@ export async function POST(
     .map((line) => line.trim());
 
   const descriptionRows: Array<{ qty: string; details: string }> = [];
+  const extractedNoteLines: string[] = [];
 
-  descriptionRawLines.forEach((line) => {
-    if (!line) return;
+  descriptionRawLines.forEach((rawLine) => {
+    const line = normalizeTextLine(rawLine);
+    if (isNoiseLine(line)) return;
 
     const qtyMatch = line.match(/^(\d+)\s*[xX]\s*(.+)$/);
     if (qtyMatch) {
       descriptionRows.push({ qty: qtyMatch[1], details: qtyMatch[2] });
+      return;
+    }
+
+    const normalizedLine = line
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase();
+    const treatAsNote =
+      normalizedLine.includes("ADULTO") ||
+      normalizedLine.includes("MAYOR") ||
+      normalizedLine.includes("MENOR") ||
+      normalizedLine.includes("BEBE") ||
+      normalizedLine.includes("CHECAR TU FECHA DE LIQUIDACION") ||
+      normalizedLine.includes("CANCELACION");
+
+    if (treatAsNote && descriptionRows.length) {
+      extractedNoteLines.push(line);
       return;
     }
 
@@ -572,38 +611,48 @@ export async function POST(
     cursorY = rowBottomY;
   });
 
-  cursorY -= 8;
+  const noteSourceLines = [
+    ...extractedNoteLines,
+    ...(contract.notes ?? "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean),
+  ];
 
-  const noteSourceLines = (contract.notes ?? "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  const normalizedNotes = noteSourceLines.flatMap((line) => {
-    const normalized = line
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toUpperCase();
-
-    if (
-      normalized.includes("CHECAR TU FECHA DE LIQUIDACION") &&
-      normalized.includes("CANCELACIONES")
-    ) {
-      return [
-        "CHECAR TU FECHA DE LIQUIDACION PARA EVITAR",
-        "CANCELACIONES",
-      ];
-    }
-
-    return [line.toUpperCase()];
+  const uniqueNoteLines: string[] = [];
+  const seenNotes = new Set<string>();
+  noteSourceLines.forEach((line) => {
+    const normalized = normalizeTextLine(line);
+    if (!normalized || seenNotes.has(normalized)) return;
+    seenNotes.add(normalized);
+    uniqueNoteLines.push(normalized);
   });
+
+  const normalizedNotes = uniqueNoteLines
+    .filter((line) => !isNoiseLine(line))
+    .flatMap((line) => {
+      const normalized = line
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toUpperCase();
+
+      if (
+        normalized.includes("CHECAR TU FECHA DE LIQUIDACION") &&
+        normalized.includes("CANCELACIONES")
+      ) {
+        return [
+          "CHECAR TU FECHA DE LIQUIDACION PARA EVITAR",
+          "CANCELACIONES",
+        ];
+      }
+
+      return [line.toUpperCase()];
+    });
 
   const renderedNotes = normalizedNotes.length
     ? normalizedNotes
     : ["CHECAR TU FECHA DE LIQUIDACION PARA EVITAR", "CANCELACIONES"];
 
-  const noteLineHeight = 12.2;
-  const notesX = tableX + tableCols[0] + 0.2;
   renderedNotes.forEach((line) => {
     const normalized = line
       .normalize("NFD")
@@ -614,19 +663,45 @@ export async function POST(
       normalized === "CANCELACIONES";
 
     const wrapped = wrapText(line, tableCols[1] - 8, headingFont, 10.08);
-    wrapped.forEach((noteLine) => {
+    const renderedLines = wrapped.length ? wrapped : [line];
+    const rowHeight = Math.max(
+      minDescriptionRowHeight,
+      renderedLines.length * descriptionLineHeight + 8
+    );
+    const rowTopY = cursorY;
+    const rowBottomY = rowTopY - rowHeight;
+
+    page.drawRectangle({
+      x: tableX,
+      y: rowBottomY,
+      width: tableWidth,
+      height: rowHeight,
+      borderWidth: 0.5,
+      borderColor: brand.line,
+    });
+    tableColumnEdges.forEach((edgeX) => {
+      page.drawLine({
+        start: { x: edgeX, y: rowTopY },
+        end: { x: edgeX, y: rowBottomY },
+        thickness: 0.5,
+        color: brand.line,
+      });
+    });
+
+    renderedLines.forEach((noteLine, noteIndex) => {
       page.drawText(noteLine, {
-        x: notesX,
-        y: cursorY,
+        x: tableX + tableCols[0] + 4,
+        y: rowTopY - 14 - noteIndex * descriptionLineHeight,
         size: 10.08,
         font: isWarningBold ? headingBold : headingFont,
         color: brand.ink,
       });
-      cursorY -= noteLineHeight;
     });
+
+    cursorY = rowBottomY;
   });
 
-  cursorY -= 45;
+  cursorY -= 36;
 
   const startNewFooterPage = () => {
   footerPage = pdfDoc.addPage([612, 792]);
