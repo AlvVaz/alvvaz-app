@@ -141,12 +141,18 @@ export function ContractForm({
 
   const buildFileName = () => {
     const baseTitle =
-      initialContract?.title || initialContract?.clientName || "Contrato";
-    const suffix = initialContract?.contractNumber
-      ? `- ${initialContract.contractNumber}`
-      : "";
-    const raw = `${baseTitle} ${suffix}`.trim();
-    return raw.replace(/[^\w\s-]/g, "").replace(/\s+/g, " ").trim() || "Contrato";
+      (initialContract?.title ?? "CONTRATO")
+        .toUpperCase()
+        .replace(/[\\/:*?"<>|]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim() || "CONTRATO";
+    const contractNumber = String(initialContract?.contractNumber ?? "")
+      .toUpperCase()
+      .replace(/[\\/:*?"<>|]/g, " ")
+      .replace(/\s+/g, " ")
+      .replace(/^#+/, "")
+      .trim();
+    return contractNumber ? `${baseTitle}-#${contractNumber}` : baseTitle;
   };
 
   const organizerChoices = useMemo(() => {

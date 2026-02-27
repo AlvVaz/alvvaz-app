@@ -21,10 +21,19 @@ export default function ContractSummaryActions({
   const { push: pushToast } = useContractsToast();
 
   const buildFileName = () => {
-    const baseTitle = contractTitle || "Contrato";
-    const suffix = contractNumber ? `- ${contractNumber}` : "";
-    const raw = `${baseTitle} ${suffix}`.trim();
-    return raw.replace(/[^\w\s-]/g, "").replace(/\s+/g, " ").trim() || "Contrato";
+    const baseTitle =
+      (contractTitle || "CONTRATO")
+        .toUpperCase()
+        .replace(/[\\/:*?"<>|]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim() || "CONTRATO";
+    const normalizedNumber = String(contractNumber ?? "")
+      .toUpperCase()
+      .replace(/[\\/:*?"<>|]/g, " ")
+      .replace(/\s+/g, " ")
+      .replace(/^#+/, "")
+      .trim();
+    return normalizedNumber ? `${baseTitle}-#${normalizedNumber}` : baseTitle;
   };
 
   const handleViewPdf = (event: React.MouseEvent<HTMLButtonElement>) => {

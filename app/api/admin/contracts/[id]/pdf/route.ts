@@ -117,6 +117,22 @@ const formatDateRangeShort = (start?: string | null, end?: string | null) => {
 };
 
 
+const normalizePdfFilePart = (value: string) =>
+  value
+    .replace(/[\\/:*?"<>|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const buildContractPdfBaseName = (
+  title: string | null | undefined,
+  contractNumber: string | null | undefined,
+  fallbackId: string
+) => {
+  const normalizedTitle = normalizePdfFilePart((title ?? "CONTRATO").toUpperCase()) || "CONTRATO";
+  const rawNumber = normalizePdfFilePart((contractNumber ?? fallbackId ?? "").toUpperCase()).replace(/^#+/, "");
+  return rawNumber ? `${normalizedTitle}-#${rawNumber}` : normalizedTitle;
+};
+
 const normalizeTextLine = (line: string) =>
   line
     .replace(/\u00a0/g, " ")
@@ -1038,8 +1054,8 @@ const pdfBytes = await pdfDoc.save();
 
   const supabase = getSupabaseAdmin();
   const bucket = process.env.SUPABASE_STORAGE_BUCKET_CONTRACTS || "contracts";
-  const safeNumber = (contract.contractNumber || contract.id).replace(/[^a-zA-Z0-9-_]/g, "-");
-  const storagePath = `${contract.id}/contrato-${safeNumber}.pdf`;
+  const pdfBaseName = buildContractPdfBaseName(contract.title, contract.contractNumber, contract.id);
+  const storagePath = `${contract.id}/${pdfBaseName}.pdf`;
 
   const { error: uploadError } = await supabase.storage
     .from(bucket)
