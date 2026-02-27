@@ -727,12 +727,14 @@ footerPage.drawText(liquidationText, {
 });
 
 const costLabelX = 396.2;
-const costValueX = 515.9;
 const costLineY = [cursorY + 19.2, cursorY + 1.2, cursorY - 16.6];
 const costTopY = costLineY[0] + 5.8;
 const costBottomY = costLineY[2] - 6;
 const costBoxX = costLabelX - 4;
 const costBoxWidth = width - margin - costBoxX;
+const costRowHeight = (costTopY - costBottomY) / 3;
+const costDividerX = costBoxX + costBoxWidth - 92;
+
 footerPage.drawRectangle({
   x: costBoxX,
   y: costBottomY,
@@ -742,13 +744,35 @@ footerPage.drawRectangle({
   borderColor: brand.line,
 });
 
+footerPage.drawLine({
+  start: { x: costDividerX, y: costTopY },
+  end: { x: costDividerX, y: costBottomY },
+  thickness: 0.5,
+  color: brand.line,
+});
+
+footerPage.drawLine({
+  start: { x: costBoxX, y: costTopY - costRowHeight },
+  end: { x: costBoxX + costBoxWidth, y: costTopY - costRowHeight },
+  thickness: 0.5,
+  color: brand.line,
+});
+
+footerPage.drawLine({
+  start: { x: costBoxX, y: costTopY - costRowHeight * 2 },
+  end: { x: costBoxX + costBoxWidth, y: costTopY - costRowHeight * 2 },
+  thickness: 0.5,
+  color: brand.line,
+});
+
 const first = formatMoney(contract.firstPayment ?? "");
 const balance = formatMoney(contract.balanceDue ?? "");
 const costLines = [
   { label: "PRECIO NETO:", value: total ? "$" + total : "MXN", size: 10.08, font: headingFont },
-  { label: "PRIMER PAGO:", value: first ? "$" + first : "MXN", size: 9.12, font: headingFont },
+  { label: "PRIMER PAGO:", value: first ? "$" + first : "MXN", size: 10.08, font: headingFont },
   { label: "RESTO POR PAGAR:", value: balance ? "$" + balance : "MXN", size: 7.44, font: headingBold },
 ];
+
 costLines.forEach((line, index) => {
   const lineY = costLineY[index];
   footerPage.drawText(line.label, {
@@ -758,8 +782,14 @@ costLines.forEach((line, index) => {
     font: line.font,
     color: brand.ink,
   });
+
+  const valueWidth = headingFont.widthOfTextAtSize(line.value, 9.12);
+  const valueRightX = costBoxX + costBoxWidth - 8;
+  const minValueX = costDividerX + 6;
+  const valueX = Math.max(minValueX, valueRightX - valueWidth);
+
   footerPage.drawText(line.value, {
-    x: costValueX,
+    x: valueX,
     y: lineY,
     size: 9.12,
     font: headingFont,
