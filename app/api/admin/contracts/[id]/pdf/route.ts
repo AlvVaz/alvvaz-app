@@ -449,18 +449,49 @@ export async function POST(
   cursorY = tableHeaderBottomY;
   const descriptionRawLines = (contract.description ?? "")
     .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-  const descriptionLines = descriptionRawLines.length > 0 ? descriptionRawLines : [""];
+    .map((line) => line.trim());
+
+  const descriptionRows: Array<{ qty: string; details: string }> = [];
+
+  descriptionRawLines.forEach((line) => {
+    if (!line) return;
+
+    const qtyMatch = line.match(/^(\d+)\s*[xX]\s*(.+)$/);
+    if (qtyMatch) {
+      descriptionRows.push({ qty: qtyMatch[1], details: qtyMatch[2] });
+      return;
+    }
+
+    if (!descriptionRows.length) {
+      descriptionRows.push({ qty: "1", details: line });
+      return;
+    }
+
+    const last = descriptionRows[descriptionRows.length - 1];
+    descriptionRows[descriptionRows.length - 1] = {
+      ...last,
+      details: `${last.details}\n${line}`,
+    };
+  });
+
+  if (!descriptionRows.length) {
+    descriptionRows.push({ qty: "1", details: "" });
+  }
+
   const total = formatMoney(contract.totalPrice ?? "");
   const minDescriptionRowHeight = tableRowHeight;
   const descriptionLineHeight = 10;
 
-  descriptionLines.forEach((line, index) => {
-    const qtyMatch = line.match(/^(\d+)\s*[xX]\s*(.+)$/);
-    const qty = qtyMatch ? qtyMatch[1] : "1";
-    const details = qtyMatch ? qtyMatch[2] : line;
-    const detailLines = wrapText(details || "-", tableCols[1] - 8, bodyFont, 8);
+  descriptionRows.forEach((item, index) => {
+    const qty = item.qty || "1";
+    const details = item.details || "-";
+    const detailLines = details
+      .split(/\r?\n/)
+      .flatMap((segment) => {
+        const trimmed = segment.trim();
+        return trimmed ? wrapText(trimmed, tableCols[1] - 8, bodyFont, 8) : [""];
+      });
+
     const renderedDetailLines = detailLines.length > 0 ? detailLines : [""];
     const rowHeight = Math.max(
       minDescriptionRowHeight,
@@ -810,6 +841,8 @@ export async function GET(
 
   return NextResponse.json({ signedUrl: data.signedUrl });
 }
+
+
 
 
 

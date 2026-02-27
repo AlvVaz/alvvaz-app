@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import type { FormEvent, MouseEvent, WheelEvent } from "react";
+import type { FormEvent, KeyboardEvent, MouseEvent, WheelEvent } from "react";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -32,18 +32,33 @@ const emptyContractItem = { qty: "1", details: "" };
 const parseContractItems = (description?: string | null) => {
   if (!description) return [{ ...emptyContractItem }];
   const lines = description
-    .split(/\n+/)
+    .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
   if (!lines.length) return [{ ...emptyContractItem }];
 
-  return lines.map((line) => {
+  const items: Array<{ qty: string; details: string }> = [];
+
+  lines.forEach((line) => {
     const match = line.match(/^(\d+)\s*[xX]\s*(.+)$/);
     if (match) {
-      return { qty: match[1], details: match[2].trim() };
+      items.push({ qty: match[1], details: match[2].trim() });
+      return;
     }
-    return { qty: "1", details: line };
+
+    if (!items.length) {
+      items.push({ qty: "1", details: line });
+      return;
+    }
+
+    const last = items[items.length - 1];
+    items[items.length - 1] = {
+      ...last,
+      details: `${last.details}\n${line}`,
+    };
   });
+
+  return items.length ? items : [{ ...emptyContractItem }];
 };
 
 const parseMoney = (value: string) => {
@@ -389,6 +404,28 @@ export function ContractForm({
     return "Seguro que quieres crear el contrato?";
   };
 
+  const handleFormKeyDown = (event: KeyboardEvent<HTMLFormElement>) => {
+    if (event.key !== "Enter" || event.defaultPrevented) return;
+
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    if (target instanceof HTMLTextAreaElement) return;
+
+    if (target instanceof HTMLButtonElement) {
+      if (target.type === "submit") return;
+      event.preventDefault();
+      return;
+    }
+
+    if (target instanceof HTMLInputElement) {
+      if (target.type === "submit" || target.type === "button") return;
+      event.preventDefault();
+      return;
+    }
+
+    event.preventDefault();
+  };
   const handleFormSubmit = (event: FormEvent<HTMLFormElement>) => {
     if (isLocked) {
       event.preventDefault();
@@ -415,7 +452,7 @@ export function ContractForm({
         formRef.current?.requestSubmit();
       }
     }, {
-      title: "Confirmar accón",
+      title: "Confirmar acción",
       confirmLabel: "Si",
       cancelLabel: "No",
       ...(initialContract
@@ -585,6 +622,7 @@ export function ContractForm({
       ref={formRef}
       action={formAction}
       onSubmit={handleFormSubmit}
+      onKeyDown={handleFormKeyDown}
       onReset={handleReset}
       className={`grid gap-4 md:grid-cols-2 ${isLocked ? "opacity-75" : ""}`}
     >
@@ -1141,6 +1179,8 @@ export function ContractForm({
     </form>
   );
 }
+
+
 
 
 
