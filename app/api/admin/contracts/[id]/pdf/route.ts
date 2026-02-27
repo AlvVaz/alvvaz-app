@@ -275,7 +275,7 @@ export async function POST(
     const logoBytes = await readFile(logoPath);
     const logoImage = await pdfDoc.embedPng(logoBytes);
     const logoDims = logoImage.scale(0.176);
-    logoBottomY = headerTop - logoDims.height + 9;
+    logoBottomY = headerTop - logoDims.height + 20;
     page.drawImage(logoImage, {
       x: margin - 3,
       y: logoBottomY,
