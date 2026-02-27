@@ -563,154 +563,183 @@ export async function POST(
   });
   cursorY -= notesHeight + 14;
 
-  const liquidationText = `LIQUIDACION DEL VIAJE: ${parseDate(contract.liquidationDate) || "-"}`;
-  page.drawText(liquidationText, {
-    x: tableX + 140,
-    y: cursorY,
-    size: 8,
+  const startNewFooterPage = () => {
+  footerPage = pdfDoc.addPage([612, 792]);
+  cursorY = height - margin - 24;
+};
+
+let footerPage = page;
+const ensureFooterSpace = (minY: number) => {
+  if (cursorY < minY) {
+    startNewFooterPage();
+  }
+};
+
+ensureFooterSpace(margin + 130);
+
+const liquidationText = `LIQUIDACION DEL VIAJE: ${parseDate(contract.liquidationDate) || "-"}`;
+footerPage.drawText(liquidationText, {
+  x: tableX + 140,
+  y: cursorY,
+  size: 8,
+  font: headingFont,
+  color: brand.ink,
+});
+
+const costBoxX = tableX + tableWidth * 0.7;
+const costBoxY = cursorY + 4;
+const costBoxWidth = tableWidth * 0.3;
+const costBoxHeight = 48;
+footerPage.drawRectangle({
+  x: costBoxX,
+  y: costBoxY - costBoxHeight,
+  width: costBoxWidth,
+  height: costBoxHeight,
+  borderWidth: 0.5,
+  borderColor: brand.line,
+});
+const first = formatMoney(contract.firstPayment ?? "");
+const balance = formatMoney(contract.balanceDue ?? "");
+const costLines = [
+  ["PRECIO NETO:", total ? `$${total}` : "MXN"],
+  ["PRIMER PAGO:", first ? `$${first}` : "MXN"],
+  ["RESTO POR PAGAR:", balance ? `$${balance}` : "MXN"],
+];
+costLines.forEach((line, index) => {
+  const lineY = costBoxY - 12 - index * 14;
+  footerPage.drawText(line[0], {
+    x: costBoxX + 6,
+    y: lineY,
+    size: 7,
     font: headingFont,
     color: brand.ink,
   });
-
-  const costBoxX = tableX + tableWidth * 0.7;
-  const costBoxY = cursorY + 4;
-  const costBoxWidth = tableWidth * 0.3;
-  const costBoxHeight = 48;
-  page.drawRectangle({
-    x: costBoxX,
-    y: costBoxY - costBoxHeight,
-    width: costBoxWidth,
-    height: costBoxHeight,
-    borderWidth: 0.5,
-    borderColor: brand.line,
-  });
-  const first = formatMoney(contract.firstPayment ?? "");
-  const balance = formatMoney(contract.balanceDue ?? "");
-  const costLines = [
-    ["PRECIO NETO:", total ? `$${total}` : "MXN"],
-    ["PRIMER PAGO:", first ? `$${first}` : "MXN"],
-    ["RESTO POR PAGAR:", balance ? `$${balance}` : "MXN"],
-  ];
-  costLines.forEach((line, index) => {
-    const lineY = costBoxY - 12 - index * 14;
-    page.drawText(line[0], {
-      x: costBoxX + 6,
-      y: lineY,
-      size: 7,
-      font: headingFont,
-      color: brand.ink,
-    });
-    page.drawText(line[1], {
-      x: costBoxX + costBoxWidth - 50,
-      y: lineY,
-      size: 7,
-      font: bodyFont,
-      color: brand.ink,
-    });
-  });
-
-  cursorY -= 70;
-
-  const consultaText = "CONSULTA PLAN DE PAGOS PARA LA LIQUIDACION DE TU RESERVA";
-  const consultaWidth = headingFont.widthOfTextAtSize(consultaText, 7);
-  page.drawText(consultaText, {
-    x: (width - consultaWidth) / 2,
-    y: cursorY,
-    size: 7,
-    font: headingFont,
-    color: brand.muted,
-  });
-  cursorY -= 14;
-  const graciasText = "Gracias por tu confianza.";
-  const graciasWidth = headingBold.widthOfTextAtSize(graciasText, 8);
-  page.drawText(graciasText, {
-    x: (width - graciasWidth) / 2,
-    y: cursorY,
-    size: 8,
-    font: headingBold,
-    color: brand.ink,
-  });
-
-  cursorY -= 30;
-  const policyTitle = "POLITICAS GENERALES:";
-  const policyTitleWidth = headingFont.widthOfTextAtSize(policyTitle, 8);
-  page.drawText(policyTitle, {
-    x: (width - policyTitleWidth) / 2,
-    y: cursorY,
-    size: 8,
-    font: headingFont,
-    color: brand.muted,
-  });
-
-  cursorY -= 12;
-  const policies = [
-    { text: "PRIMER ANTICIPO ES NO REEMBOLSABLE, ENDOSABLE O TRANSFERIBLE A CUALQUIER OTRO PRODUCTO", level: 0 },
-    { text: "REALIZAR LOS PAGOS CONFORME AL CALENDARIO DE PAGOS, LA OMISION PUEDE OCASIONAR AJUSTES TARIFARIOS O CANCELACIONES EN LOS SERVICIOS DESCRITOS.", level: 0 },
-    { text: "AGENCIA ALVVAZ ASI COMO SU TITULAR NO SE HACEN RESPONSABLES EN CANCELACIONES NO PLANEADAS POR CONDICIONES CLIMATOLOGICAS, CIERRES DE VIALIDADES O ALGUNA OTRA SITUACION AJENA A NOSOTROS COMO EMPRESA, SIN EMBARGO SIEMPRE TENDRAN EL RESPALDO POR PARTE NUESTRA, PARA BUSCAR UNA SOLUCION.", level: 0 },
-    { text: "VUELOS Y SERVICIOS AEREOS, NO SON REEMBOLSABLES POR NINGUN MOTIVO, CUALQUIER MODIFICACION EN NOMBRE, FECHA, RUTA ETC... SERA SUJETO A DISPONIBILIDAD Y ACEPTACION POR LA AEROLINEA PROVEEDORA DEL SERVICIO, TODA MODIFICACION A SU ITINERARIO POR PARTE DE LA AEROLINEA, RETRASO O CANCELACIONES EN EL MISMO DIA DE VUELO SERAN CONSULTADAS POR EL PASAJERO DIRECTO CON LA AEROLINEA EN MOSTRADOR, DESLINDANDO A LA AGENCIA POR PERDIDA DE SERVICIOS SUBSECUENTES AL VUELO, SIN EMBARGO SIEMPRE TENDRAN EL RESPALDO POR PARTE NUESTRA, PARA BUSCAR UNA SOLUCION.", level: 0 },
-    { text: "LA INFORMACION PROPORCIONADA POR EL CLIENTE QUE CONTRATA DECLARA SER VERIDICA Y CONFIRMABLE, EN CASO DE LAS EDADES DE MENORES A LA LLEGADA AL HOTEL, DEBE SER LA MISMA QUE SE DECLARO AL HACER LA RESERVA.", level: 0 },
-    { text: "EL TEMA DE CANCELACIONES DE HOTELERIA:", level: 0 },
-    { text: "SI CANCELAS 270 A 300 DIAS ANTES DE TU VIAJE LA PENALIDAD APLICABLE ES DEL 10% SOBRE EL TOTAL DEL VIAJE CONTRATADO", level: 1 },
-    { text: "SI CANCELAS DE 180 A 269 ANTES DE TU VIAJE LA PENALIDAD APLICABLE ES DEL 30% SOBRE EL TOTAL DEL VIAJE CONTRATADO", level: 1 },
-    { text: "SI CANCELAS DE 46 A 179 DIAS ANTES DE TU VIAJE LA PENALIDAD APLICABLE ES DE 55% SOBRE EL TOTAL DEL VIAJE CONTRATADO", level: 1 },
-    { text: "SI CANCELAS DE 16 A 45 DIAS ANTES DE TU VIAJE LA PENALIDAD APLICABLE ES DE 85% SOBRE EL TOTAL DEL VIAJE CONTRATADO", level: 1 },
-    { text: "TODA RESERVA CANCELADA 15 A 0 DIAS ANTES DEL VIAJE APLICA LA PENALIDAD DEL 100% SOBRE EL TOTAL DEL VIAJE CONTRATADO", level: 1 },
-    { text: "AL SER FIRMADO ESTE DOCUMENTO POR EL CLIENTE, ACEPTA HABER LEIDO Y ESTAR CONFORME CON LAS POLITICAS.", level: 0 },
-  ];
-
-  const policyLineHeight = 1.35;
-  const policyGap = 5;
-  const policySubGap = 2;
-  policies.forEach((policy) => {
-    const bullet = policy.level === 0 ? "\u2022" : "";
-    const bulletIndent = policy.level === 0 ? 12 : 26;
-    const bulletMaxWidth = width - margin * 2 - bulletIndent;
-    if (bullet) {
-      page.drawText(bullet, {
-        x: margin + 2,
-        y: cursorY,
-        size: 6.5,
-        font: bodyFont,
-        color: brand.muted,
-      });
-    }
-    cursorY = drawWrapped(
-      page,
-      policy.text,
-      margin + bulletIndent,
-      cursorY,
-      bulletMaxWidth,
-      bodyFont,
-      6.5,
-      brand.muted,
-      policyLineHeight
-    );
-    cursorY -= policy.level === 0 ? policyGap : policySubGap;
-  });
-
-  cursorY -= 6;
-  const addressLine =
-    "HERNAN CORTES #508-A COL. INDUSTRIAL AVIACION / CALLE 30 #689 VILLAS DEL SOL";
-  const addressWidth = headingBold.widthOfTextAtSize(addressLine, 7);
-  page.drawText(addressLine, {
-    x: (width - addressWidth) / 2,
-    y: cursorY,
-    size: 7,
-    font: headingBold,
-    color: brand.muted,
-  });
-  cursorY -= 16;
-  const firmaLine = "FIRMA:______________________________ AGENCIA ALVVAZ";
-  const firmaWidth = bodyFont.widthOfTextAtSize(firmaLine, 7);
-  page.drawText(firmaLine, {
-    x: (width - firmaWidth) / 2,
-    y: cursorY,
+  footerPage.drawText(line[1], {
+    x: costBoxX + costBoxWidth - 50,
+    y: lineY,
     size: 7,
     font: bodyFont,
-    color: brand.muted,
+    color: brand.ink,
   });
+});
 
-  const pdfBytes = await pdfDoc.save();
+cursorY -= 70;
+ensureFooterSpace(margin + 80);
+
+const consultaText = "CONSULTA PLAN DE PAGOS PARA LA LIQUIDACION DE TU RESERVA";
+const consultaWidth = headingFont.widthOfTextAtSize(consultaText, 7);
+footerPage.drawText(consultaText, {
+  x: (width - consultaWidth) / 2,
+  y: cursorY,
+  size: 7,
+  font: headingFont,
+  color: brand.muted,
+});
+cursorY -= 14;
+const graciasText = "Gracias por tu confianza.";
+const graciasWidth = headingBold.widthOfTextAtSize(graciasText, 8);
+footerPage.drawText(graciasText, {
+  x: (width - graciasWidth) / 2,
+  y: cursorY,
+  size: 8,
+  font: headingBold,
+  color: brand.ink,
+});
+
+cursorY -= 30;
+ensureFooterSpace(margin + 60);
+const policyTitle = "POLITICAS GENERALES:";
+const policyTitleWidth = headingFont.widthOfTextAtSize(policyTitle, 8);
+footerPage.drawText(policyTitle, {
+  x: (width - policyTitleWidth) / 2,
+  y: cursorY,
+  size: 8,
+  font: headingFont,
+  color: brand.muted,
+});
+
+cursorY -= 12;
+const policies = [
+  { text: "PRIMER ANTICIPO ES NO REEMBOLSABLE, ENDOSABLE O TRANSFERIBLE A CUALQUIER OTRO PRODUCTO", level: 0 },
+  { text: "REALIZAR LOS PAGOS CONFORME AL CALENDARIO DE PAGOS, LA OMISION PUEDE OCASIONAR AJUSTES TARIFARIOS O CANCELACIONES EN LOS SERVICIOS DESCRITOS.", level: 0 },
+  { text: "AGENCIA ALVVAZ ASI COMO SU TITULAR NO SE HACEN RESPONSABLES EN CANCELACIONES NO PLANEADAS POR CONDICIONES CLIMATOLOGICAS, CIERRES DE VIALIDADES O ALGUNA OTRA SITUACION AJENA A NOSOTROS COMO EMPRESA, SIN EMBARGO SIEMPRE TENDRAN EL RESPALDO POR PARTE NUESTRA, PARA BUSCAR UNA SOLUCION.", level: 0 },
+  { text: "VUELOS Y SERVICIOS AEREOS, NO SON REEMBOLSABLES POR NINGUN MOTIVO, CUALQUIER MODIFICACION EN NOMBRE, FECHA, RUTA ETC... SERA SUJETO A DISPONIBILIDAD Y ACEPTACION POR LA AEROLINEA PROVEEDORA DEL SERVICIO, TODA MODIFICACION A SU ITINERARIO POR PARTE DE LA AEROLINEA, RETRASO O CANCELACIONES EN EL MISMO DIA DE VUELO SERAN CONSULTADAS POR EL PASAJERO DIRECTO CON LA AEROLINEA EN MOSTRADOR, DESLINDANDO A LA AGENCIA POR PERDIDA DE SERVICIOS SUBSECUENTES AL VUELO, SIN EMBARGO SIEMPRE TENDRAN EL RESPALDO POR PARTE NUESTRA, PARA BUSCAR UNA SOLUCION.", level: 0 },
+  { text: "LA INFORMACION PROPORCIONADA POR EL CLIENTE QUE CONTRATA DECLARA SER VERIDICA Y CONFIRMABLE, EN CASO DE LAS EDADES DE MENORES A LA LLEGADA AL HOTEL, DEBE SER LA MISMA QUE SE DECLARO AL HACER LA RESERVA.", level: 0 },
+  { text: "EL TEMA DE CANCELACIONES DE HOTELERIA:", level: 0 },
+  { text: "SI CANCELAS 270 A 300 DIAS ANTES DE TU VIAJE LA PENALIDAD APLICABLE ES DEL 10% SOBRE EL TOTAL DEL VIAJE CONTRATADO", level: 1 },
+  { text: "SI CANCELAS DE 180 A 269 ANTES DE TU VIAJE LA PENALIDAD APLICABLE ES DEL 30% SOBRE EL TOTAL DEL VIAJE CONTRATADO", level: 1 },
+  { text: "SI CANCELAS DE 46 A 179 DIAS ANTES DE TU VIAJE LA PENALIDAD APLICABLE ES DE 55% SOBRE EL TOTAL DEL VIAJE CONTRATADO", level: 1 },
+  { text: "SI CANCELAS DE 16 A 45 DIAS ANTES DE TU VIAJE LA PENALIDAD APLICABLE ES DE 85% SOBRE EL TOTAL DEL VIAJE CONTRATADO", level: 1 },
+  { text: "TODA RESERVA CANCELADA 15 A 0 DIAS ANTES DEL VIAJE APLICA LA PENALIDAD DEL 100% SOBRE EL TOTAL DEL VIAJE CONTRATADO", level: 1 },
+  { text: "AL SER FIRMADO ESTE DOCUMENTO POR EL CLIENTE, ACEPTA HABER LEIDO Y ESTAR CONFORME CON LAS POLITICAS.", level: 0 },
+];
+
+const policyLineHeight = 1.35;
+const policyGap = 5;
+const policySubGap = 2;
+policies.forEach((policy) => {
+  const bullet = policy.level === 0 ? "\u2022" : "";
+  const bulletIndent = policy.level === 0 ? 12 : 26;
+  const bulletMaxWidth = width - margin * 2 - bulletIndent;
+  const estimatedLines = wrapText(policy.text, bulletMaxWidth, bodyFont, 6.5).length;
+  const estimatedHeight = estimatedLines * 6.5 * policyLineHeight + (policy.level === 0 ? policyGap : policySubGap) + 4;
+
+  if (cursorY - estimatedHeight < margin + 20) {
+    startNewFooterPage();
+  }
+
+  if (bullet) {
+    footerPage.drawText(bullet, {
+      x: margin + 2,
+      y: cursorY,
+      size: 6.5,
+      font: bodyFont,
+      color: brand.muted,
+    });
+  }
+  cursorY = drawWrapped(
+    footerPage,
+    policy.text,
+    margin + bulletIndent,
+    cursorY,
+    bulletMaxWidth,
+    bodyFont,
+    6.5,
+    brand.muted,
+    policyLineHeight
+  );
+  cursorY -= policy.level === 0 ? policyGap : policySubGap;
+});
+
+if (cursorY < margin + 28) {
+  startNewFooterPage();
+}
+cursorY -= 6;
+const addressLine =
+  "HERNAN CORTES #508-A COL. INDUSTRIAL AVIACION / CALLE 30 #689 VILLAS DEL SOL";
+const addressWidth = headingBold.widthOfTextAtSize(addressLine, 7);
+footerPage.drawText(addressLine, {
+  x: (width - addressWidth) / 2,
+  y: cursorY,
+  size: 7,
+  font: headingBold,
+  color: brand.muted,
+});
+cursorY -= 16;
+if (cursorY < margin + 10) {
+  startNewFooterPage();
+}
+const firmaLine = "FIRMA:______________________________ AGENCIA ALVVAZ";
+const firmaWidth = bodyFont.widthOfTextAtSize(firmaLine, 7);
+footerPage.drawText(firmaLine, {
+  x: (width - firmaWidth) / 2,
+  y: cursorY,
+  size: 7,
+  font: bodyFont,
+  color: brand.muted,
+});
+
+const pdfBytes = await pdfDoc.save();
 
   const supabase = getSupabaseAdmin();
   const bucket = process.env.SUPABASE_STORAGE_BUCKET_CONTRACTS || "contracts";
@@ -781,6 +810,9 @@ export async function GET(
 
   return NextResponse.json({ signedUrl: data.signedUrl });
 }
+
+
+
 
 
 
