@@ -523,18 +523,7 @@ export function ContractForm({
     setIsOpeningPdf(true);
     setPdfError(null);
     try {
-      const response = await fetch(`/api/admin/contracts/${initialContract.id}/pdf`);
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        setPdfError(payload.error || "No se pudo abrir el PDF.");
-        return;
-      }
-      const payload = await response.json();
-      if (payload?.signedUrl) {
-        window.open(payload.signedUrl as string, "_blank", "noopener,noreferrer");
-      } else {
-        setPdfError("No se pudo abrir el PDF.");
-      }
+      window.open(`/contratos/${initialContract.id}/pdf`, "_blank", "noopener,noreferrer");
     } catch (error) {
       setPdfError("No se pudo abrir el PDF.");
     } finally {
