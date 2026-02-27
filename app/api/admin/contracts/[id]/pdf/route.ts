@@ -277,16 +277,44 @@ export async function POST(
     color: brand.ink,
   });
 
-  const contractLine = `CONTRATO #${contract.contractNumber ?? ""}`.trim();
+  const contractNumberRaw = `${contract.contractNumber ?? ""}`.trim();
+  const contractWord = "CONTRATO";
+  const contractNumberText = contractNumberRaw ? `#${contractNumberRaw}` : "";
   const contractLineSize = 15.12;
-  const contractLineWidth = headingFont.widthOfTextAtSize(contractLine, contractLineSize);
-  page.drawText(contractLine, {
-    x: headerRight - contractLineWidth,
-    y: headerTop - 25,
+  const contractGap = contractNumberText ? 6 : 0;
+  const contractWordWidth = headingFont.widthOfTextAtSize(contractWord, contractLineSize);
+  const contractNumberWidth = contractNumberText
+    ? headingFont.widthOfTextAtSize(contractNumberText, contractLineSize)
+    : 0;
+  const contractGroupWidth = contractWordWidth + contractGap + contractNumberWidth;
+  const contractX = headerRight - contractGroupWidth;
+  const contractY = headerTop - 25;
+
+  page.drawRectangle({
+    x: contractX - 2,
+    y: contractY - 3,
+    width: contractWordWidth + 4,
+    height: contractLineSize + 4,
+    color: rgb(1, 0.96, 0),
+  });
+
+  page.drawText(contractWord, {
+    x: contractX,
+    y: contractY,
     size: contractLineSize,
     font: headingFont,
     color: brand.ink,
   });
+
+  if (contractNumberText) {
+    page.drawText(contractNumberText, {
+      x: contractX + contractWordWidth + contractGap,
+      y: contractY,
+      size: contractLineSize,
+      font: headingFont,
+      color: brand.ink,
+    });
+  }
 
   const headerLines = [
     { text: `FECHA DE RESERVA: ${parseDate(contract.reservationDate)}`, size: 9.12, font: headingBold, y: headerTop - 44 },
@@ -313,10 +341,10 @@ export async function POST(
   const taglineText = "Mas de 9 A\u00f1os nos Respaldan!...";
   const taglineSize = 9.12;
   const taglineWidth = headingBoldItalic.widthOfTextAtSize(taglineText, taglineSize);
-  const taglineX = Math.max(margin - 6, margin + 58 - taglineWidth / 2);
+  const taglineX = 44;
   page.drawText(taglineText, {
     x: taglineX,
-    y: logoBottomY - 24,
+    y: logoBottomY - 4,
     size: taglineSize,
     font: headingBoldItalic,
     color: brand.ink,
