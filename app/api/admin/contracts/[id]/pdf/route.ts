@@ -274,10 +274,10 @@ export async function POST(
     const logoPath = path.join(process.cwd(), "public", "logoalvvaz.png");
     const logoBytes = await readFile(logoPath);
     const logoImage = await pdfDoc.embedPng(logoBytes);
-    const logoDims = logoImage.scale(0.16);
-    logoBottomY = headerTop - logoDims.height + 2;
+    const logoDims = logoImage.scale(0.176);
+    logoBottomY = headerTop - logoDims.height + 9;
     page.drawImage(logoImage, {
-      x: margin - 1,
+      x: margin - 3,
       y: logoBottomY,
       width: logoDims.width,
       height: logoDims.height,
