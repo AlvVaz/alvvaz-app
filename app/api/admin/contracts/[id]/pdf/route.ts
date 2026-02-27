@@ -219,23 +219,23 @@ export async function POST(
   };
 
   const headingFont = await loadFont(
-    ["CenturyGothic-Regular.ttf", "Montserrat-Regular.ttf"],
+    ["Montserrat-Regular.ttf"],
     StandardFonts.Helvetica
   );
   const headingBold = await loadFont(
-    ["CenturyGothic-Bold.ttf", "Montserrat-Bold.ttf"],
+    ["Montserrat-Bold.ttf"],
     StandardFonts.HelveticaBold
   );
   const headingBoldItalic = await loadFont(
-    ["CenturyGothic-BoldItalic.ttf", "CenturyGothic-Bold.ttf", "Montserrat-Bold.ttf"],
+    ["Montserrat-Bold.ttf"],
     StandardFonts.HelveticaBoldOblique
   );
   const bodyFont = await loadFont(
-    ["Dubai-Regular.ttf", "Rubik-Regular.ttf"],
+    ["Rubik-Regular.ttf"],
     StandardFonts.Helvetica
   );
   const bodyBold = await loadFont(
-    ["Dubai-Bold.ttf", "Rubik-Bold.ttf"],
+    ["Rubik-Bold.ttf"],
     StandardFonts.HelveticaBold
   );
 
@@ -309,7 +309,7 @@ export async function POST(
     });
   });
 
-  page.drawText("Mas de 9 Años nos Respaldan!...", {
+  page.drawText("Mas de 9 A\u00f1os nos Respaldan!...", {
     x: 41.3,
     y: 714.6,
     size: 9.12,
@@ -721,7 +721,7 @@ if (cursorY - policySize * policyLineHeight < margin + 20) {
   startNewFooterPage();
 }
 
-footerPage.drawText("•", {
+footerPage.drawText("\u2022", {
   x: 54,
   y: cursorY + 2.4,
   size: policySize,
@@ -751,7 +751,7 @@ policiesBody.forEach((policy) => {
 
   if (policy.level === 0) {
     if (lines.length > 0) {
-      footerPage.drawText(`• ${lines[0]}`, {
+      footerPage.drawText(`\u2022 ${lines[0]}`, {
         x: policyMainX,
         y: cursorY,
         size: policySize,
@@ -790,7 +790,7 @@ if (cursorY < margin + 28) {
   startNewFooterPage();
 }
 
-const finalPolicy = `• ${policies[policies.length - 1].text}`;
+const finalPolicy = `\u2022 ${policies[policies.length - 1].text}`;
 const finalPolicyWidth = bodyFont.widthOfTextAtSize(finalPolicy, policySize);
 footerPage.drawText(finalPolicy, {
   x: (width - finalPolicyWidth) / 2,
