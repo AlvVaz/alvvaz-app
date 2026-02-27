@@ -240,6 +240,7 @@ export async function POST(
   );
 
   const margin = 42;
+  const headerTop = height - margin;
   const brand = {
     ink: rgb(0, 0, 0),
     muted: rgb(0.2, 0.2, 0.2),
@@ -248,13 +249,13 @@ export async function POST(
   const headerRight = width - margin;
 
   // Logo
-  let logoBottomY = height - 112;
+  let logoBottomY = headerTop - 84;
   try {
     const logoPath = path.join(process.cwd(), "public", "logoalvvaz.png");
     const logoBytes = await readFile(logoPath);
     const logoImage = await pdfDoc.embedPng(logoBytes);
     const logoDims = logoImage.scale(0.16);
-    logoBottomY = height - logoDims.height - 10;
+    logoBottomY = headerTop - logoDims.height + 2;
     page.drawImage(logoImage, {
       x: margin - 1,
       y: logoBottomY,
@@ -270,7 +271,7 @@ export async function POST(
   const titleWidth = headingFont.widthOfTextAtSize(titleText, titleSize);
   page.drawText(titleText, {
     x: headerRight - titleWidth,
-    y: 786.8,
+    y: headerTop - 6,
     size: titleSize,
     font: headingFont,
     color: brand.ink,
@@ -281,21 +282,21 @@ export async function POST(
   const contractLineWidth = headingFont.widthOfTextAtSize(contractLine, contractLineSize);
   page.drawText(contractLine, {
     x: headerRight - contractLineWidth,
-    y: 767.1,
+    y: headerTop - 25,
     size: contractLineSize,
     font: headingFont,
     color: brand.ink,
   });
 
   const headerLines = [
-    { text: `FECHA DE RESERVA: ${parseDate(contract.reservationDate)}`, size: 9.12, font: headingBold, y: 755.9 },
-    { text: "AGENCIA DE VIAJES ALVVAZ", size: 6.96, font: headingFont, y: 747.5 },
-    { text: "HERNAN CORTES #508-A COL. INDUSTRIAL AVIACION", size: 7.92, font: headingFont, y: 737.0 },
+    { text: `FECHA DE RESERVA: ${parseDate(contract.reservationDate)}`, size: 9.12, font: headingBold, y: headerTop - 44 },
+    { text: "AGENCIA DE VIAJES ALVVAZ", size: 6.96, font: headingFont, y: headerTop - 54 },
+    { text: "HERNAN CORTES #508-A COL. INDUSTRIAL AVIACION", size: 7.92, font: headingFont, y: headerTop - 64.5 },
     {
       text: `NOMBRE DEL CLIENTE: ${(contract.clientName ?? "").toUpperCase()}`,
       size: 9.12,
       font: headingFont,
-      y: 725.7,
+      y: headerTop - 76,
     },
   ];
   headerLines.forEach((line) => {
@@ -309,10 +310,14 @@ export async function POST(
     });
   });
 
-  page.drawText("Mas de 9 A\u00f1os nos Respaldan!...", {
-    x: 41.3,
-    y: 714.6,
-    size: 9.12,
+  const taglineText = "Mas de 9 A\u00f1os nos Respaldan!...";
+  const taglineSize = 9.12;
+  const taglineWidth = headingBoldItalic.widthOfTextAtSize(taglineText, taglineSize);
+  const taglineX = Math.max(margin - 6, margin + 58 - taglineWidth / 2);
+  page.drawText(taglineText, {
+    x: taglineX,
+    y: logoBottomY - 24,
+    size: taglineSize,
     font: headingBoldItalic,
     color: brand.ink,
   });
