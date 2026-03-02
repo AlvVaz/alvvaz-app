@@ -873,7 +873,7 @@ costLines.forEach((line, index) => {
   });
 });
 
-cursorY -= 62.2;
+cursorY -= 48;
 ensureFooterSpace(margin + 80);
 
 const consultaText = "CONSULTA PLAN DE PAGOS PARA LA LIQUIDACION DE TU RESERVA";
