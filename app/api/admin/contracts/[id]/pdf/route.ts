@@ -484,8 +484,8 @@ export async function POST(
   const tableHeaderHeight = 16.8;
   const tableRowHeight = 24.4;
   const tableCols = [66.5, 368.0, tableWidth - 434.5];
-  const tableFontSize = 9.6;
-  const tableCostSize = 8.88;
+  const tableFontSize = 8.88;
+  const tableCostSize = tableFontSize;
   const tableLineHeight = 11.4;
   const tableHeaderBottomY = cursorY - tableHeaderHeight;
   const tableColumnEdges = [
