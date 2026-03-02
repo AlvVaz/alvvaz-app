@@ -539,7 +539,6 @@ export async function POST(
     .map((line) => line.trim());
 
   const descriptionRows: Array<{ qty: string; details: string }> = [];
-  const extractedNoteLines: string[] = [];
 
   descriptionRawLines.forEach((rawLine) => {
     const line = normalizeTextLine(rawLine);
@@ -548,23 +547,6 @@ export async function POST(
     const qtyMatch = line.match(/^(\d+)\s*[xX]\s*(.+)$/);
     if (qtyMatch) {
       descriptionRows.push({ qty: qtyMatch[1], details: qtyMatch[2] });
-      return;
-    }
-
-    const normalizedLine = line
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toUpperCase();
-    const treatAsNote =
-      normalizedLine.includes("ADULTO") ||
-      normalizedLine.includes("MAYOR") ||
-      normalizedLine.includes("MENOR") ||
-      normalizedLine.includes("BEBE") ||
-      normalizedLine.includes("CHECAR TU FECHA DE LIQUIDACION") ||
-      normalizedLine.includes("CANCELACION");
-
-    if (treatAsNote && descriptionRows.length) {
-      extractedNoteLines.push(line);
       return;
     }
 
@@ -655,62 +637,21 @@ export async function POST(
     cursorY = rowBottomY;
   });
 
-  const noteSourceLines = [
-    ...extractedNoteLines,
-    ...(contract.notes ?? "")
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean),
-  ];
+  const noteRawLines = (contract.notes ?? "")
+    .split(/\r?\n/)
+    .map((line) => normalizeTextLine(line));
 
-  const uniqueNoteLines: string[] = [];
-  const seenNotes = new Set<string>();
-  noteSourceLines.forEach((line) => {
-    const normalized = normalizeTextLine(line);
-    if (!normalized || seenNotes.has(normalized)) return;
-    seenNotes.add(normalized);
-    uniqueNoteLines.push(normalized);
-  });
-
-  const normalizedNotes = uniqueNoteLines
-    .filter((line) => !isNoiseLine(line))
-    .flatMap((line) => {
-      const normalized = line
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toUpperCase();
-
-      if (
-        normalized.includes("CHECAR TU FECHA DE LIQUIDACION") &&
-        normalized.includes("CANCELACIONES")
-      ) {
-        return [
-          "CHECAR TU FECHA DE LIQUIDACION PARA EVITAR",
-          "CANCELACIONES",
-        ];
-      }
-
-      return [line.toUpperCase()];
+  const hasNotes = noteRawLines.some((line) => line.length > 0);
+  if (hasNotes) {
+    const renderedNoteLines = noteRawLines.flatMap((line) => {
+      if (!line) return [""];
+      const wrapped = wrapText(line, tableCols[1] - 8, headingFont, tableFontSize);
+      return wrapped.length ? wrapped : [line];
     });
 
-  const renderedNotes = normalizedNotes.length
-    ? normalizedNotes
-    : ["CHECAR TU FECHA DE LIQUIDACION PARA EVITAR", "CANCELACIONES"];
-
-  renderedNotes.forEach((line) => {
-    const normalized = line
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toUpperCase();
-    const isWarningBold =
-      normalized.startsWith("CHECAR TU FECHA DE LIQUIDACION") ||
-      normalized === "CANCELACIONES";
-
-    const wrapped = wrapText(line, tableCols[1] - 8, headingFont, tableFontSize);
-    const renderedLines = wrapped.length ? wrapped : [line];
     const rowHeight = Math.max(
       minDescriptionRowHeight,
-      renderedLines.length * descriptionLineHeight + 8
+      renderedNoteLines.length * descriptionLineHeight + 8
     );
     const rowTopY = cursorY;
     const rowBottomY = rowTopY - rowHeight;
@@ -732,18 +673,18 @@ export async function POST(
       });
     });
 
-    renderedLines.forEach((noteLine, noteIndex) => {
+    renderedNoteLines.forEach((noteLine, noteIndex) => {
       page.drawText(noteLine, {
         x: tableX + tableCols[0] + 4,
         y: rowTopY - 13.2 - noteIndex * descriptionLineHeight,
         size: tableFontSize,
-        font: isWarningBold ? headingBold : headingFont,
+        font: headingFont,
         color: brand.ink,
       });
     });
 
     cursorY = rowBottomY;
-  });
+  }
 
   const tableBottomY = cursorY;
   cursorY = tableBottomY - 30;
