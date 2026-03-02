@@ -411,7 +411,7 @@ export async function POST(
     color: brand.muted,
   });
 
-  let cursorY = 598;
+  let cursorY = 622;
 
   // Vendor/Agency/Destination/Dates row
   const rowX = margin;
