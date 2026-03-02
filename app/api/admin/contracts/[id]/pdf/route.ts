@@ -1020,10 +1020,11 @@ footerPage.drawText(finalPolicy, {
 });
 
 cursorY -= 31.9;
-if (cursorY < margin + 22) {
+if (cursorY < margin + 30) {
   startNewFooterPage();
 }
 
+cursorY -= 8;
 const addressLine =
   "HERNAN CORTES #508-A COL. INDUSTRIAL AVIACION / CALLE 30 #689 VILLAS DEL SOL";
 const addressWidth = bodyBold.widthOfTextAtSize(addressLine, 12);
