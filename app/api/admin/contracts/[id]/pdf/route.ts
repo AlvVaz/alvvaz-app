@@ -1035,7 +1035,7 @@ footerPage.drawText(addressLine, {
   color: brand.ink,
 });
 
-cursorY -= 12;
+cursorY -= 22;
 if (cursorY < margin + 10) {
   startNewFooterPage();
 }
