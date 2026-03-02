@@ -673,6 +673,14 @@ export async function POST(
       });
     });
 
+    page.drawText("Notas", {
+      x: tableX + 4,
+      y: rowTopY - 13.2,
+      size: tableFontSize,
+      font: headingFont,
+      color: brand.ink,
+    });
+
     renderedNoteLines.forEach((noteLine, noteIndex) => {
       page.drawText(noteLine, {
         x: tableX + tableCols[0] + 4,
