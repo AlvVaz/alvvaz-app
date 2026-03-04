@@ -742,8 +742,18 @@ export async function syncTripFromContract(contract: Contract) {
   const payload = buildTripPayloadFromContract(contract);
 
   if (contract.tripId) {
-    const updated = await updateTrip(contract.tripId, payload);
-    if (updated) return updated;
+    const owner = await prisma.contract.findFirst({
+      where: {
+        tripId: contract.tripId,
+        NOT: { id: contract.id },
+      },
+      select: { id: true },
+    });
+
+    if (!owner) {
+      const updated = await updateTrip(contract.tripId, payload);
+      if (updated) return updated;
+    }
   }
 
   const created = await createTrip(payload);

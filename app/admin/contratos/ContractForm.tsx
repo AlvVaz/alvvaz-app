@@ -100,8 +100,10 @@ export function ContractForm({
   const { confirm, dialog } = useConfirmDialog();
   const seedContract = initialContract ?? draftContract ?? null;
   const isLocked = Boolean(initialContract) && isEditLocked;
-  const initialTravelers = seedContract?.travelers?.length
-    ? seedContract.travelers
+  const initialTravelers = initialContract
+    ? seedContract?.travelers?.length
+      ? seedContract.travelers
+      : [emptyTraveler]
     : [emptyTraveler];
   const [travelers, setTravelers] = useState<TripTraveler[]>(
     initialTravelers
@@ -116,7 +118,7 @@ export function ContractForm({
     seedContract?.title ?? seedContract?.clientName ?? ""
   );
   const [clientNameValue, setClientNameValue] = useState(
-    seedContract?.clientName ?? seedContract?.title ?? ""
+    initialContract ? seedContract?.clientName ?? seedContract?.title ?? "" : ""
   );
   const [departureDateValue, setDepartureDateValue] = useState(
     seedContract?.departureDate ?? ""
@@ -212,9 +214,11 @@ export function ContractForm({
   ).length;
 
   const [passengerCountValue, setPassengerCountValue] = useState(
-    seedContract?.passengerCount !== null && seedContract?.passengerCount !== undefined
-      ? String(seedContract.passengerCount)
-      : String(travelerCount)
+    initialContract
+      ? seedContract?.passengerCount !== null && seedContract?.passengerCount !== undefined
+        ? String(seedContract.passengerCount)
+        : String(travelerCount)
+      : "0"
   );
   const lastTravelerCount = useRef(travelerCount);
 
@@ -306,13 +310,11 @@ export function ContractForm({
     const baseContract = initialContract ?? seedContract;
     if (!initialContract) {
       if (baseContract) {
-        setTravelers(
-          baseContract.travelers?.length ? baseContract.travelers : [emptyTraveler]
-        );
+        setTravelers([emptyTraveler]);
         setContractItems(parseContractItems(baseContract.description));
         setContractNumberValue(suggestedContractNumber ?? "");
         setTitleValue(baseContract.title ?? baseContract.clientName ?? "");
-        setClientNameValue(baseContract.clientName ?? baseContract.title ?? "");
+        setClientNameValue("");
         setDepartureDateValue(baseContract.departureDate ?? "");
         setLiquidationDateValue(baseContract.liquidationDate ?? "");
         setIsLiquidationAuto(
@@ -323,15 +325,7 @@ export function ContractForm({
         setFirstPaymentValue(baseContract.firstPayment ?? "");
         setBalanceDueValue(baseContract.balanceDue ?? "");
         setIsBalanceAuto(true);
-        const basePassengerCount =
-          baseContract.passengerCount !== null && baseContract.passengerCount !== undefined
-            ? String(baseContract.passengerCount)
-            : String(
-                (baseContract.travelers ?? []).filter(
-                  (traveler) => traveler.name || traveler.phone || traveler.contract
-                ).length
-              );
-        setPassengerCountValue(basePassengerCount);
+        setPassengerCountValue("0");
         return;
       }
 

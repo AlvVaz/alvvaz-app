@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import type { Trip } from "@/lib/db";
 
@@ -94,35 +94,18 @@ export default function TripsPanel({
     return matchesDestination && matchesName && matchesContract;
   };
 
-  const tripsByYear = useMemo(
-    () => trips.filter(matchesYear),
-    [trips, selectedYear]
-  );
-
-  const filteredTrips = useMemo(() => {
-    if (!hasFilters) return tripsByYear;
-    return tripsByYear.filter(matchesFilters);
-  }, [
-    tripsByYear,
-    hasFilters,
-    normalizedDestination,
-    normalizedName,
-    normalizedContract,
-  ]);
-
-  const upcomingTrips = useMemo(
-    () => filteredTrips.filter((trip) => isUpcoming(trip)),
-    [filteredTrips]
-  );
-  const completedTrips = useMemo(
-    () => filteredTrips.filter((trip) => !isUpcoming(trip)),
-    [filteredTrips]
-  );
+  const tripsByYear = trips.filter(matchesYear);
+  const filteredTrips = hasFilters
+    ? tripsByYear.filter(matchesFilters)
+    : tripsByYear;
+  const upcomingTrips = filteredTrips.filter((trip) => isUpcoming(trip));
+  const completedTrips = filteredTrips.filter((trip) => !isUpcoming(trip));
 
   const monthFormatter = new Intl.DateTimeFormat("es-MX", {
     month: "long",
     year: "numeric",
   });
+
   const groupTrips = (items: Trip[]) =>
     Array.from(
       items.reduce((map, trip) => {
@@ -137,7 +120,7 @@ export default function TripsPanel({
         }
         return map;
       }, new Map<string, Trip[]>())
-    ).map(([label, groupTrips]) => ({ label, trips: groupTrips }));
+    ).map(([label, groupedTrips]) => ({ label, trips: groupedTrips }));
 
   const groupTripsByYear = (items: Trip[]) =>
     Array.from(
@@ -257,7 +240,7 @@ export default function TripsPanel({
                   destination: event.target.value,
                 }))
               }
-              placeholder="Cancún"
+              placeholder="Cancun"
               className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-normal text-slate-900 shadow-sm outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200"
             />
           </label>
@@ -298,13 +281,13 @@ export default function TripsPanel({
         (groupByYear ? (
           renderYearSections(
             upcomingTrips,
-            "Próximos viajes",
-            "No hay viajes programados todavía."
+            "Proximos viajes",
+            "No hay viajes programados todavia."
           )
         ) : (
           <TripsSection
-            title="Próximos viajes"
-            emptyMessage="No hay viajes programados todavía."
+            title="Proximos viajes"
+            emptyMessage="No hay viajes programados todavia."
             groups={groupTrips(upcomingTrips)}
             bulkDeleteAction={bulkDeleteAction}
             updateAction={updateAction}
@@ -318,12 +301,12 @@ export default function TripsPanel({
           renderYearSections(
             completedTrips,
             "Viajes completados",
-            "Aún no hay viajes completados para este filtro."
+            "Aun no hay viajes completados para este filtro."
           )
         ) : (
           <TripsSection
             title="Viajes completados"
-            emptyMessage="Aún no hay viajes completados para este filtro."
+            emptyMessage="Aun no hay viajes completados para este filtro."
             groups={groupTrips(completedTrips)}
             bulkDeleteAction={bulkDeleteAction}
             updateAction={updateAction}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import type { Trip } from "@/lib/db";
@@ -39,6 +39,83 @@ export default function TripsSection({
   const { confirm, dialog } = useConfirmDialog();
   const [stageOverrides, setStageOverrides] = useState<Record<string, number>>({});
   const [pendingStageId, setPendingStageId] = useState<string | null>(null);
+
+  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const stageSyncTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const queuedStageRef = useRef<Record<string, number>>({});
+  const inFlightTripIdsRef = useRef<Set<string>>(new Set());
+
+  const queueRefresh = () => {
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+
+    refreshTimeoutRef.current = setTimeout(() => {
+      refreshTimeoutRef.current = null;
+      router.refresh();
+    }, 700);
+  };
+
+  const flushQueuedStage = (tripId: string) => {
+    if (inFlightTripIdsRef.current.has(tripId)) return;
+
+    const queuedStage = queuedStageRef.current[tripId];
+    if (queuedStage === undefined) return;
+
+    inFlightTripIdsRef.current.add(tripId);
+    startTransition(() => {
+      void updateStageAction(tripId, queuedStage)
+        .then(() => {
+          queueRefresh();
+        })
+        .finally(() => {
+          inFlightTripIdsRef.current.delete(tripId);
+
+          const latestQueuedStage = queuedStageRef.current[tripId];
+          if (latestQueuedStage === undefined || latestQueuedStage === queuedStage) {
+            delete queuedStageRef.current[tripId];
+            setPendingStageId((current) => (current === tripId ? null : current));
+            return;
+          }
+
+          flushQueuedStage(tripId);
+        });
+    });
+  };
+
+  const queueStageSync = (tripId: string, stage: number) => {
+    queuedStageRef.current[tripId] = stage;
+    const existingTimer = stageSyncTimeoutsRef.current[tripId];
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    stageSyncTimeoutsRef.current[tripId] = setTimeout(() => {
+      delete stageSyncTimeoutsRef.current[tripId];
+      flushQueuedStage(tripId);
+    }, 220);
+  };
+
+  useEffect(() => {
+    const refreshTimerRef = refreshTimeoutRef;
+    const stageTimeoutsRef = stageSyncTimeoutsRef;
+    const queuedStagesRef = queuedStageRef;
+    const inFlightTripsRef = inFlightTripIdsRef;
+
+    return () => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+
+      Object.values(stageTimeoutsRef.current).forEach((timeoutId) => {
+        clearTimeout(timeoutId);
+      });
+      stageTimeoutsRef.current = {};
+      queuedStagesRef.current = {};
+      inFlightTripsRef.current = new Set();
+    };
+  }, []);
 
   const allTrips = useMemo(() => groups.flatMap((group) => group.trips), [groups]);
   const allSelected = allTrips.length > 0 && selectedIds.size === allTrips.length;
@@ -161,12 +238,7 @@ export default function TripsSection({
     const nextStage = clampStage(stage);
     setStageOverrides((prev) => ({ ...prev, [tripId]: nextStage }));
     setPendingStageId(tripId);
-    startTransition(() => {
-      void updateStageAction(tripId, nextStage).then(() => {
-        setPendingStageId((current) => (current === tripId ? null : current));
-        router.refresh();
-      });
-    });
+    queueStageSync(tripId, nextStage);
   };
 
   return (
