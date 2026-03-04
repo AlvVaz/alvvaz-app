@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
-import type { FormEvent, MouseEvent, WheelEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent, WheelEvent } from "react";
+import { useMemo, useState } from "react";
 
 import type { Trip, TripTraveler } from "@/lib/db";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,9 @@ const preventNumberInputWheel = (event: WheelEvent<HTMLInputElement>) => {
   event.currentTarget.blur();
 };
 
+const countTravelers = (travelers: TripTraveler[]) =>
+  travelers.filter((traveler) => traveler.name || traveler.phone || traveler.contract).length;
+
 export function TripForm({ action, deleteAction, initialTrip, submitLabel }: TripFormProps) {
   const { confirm, dialog } = useConfirmDialog();
   const [travelers, setTravelers] = useState<TripTraveler[]>(
@@ -27,46 +30,72 @@ export function TripForm({ action, deleteAction, initialTrip, submitLabel }: Tri
   );
 
   const travelersPayload = useMemo(() => JSON.stringify(travelers), [travelers]);
-  const travelerCount = travelers.filter(
-    (traveler) => traveler.name || traveler.phone || traveler.contract
-  ).length;
-  const [passengerCountValue, setPassengerCountValue] = useState(
+  const travelerCount = countTravelers(travelers);
+  const initialPassengerCountValue =
     initialTrip?.passengerCount !== undefined
       ? String(initialTrip.passengerCount)
-      : String(travelerCount)
-  );
-  const lastTravelerCount = useRef(travelerCount);
+      : String(travelerCount);
 
-  useEffect(() => {
-    if (passengerCountValue === String(lastTravelerCount.current)) {
-      setPassengerCountValue(String(travelerCount));
-    }
-    lastTravelerCount.current = travelerCount;
-  }, [travelerCount, passengerCountValue]);
+  const [passengerCountValue, setPassengerCountValue] = useState(initialPassengerCountValue);
+  const [isPassengerCountManual, setIsPassengerCountManual] = useState(
+    initialTrip?.passengerCount !== undefined
+      ? initialPassengerCountValue !== String(travelerCount)
+      : false
+  );
+
+  const syncPassengerCountIfNeeded = (nextTravelers: TripTraveler[]) => {
+    if (isPassengerCountManual) return;
+    setPassengerCountValue(String(countTravelers(nextTravelers)));
+  };
 
   const handleTravelerChange = (index: number, field: keyof TripTraveler, value: string) => {
-    setTravelers((prev) =>
-      prev.map((traveler, currentIndex) =>
+    setTravelers((prev) => {
+      const nextTravelers = prev.map((traveler, currentIndex) =>
         currentIndex === index ? { ...traveler, [field]: value } : traveler
-      )
-    );
+      );
+      syncPassengerCountIfNeeded(nextTravelers);
+      return nextTravelers;
+    });
   };
 
   const handleAddTraveler = () => {
-    setTravelers((prev) => [...prev, { ...emptyTraveler }]);
+    setTravelers((prev) => {
+      const nextTravelers = [...prev, { ...emptyTraveler }];
+      syncPassengerCountIfNeeded(nextTravelers);
+      return nextTravelers;
+    });
   };
 
   const handleRemoveTraveler = (index: number) => {
-    setTravelers((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
+    setTravelers((prev) => {
+      const nextTravelers = prev.filter((_, currentIndex) => currentIndex !== index);
+      syncPassengerCountIfNeeded(nextTravelers);
+      return nextTravelers;
+    });
   };
 
-  const handleReset = (event: FormEvent<HTMLFormElement>) => {
+  const handleReset = () => {
     if (!initialTrip) {
       setTravelers([emptyTraveler]);
+      setPassengerCountValue("0");
+      setIsPassengerCountManual(false);
       return;
     }
 
-    setTravelers(initialTrip.travelers?.length ? initialTrip.travelers : [emptyTraveler]);
+    const nextTravelers = initialTrip.travelers?.length ? initialTrip.travelers : [emptyTraveler];
+    const nextTravelerCount = countTravelers(nextTravelers);
+    const nextPassengerCountValue =
+      initialTrip.passengerCount !== undefined
+        ? String(initialTrip.passengerCount)
+        : String(nextTravelerCount);
+
+    setTravelers(nextTravelers);
+    setPassengerCountValue(nextPassengerCountValue);
+    setIsPassengerCountManual(
+      initialTrip.passengerCount !== undefined
+        ? nextPassengerCountValue !== String(nextTravelerCount)
+        : false
+    );
   };
 
   const handleDeleteClick = (event: MouseEvent<HTMLButtonElement>) => {
@@ -137,7 +166,7 @@ export function TripForm({ action, deleteAction, initialTrip, submitLabel }: Tri
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          Quién organizó / vendió
+          Quien organizo / vendio
         </label>
         <input
           name="organizer"
@@ -149,19 +178,22 @@ export function TripForm({ action, deleteAction, initialTrip, submitLabel }: Tri
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          Número de pasajeros
+          Numero de pasajeros
         </label>
         <input
           type="number"
           min={0}
           name="passengerCount"
           value={passengerCountValue}
-          onChange={(event) => setPassengerCountValue(event.target.value)}
+          onChange={(event) => {
+            setPassengerCountValue(event.target.value);
+            setIsPassengerCountManual(true);
+          }}
           onWheel={preventNumberInputWheel}
           className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
         <p className="text-xs text-slate-500">
-          Se actualiza con la lista; puedes ajustar si aún no tienes todos los nombres.
+          Se actualiza con la lista; puedes ajustar si aun no tienes todos los nombres.
         </p>
       </div>
 
@@ -180,7 +212,7 @@ export function TripForm({ action, deleteAction, initialTrip, submitLabel }: Tri
                   className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
                 />
                 <input
-                  placeholder="Teléfono"
+                  placeholder="Telefono"
                   value={traveler.phone}
                   onChange={(event) => handleTravelerChange(index, "phone", event.target.value)}
                   className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
@@ -258,5 +290,3 @@ export function TripForm({ action, deleteAction, initialTrip, submitLabel }: Tri
     </form>
   );
 }
-
-
