@@ -38,13 +38,25 @@ export default function TripsSection({
   const [isPending, startTransition] = useTransition();
   const { confirm, dialog } = useConfirmDialog();
   const [stageOverrides, setStageOverrides] = useState<Record<string, number>>({});
-  const [pendingStageId, setPendingStageId] = useState<string | null>(null);
+  const [savingStageTripIds, setSavingStageTripIds] = useState<Set<string>>(new Set());
 
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stageSyncTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const queuedStageRef = useRef<Record<string, number>>({});
   const inFlightTripIdsRef = useRef<Set<string>>(new Set());
+
+  const setTripSavingState = (tripId: string, isSaving: boolean) => {
+    setSavingStageTripIds((current) => {
+      const next = new Set(current);
+      if (isSaving) {
+        next.add(tripId);
+      } else {
+        next.delete(tripId);
+      }
+      return next;
+    });
+  };
 
   const queueRefresh = () => {
     if (refreshTimeoutRef.current) {
@@ -61,7 +73,10 @@ export default function TripsSection({
     if (inFlightTripIdsRef.current.has(tripId)) return;
 
     const queuedStage = queuedStageRef.current[tripId];
-    if (queuedStage === undefined) return;
+    if (queuedStage === undefined) {
+      setTripSavingState(tripId, false);
+      return;
+    }
 
     inFlightTripIdsRef.current.add(tripId);
     startTransition(() => {
@@ -75,7 +90,7 @@ export default function TripsSection({
           const latestQueuedStage = queuedStageRef.current[tripId];
           if (latestQueuedStage === undefined || latestQueuedStage === queuedStage) {
             delete queuedStageRef.current[tripId];
-            setPendingStageId((current) => (current === tripId ? null : current));
+            setTripSavingState(tripId, false);
             return;
           }
 
@@ -86,6 +101,7 @@ export default function TripsSection({
 
   const queueStageSync = (tripId: string, stage: number) => {
     queuedStageRef.current[tripId] = stage;
+    setTripSavingState(tripId, true);
     const existingTimer = stageSyncTimeoutsRef.current[tripId];
     if (existingTimer) {
       clearTimeout(existingTimer);
@@ -234,10 +250,14 @@ export default function TripsSection({
   const resolveStage = (trip: Trip) =>
     clampStage(stageOverrides[trip.id] ?? trip.prepStage ?? 0);
 
-  const handleStageChange = (tripId: string, stage: number) => {
+  const handleStageChange = (
+    tripId: string,
+    currentStage: number,
+    stage: number
+  ) => {
     const nextStage = clampStage(stage);
+    if (nextStage === currentStage) return;
     setStageOverrides((prev) => ({ ...prev, [tripId]: nextStage }));
-    setPendingStageId(tripId);
     queueStageSync(tripId, nextStage);
   };
 
@@ -328,7 +348,7 @@ export default function TripsSection({
 
                         const toneStyle = toneClasses[tone];
                         const stage = resolveStage(trip);
-                        const isStagePending = pendingStageId === trip.id && isPending;
+                        const isStagePending = savingStageTripIds.has(trip.id);
 
                         return (
                           <div className="space-y-4">
@@ -427,20 +447,23 @@ export default function TripsSection({
                                           type="button"
                                           aria-pressed={isActive}
                                           aria-label={`Marcar ${labelText}`}
-                                          disabled={isStagePending}
-                                        onClick={(event) => {
-                                          event.preventDefault();
-                                          event.stopPropagation();
-                                          const nextStage =
-                                            stage === index + 1 ? 0 : index + 1;
-                                          handleStageChange(trip.id, nextStage);
-                                        }}
+                                          onClick={(event) => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            const nextStage = index + 1;
+                                            handleStageChange(trip.id, stage, nextStage);
+                                          }}
                                           className={segmentClasses}
                                         />
                                       );
                                     })}
                                   </div>
                                 </div>
+                                {isStagePending ? (
+                                  <p className="mt-1 translate-x-[12px] text-[11px] font-semibold text-brand-600">
+                                    Guardando...
+                                  </p>
+                                ) : null}
                               </div>
                             </div>
                           </div>

@@ -622,16 +622,42 @@ export async function reorderMagazineIssues(
   );
 }
 
-function sortTripsByDeparture(a: Trip, b: Trip) {
-  if (!a.departureDate && !b.departureDate) return 0;
-  if (!a.departureDate) return 1;
-  if (!b.departureDate) return -1;
-  return new Date(a.departureDate).getTime() - new Date(b.departureDate).getTime();
+function toSortableDate(value: string | null | undefined) {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time;
+}
+
+function compareNumbers(a: number, b: number) {
+  if (a === b) return 0;
+  return a < b ? -1 : 1;
+}
+
+function sortTripsDeterministic(a: Trip, b: Trip) {
+  const byDeparture = compareNumbers(
+    toSortableDate(a.departureDate),
+    toSortableDate(b.departureDate)
+  );
+  if (byDeparture !== 0) return byDeparture;
+
+  const byReturn = compareNumbers(
+    toSortableDate(a.returnDate),
+    toSortableDate(b.returnDate)
+  );
+  if (byReturn !== 0) return byReturn;
+
+  const byCreatedAt = compareNumbers(
+    toSortableDate(a.createdAt),
+    toSortableDate(b.createdAt)
+  );
+  if (byCreatedAt !== 0) return byCreatedAt;
+
+  return a.id.localeCompare(b.id);
 }
 
 export async function getTrips() {
   const trips = await prisma.trip.findMany();
-  return trips.map(mapTrip).sort(sortTripsByDeparture);
+  return trips.map(mapTrip).sort(sortTripsDeterministic);
 }
 
 export async function createTrip(input: {

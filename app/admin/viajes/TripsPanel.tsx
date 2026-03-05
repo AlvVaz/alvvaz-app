@@ -24,6 +24,39 @@ const matchesValue = (value: string | null | undefined, query: string) => {
   return normalize(value).includes(query);
 };
 
+const toSortableDate = (value: string | null | undefined) => {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time;
+};
+
+const compareNumbers = (a: number, b: number) => {
+  if (a === b) return 0;
+  return a < b ? -1 : 1;
+};
+
+const compareTripsDeterministic = (a: Trip, b: Trip) => {
+  const byDeparture = compareNumbers(
+    toSortableDate(a.departureDate),
+    toSortableDate(b.departureDate)
+  );
+  if (byDeparture !== 0) return byDeparture;
+
+  const byReturn = compareNumbers(
+    toSortableDate(a.returnDate),
+    toSortableDate(b.returnDate)
+  );
+  if (byReturn !== 0) return byReturn;
+
+  const byCreatedAt = compareNumbers(
+    toSortableDate(a.createdAt),
+    toSortableDate(b.createdAt)
+  );
+  if (byCreatedAt !== 0) return byCreatedAt;
+
+  return a.id.localeCompare(b.id);
+};
+
 export default function TripsPanel({
   trips,
   selectedYear,
@@ -94,7 +127,7 @@ export default function TripsPanel({
     return matchesDestination && matchesName && matchesContract;
   };
 
-  const tripsByYear = trips.filter(matchesYear);
+  const tripsByYear = trips.filter(matchesYear).sort(compareTripsDeterministic);
   const filteredTrips = hasFilters
     ? tripsByYear.filter(matchesFilters)
     : tripsByYear;
@@ -106,21 +139,45 @@ export default function TripsPanel({
     year: "numeric",
   });
 
-  const groupTrips = (items: Trip[]) =>
-    Array.from(
-      items.reduce((map, trip) => {
-        const key = trip.departureDate
-          ? monthFormatter.format(toLocalDate(trip.departureDate))
-          : "Sin fecha asignada";
-        const bucket = map.get(key);
-        if (bucket) {
-          bucket.push(trip);
-        } else {
-          map.set(key, [trip]);
-        }
-        return map;
-      }, new Map<string, Trip[]>())
-    ).map(([label, groupedTrips]) => ({ label, trips: groupedTrips }));
+  const getMonthSortKey = (trip: Trip) => {
+    if (!trip.departureDate) return Number.POSITIVE_INFINITY;
+    const departureDate = toLocalDate(trip.departureDate);
+    if (Number.isNaN(departureDate.getTime())) return Number.POSITIVE_INFINITY;
+    return new Date(
+      departureDate.getFullYear(),
+      departureDate.getMonth(),
+      1
+    ).getTime();
+  };
+
+  const groupTrips = (items: Trip[]) => {
+    const grouped = [...items].sort(compareTripsDeterministic).reduce((map, trip) => {
+      const key = trip.departureDate
+        ? monthFormatter.format(toLocalDate(trip.departureDate))
+        : "Sin fecha asignada";
+      const sortKey = getMonthSortKey(trip);
+      const bucket = map.get(key);
+      if (bucket) {
+        bucket.trips.push(trip);
+      } else {
+        map.set(key, { sortKey, trips: [trip] });
+      }
+      return map;
+    }, new Map<string, { sortKey: number; trips: Trip[] }>());
+
+    return Array.from(grouped.entries())
+      .map(([label, value]) => ({
+        label,
+        sortKey: value.sortKey,
+        trips: value.trips.sort(compareTripsDeterministic),
+      }))
+      .sort((a, b) => {
+        const byMonth = compareNumbers(a.sortKey, b.sortKey);
+        if (byMonth !== 0) return byMonth;
+        return a.label.localeCompare(b.label, "es-MX");
+      })
+      .map(({ label, trips }) => ({ label, trips }));
+  };
 
   const groupTripsByYear = (items: Trip[]) =>
     Array.from(
@@ -135,7 +192,11 @@ export default function TripsPanel({
         }
         return map;
       }, new Map<number, Trip[]>())
-    ).sort(([a], [b]) => b - a);
+    )
+      .map(([year, tripsForYear]) =>
+        [year, [...tripsForYear].sort(compareTripsDeterministic)] as const
+      )
+      .sort(([a], [b]) => b - a);
 
   const renderYearSections = (
     items: Trip[],
