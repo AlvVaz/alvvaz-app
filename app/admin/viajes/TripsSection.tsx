@@ -459,11 +459,26 @@ export default function TripsSection({
                                     })}
                                   </div>
                                 </div>
-                                {isStagePending ? (
-                                  <p className="mt-1 translate-x-[12px] text-[11px] font-semibold text-brand-600">
-                                    Guardando...
-                                  </p>
-                                ) : null}
+                                <div className="mt-1 translate-x-[12px] flex items-center gap-3">
+                                  {stage > 0 ? (
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        handleStageChange(trip.id, stage, 0);
+                                      }}
+                                      className="text-[11px] font-semibold text-slate-500 underline-offset-2 transition hover:text-slate-700 hover:underline"
+                                    >
+                                      Reset
+                                    </button>
+                                  ) : null}
+                                  {isStagePending ? (
+                                    <p className="text-[11px] font-semibold text-brand-600">
+                                      Guardando...
+                                    </p>
+                                  ) : null}
+                                </div>
                               </div>
                             </div>
                           </div>
