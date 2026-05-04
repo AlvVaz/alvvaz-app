@@ -51,7 +51,6 @@ export default function TripsPanel({
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const currentYear = now.getFullYear();
-  const collapsedYear = 2025;
   const toLocalDate = (value: string) => new Date(`${value}T00:00:00`);
 
   const resolveTripYear = (trip: Trip) => {
@@ -137,6 +136,81 @@ export default function TripsPanel({
       }, new Map<number, Trip[]>())
     ).sort(([a], [b]) => b - a);
 
+  const compareYearsByPriority = (a: number, b: number) => {
+    const getPriority = (year: number) => {
+      if (year === currentYear) return 0;
+      if (year > currentYear) return 1;
+      return 2;
+    };
+    const priorityDiff = getPriority(a) - getPriority(b);
+    if (priorityDiff !== 0) return priorityDiff;
+    return a > currentYear && b > currentYear ? a - b : b - a;
+  };
+
+  const getPrioritizedYears = (...items: Trip[][]) =>
+    Array.from(
+      new Set(
+        items.flatMap((tripsForStatus) =>
+          tripsForStatus
+            .map(resolveTripYear)
+            .filter((year): year is number => Boolean(year))
+        )
+      )
+    ).sort(compareYearsByPriority);
+
+  const shouldCollapseCompletedYear = (year: number) => year < currentYear;
+
+  const renderSingleYearSection = (
+    tripsForYear: Trip[],
+    year: number,
+    title: string,
+    emptyMessage: string,
+    collapsed = false
+  ) => {
+    const yearGroups = groupTrips(tripsForYear);
+    const section = (
+      <TripsSection
+        title={`${title} ${year}`}
+        emptyMessage={emptyMessage}
+        groups={yearGroups}
+        bulkDeleteAction={bulkDeleteAction}
+        updateAction={updateAction}
+        updateStageAction={updateStageAction}
+        deleteAction={deleteAction}
+      />
+    );
+
+    if (collapsed) {
+      return (
+        <section
+          key={`${title}-${year}`}
+          className="rounded-3xl border border-slate-200 bg-white shadow-sm"
+        >
+          <details className="group">
+            <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-display text-lg text-brand-950">
+                    {title} {year}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Viajes agrupados por mes.
+                  </p>
+                </div>
+                <span className="rounded-full border border-brand-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+                  {tripsForYear.length} viajes
+                </span>
+              </div>
+            </summary>
+            <div className="border-t border-slate-200 px-6 py-6">{section}</div>
+          </details>
+        </section>
+      );
+    }
+
+    return <div key={`${title}-${year}`}>{section}</div>;
+  };
+
   const renderYearSections = (
     items: Trip[],
     title: string,
@@ -153,50 +227,56 @@ export default function TripsPanel({
     return (
       <div className="space-y-6">
         {groupTripsByYear(items).map(([year, tripsForYear]) => {
-          const yearGroups = groupTrips(tripsForYear);
-          const section = (
-            <TripsSection
-              title={`${title} ${year}`}
-              emptyMessage={emptyMessage}
-              groups={yearGroups}
-              bulkDeleteAction={bulkDeleteAction}
-              updateAction={updateAction}
-              updateStageAction={updateStageAction}
-              deleteAction={deleteAction}
-            />
+          return renderSingleYearSection(
+            tripsForYear,
+            year,
+            title,
+            emptyMessage,
+            title === "Viajes completados" && shouldCollapseCompletedYear(year)
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderPrioritizedYearSections = () => {
+    if (!filteredTrips.length) {
+      return (
+        <div className="rounded-3xl border border-dashed border-brand-200 bg-white/60 p-6 text-sm text-slate-600">
+          No hay viajes para este filtro.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {getPrioritizedYears(upcomingTrips, completedTrips).flatMap((year) => {
+          const upcomingForYear = upcomingTrips.filter(
+            (trip) => resolveTripYear(trip) === year
+          );
+          const completedForYear = completedTrips.filter(
+            (trip) => resolveTripYear(trip) === year
           );
 
-          if (year === collapsedYear && year !== currentYear) {
-            return (
-              <section
-                key={`${title}-${year}`}
-                className="rounded-3xl border border-slate-200 bg-white shadow-sm"
-              >
-                <details className="group">
-                  <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <h3 className="font-display text-lg text-brand-950">
-                          {title} {year}
-                        </h3>
-                        <p className="mt-1 text-sm text-slate-600">
-                          Viajes agrupados por mes.
-                        </p>
-                      </div>
-                      <span className="rounded-full border border-brand-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
-                        {tripsForYear.length} viajes
-                      </span>
-                    </div>
-                  </summary>
-                  <div className="border-t border-slate-200 px-6 py-6">
-                    {section}
-                  </div>
-                </details>
-              </section>
-            );
-          }
-
-          return <div key={`${title}-${year}`}>{section}</div>;
+          return [
+            upcomingForYear.length
+              ? renderSingleYearSection(
+                  upcomingForYear,
+                  year,
+                  "Proximos viajes",
+                  "No hay viajes programados todavia."
+                )
+              : null,
+            completedForYear.length
+              ? renderSingleYearSection(
+                  completedForYear,
+                  year,
+                  "Viajes completados",
+                  "Aun no hay viajes completados para este filtro.",
+                  shouldCollapseCompletedYear(year)
+                )
+              : null,
+          ].filter(Boolean);
         })}
       </div>
     );
@@ -277,43 +357,49 @@ export default function TripsPanel({
         </p>
       </section>
 
-      {showUpcoming &&
-        (groupByYear ? (
-          renderYearSections(
-            upcomingTrips,
-            "Proximos viajes",
-            "No hay viajes programados todavia."
-          )
-        ) : (
-          <TripsSection
-            title="Proximos viajes"
-            emptyMessage="No hay viajes programados todavia."
-            groups={groupTrips(upcomingTrips)}
-            bulkDeleteAction={bulkDeleteAction}
-            updateAction={updateAction}
-            updateStageAction={updateStageAction}
-            deleteAction={deleteAction}
-          />
-        ))}
+      {groupByYear && showUpcoming && showCompleted ? (
+        renderPrioritizedYearSections()
+      ) : (
+        <>
+          {showUpcoming &&
+            (groupByYear ? (
+              renderYearSections(
+                upcomingTrips,
+                "Proximos viajes",
+                "No hay viajes programados todavia."
+              )
+            ) : (
+              <TripsSection
+                title="Proximos viajes"
+                emptyMessage="No hay viajes programados todavia."
+                groups={groupTrips(upcomingTrips)}
+                bulkDeleteAction={bulkDeleteAction}
+                updateAction={updateAction}
+                updateStageAction={updateStageAction}
+                deleteAction={deleteAction}
+              />
+            ))}
 
-      {showCompleted &&
-        (groupByYear ? (
-          renderYearSections(
-            completedTrips,
-            "Viajes completados",
-            "Aun no hay viajes completados para este filtro."
-          )
-        ) : (
-          <TripsSection
-            title="Viajes completados"
-            emptyMessage="Aun no hay viajes completados para este filtro."
-            groups={groupTrips(completedTrips)}
-            bulkDeleteAction={bulkDeleteAction}
-            updateAction={updateAction}
-            updateStageAction={updateStageAction}
-            deleteAction={deleteAction}
-          />
-        ))}
+          {showCompleted &&
+            (groupByYear ? (
+              renderYearSections(
+                completedTrips,
+                "Viajes completados",
+                "Aun no hay viajes completados para este filtro."
+              )
+            ) : (
+              <TripsSection
+                title="Viajes completados"
+                emptyMessage="Aun no hay viajes completados para este filtro."
+                groups={groupTrips(completedTrips)}
+                bulkDeleteAction={bulkDeleteAction}
+                updateAction={updateAction}
+                updateStageAction={updateStageAction}
+                deleteAction={deleteAction}
+              />
+            ))}
+        </>
+      )}
     </>
   );
 }
