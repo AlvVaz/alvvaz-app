@@ -399,7 +399,7 @@ export async function POST(
     });
   });
 
-  const taglineText = "Mas de 9 A\u00f1os nos Respaldan!...";
+  const taglineText = "Mas de 10 A\u00f1os nos Respaldan!...";
   const taglineSize = 9.12;
   const taglineWidth = headingBoldItalic.widthOfTextAtSize(taglineText, taglineSize);
   const taglineX = 44;
