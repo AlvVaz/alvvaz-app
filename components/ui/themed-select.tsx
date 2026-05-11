@@ -23,6 +23,9 @@ type ThemedSelectProps = {
   className?: string;
   selectClassName?: string;
   buttonClassName?: string;
+  menuClassName?: string;
+  searchable?: boolean;
+  searchPlaceholder?: string;
 };
 
 export function ThemedSelect({
@@ -38,8 +41,12 @@ export function ThemedSelect({
   className,
   selectClassName,
   buttonClassName,
+  menuClassName,
+  searchable = false,
+  searchPlaceholder = "Buscar",
 }: ThemedSelectProps) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [internalValue, setInternalValue] = useState(
     value ?? defaultValue ?? ""
   );
@@ -87,6 +94,22 @@ export function ThemedSelect({
     placeholder ??
     "Selecciona una opción";
 
+  const visibleOptions = useMemo(() => {
+    const normalizedSearch = search
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    if (!normalizedSearch) return resolvedOptions;
+    return resolvedOptions.filter((option) =>
+      option.label
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .includes(normalizedSearch)
+    );
+  }, [resolvedOptions, search]);
+
   const handleSelect = (nextValue: string) => {
     setInternalValue(nextValue);
     onChange?.(nextValue);
@@ -95,6 +118,7 @@ export function ThemedSelect({
       nativeRef.current.dispatchEvent(new Event("change", { bubbles: true }));
     }
     setOpen(false);
+    setSearch("");
   };
 
   return (
@@ -151,8 +175,23 @@ export function ThemedSelect({
       </button>
 
       {open ? (
-        <div className="absolute z-30 mt-2 hidden w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-lg md:block">
-          {resolvedOptions.map((option) => {
+        <div
+          className={cn(
+            "absolute z-30 mt-2 hidden w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-lg md:block",
+            menuClassName
+          )}
+        >
+          {searchable ? (
+            <div className="sticky top-0 z-10 bg-white pb-2">
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={searchPlaceholder}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+          ) : null}
+          {visibleOptions.map((option) => {
             const isSelected = option.value === internalValue;
             return (
               <button
@@ -177,6 +216,9 @@ export function ThemedSelect({
               </button>
             );
           })}
+          {visibleOptions.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-slate-400">Sin resultados</div>
+          ) : null}
         </div>
       ) : null}
     </div>
