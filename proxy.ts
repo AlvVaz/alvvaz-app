@@ -6,6 +6,7 @@ import { verifyAdminToken } from "@/lib/auth/jwt";
 const ADMIN_LOGIN_PATH = "/admin/login";
 const ADMIN_ALLOWED_ADMIN_ROUTES = [
   "/admin/contratos",
+  "/admin/pagos",
   "/admin/magazine",
   "/admin/settings",
 ];
