@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useToast } from "@/components/ui/toast";
 
 import { Badge } from "@/components/ui/badge";
 import { ThemedSelect } from "@/components/ui/themed-select";
@@ -47,9 +48,8 @@ function getPaymentState(transactions: TransactionsByType): PaymentState {
 }
 
 function getStateBadgeClass(state: PaymentState) {
-  if (state === "pagado") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (state === "parcial") return "border-amber-200 bg-amber-50 text-amber-700";
-  return "border-slate-200 bg-slate-50 text-slate-600";
+  if (state === "sin_pagos") return "border-slate-200 bg-slate-50 text-slate-600";
+  return "border-blue-200 bg-blue-50 text-blue-700";
 }
 
 function getTransactionCount(transactions: TransactionsByType) {
@@ -58,6 +58,13 @@ function getTransactionCount(transactions: TransactionsByType) {
 
 function getTransactionCountLabel(count: number) {
   return count === 1 ? "1 transaccion" : `${count} transacciones`;
+}
+
+function getNoteCount(transactions: TransactionsByType) {
+  return [
+    ...transactions.customer_payment,
+    ...transactions.wholesaler_payment,
+  ].filter((t) => Boolean(t.notes)).length;
 }
 
 export function PaymentsContractsList({
@@ -157,8 +164,39 @@ export function ContractCard({
 }) {
   const [transactions, setTransactions] = useState(contract.transactions);
   const [loading, setLoading] = useState(false);
+  const [notesModalOpen, setNotesModalOpen] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
+  const [notesLoaded, setNotesLoaded] = useState(false);
+  const toast = useToast();
   const paymentState = getPaymentState(transactions);
   const transactionCount = getTransactionCount(transactions);
+  const noteCount = getNoteCount(transactions);
+
+  const loadNotesForIndicator = async () => {
+    if (notesLoaded) return;
+    try {
+      const response = await fetch(`/api/contracts/${contract.id}/notes`, {
+        cache: "no-store",
+      });
+      const payload = await response.json();
+      if (payload.notes) {
+        setNotes(payload.notes);
+      }
+      setNotesLoaded(true);
+    } catch (error) {
+      console.error("Error loading notes for indicator:", error);
+      setNotesLoaded(true);
+    }
+  };
+
+  useEffect(() => {
+    if (open) {
+      loadNotesForIndicator();
+    }
+  }, [open]);
 
   const refreshTransactions = async () => {
     setLoading(true);
@@ -176,50 +214,106 @@ export function ContractCard({
     }
   };
 
+  useEffect(() => {
+    if (notesModalOpen) {
+      setNotesLoading(true);
+      setNotesError(null);
+      fetch(`/api/contracts/${contract.id}/notes`, { cache: "no-store" })
+        .then((res) => res.json())
+        .then((payload) => {
+          if (payload.notes) {
+            setNotes(payload.notes);
+          } else {
+            setNotes("");
+          }
+        })
+        .catch((error) => {
+          setNotesError("Error al cargar notas.");
+          console.error("Error loading notes:", error);
+        })
+        .finally(() => setNotesLoading(false));
+    }
+  }, [notesModalOpen, contract.id]);
+
+  const handleSaveNotes = async () => {
+    setNotesSaving(true);
+    setNotesError(null);
+    try {
+      const response = await fetch(`/api/contracts/${contract.id}/notes`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: notes.trim() || null }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error || "Error al guardar notas.");
+      }
+      toast.push("Notas guardadas.", "success");
+      setNotesModalOpen(false);
+    } catch (error) {
+      setNotesError((error as Error).message);
+    } finally {
+      setNotesSaving(false);
+    }
+  };
+
   return (
     <article
       id={`payments-${contract.id}`}
       className="rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:border-brand-400 hover:bg-brand-50/50 hover:shadow-md"
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
-      >
-        <div className="flex min-w-0 flex-1 items-center gap-4">
+      <div className={cn(
+        "flex w-full items-center justify-between gap-4 px-5 py-4",
+        open && "bg-cyan-100 rounded-t-3xl"
+      )}>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex min-w-0 flex-1 items-center gap-4 text-left"
+        >
           <span
             className={cn(
-              "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold",
+              "hidden md:flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold",
               "bg-brand-950 text-white"
             )}
             aria-hidden="true"
           >
             {getInitials(contract.clientName) || "AV"}
           </span>
-          <span className="grid min-w-0 flex-1 gap-1 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-            <span className="min-w-0">
-              <span className="block truncate font-display text-lg text-brand-950">
-                <span className="whitespace-nowrap">
-                  {contract.contractNumber ? `#${contract.contractNumber}` : "Sin folio"}
-                </span>
-                <span className="mx-2 text-slate-300">·</span>
-                <span>{contract.destination}</span>
+          <span className="grid min-w-0 flex-1 gap-1">
+            <span className="block truncate font-display text-lg text-brand-950">
+              <span className="whitespace-nowrap">
+                {contract.contractNumber ? `#${contract.contractNumber}` : "Sin folio"}
               </span>
-              <span className="mt-1 block truncate text-sm text-slate-700">
-                {contract.clientName}
-              </span>
-              </span>
-              <span className="md:justify-self-end">
-                <Badge className={cn("rounded-lg px-3 py-1.5", getStateBadgeClass(paymentState))}>
-                  {getTransactionCountLabel(transactionCount)}
-              </Badge>
+              <span className="mx-2 text-slate-300">·</span>
+              <span>{contract.destination}</span>
+            </span>
+            <span className="min-w-0 truncate text-sm text-slate-700">
+              {contract.clientName}
             </span>
           </span>
-        </div>
-      </button>
+          <Badge className={cn("rounded-lg px-3 py-1.5 text-xs shrink-0", getStateBadgeClass(paymentState))}>
+            <span className="hidden md:inline">{getTransactionCountLabel(transactionCount)}</span>
+            <span className="md:hidden">{transactionCount}</span>
+          </Badge>
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setNotesModalOpen(true);
+          }}
+          className="relative rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-slate-700 transition hover:border-slate-400 hover:bg-slate-200 shrink-0"
+        >
+          Notas
+          {notes.trim() && (
+            <span className="absolute -right-1.5 -top-1.5 h-3 w-3 rounded-full bg-brand-600" />
+          )}
+        </button>
+      </div>
 
       {open ? (
-        <div className="border-t border-slate-200 p-5">
+        <div className="border-t border-slate-200 p-5 pt-1">
           <div className="mb-4 flex justify-end">
             {loading ? (
               <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
@@ -251,6 +345,70 @@ export function ContractCard({
               onChanged={refreshTransactions}
             />
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {notesModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setNotesModalOpen(false)}
+        >
+          <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-4 pb-4">
+              <h2 className="font-display text-xl text-brand-950">Notas del contrato</h2>
+              <button
+                type="button"
+                onClick={() => setNotesModalOpen(false)}
+                disabled={notesLoading || notesSaving}
+                className="text-2xl leading-none text-slate-400 hover:text-slate-600 disabled:opacity-50"
+              >
+                ×
+              </button>
+            </div>
+            {notesLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  Cargando notas...
+                </span>
+              </div>
+            ) : (
+              <>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Añade notas generales para este contrato..."
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm transition focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-50"
+                  rows={6}
+                  disabled={notesSaving}
+                />
+                {notesError ? (
+                  <p className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                    {notesError}
+                  </p>
+                ) : null}
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setNotesModalOpen(false)}
+                    disabled={notesSaving}
+                    className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:opacity-50"
+                  >
+                    Cerrar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveNotes}
+                    disabled={notesSaving || notesLoading}
+                    className="rounded-full bg-brand-600 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-brand-700 disabled:opacity-50"
+                  >
+                    {notesSaving ? "Guardando..." : "Guardar"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       ) : null}

@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 type AdminRole = "owner" | "admin" | "tech";
 
 const navItems = [
-  { label: "Resumen", href: "/admin", roles: ["owner", "tech"] },
   { label: "Clientes", href: "/admin/clients", roles: ["owner", "tech"] },
   { label: "Viajes", href: "/admin/viajes", roles: ["owner", "tech"] },
   {
