@@ -129,6 +129,7 @@ model Contract {
   travelers      Json
   description    String?
   notes          String?
+  generalNotes   String?
   totalPrice     String?
   firstPayment   String?
   balanceDue     String?

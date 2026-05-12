@@ -1,9 +1,11 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ThemedSelect } from "@/components/ui/themed-select";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 import type {
   ContractTransaction,
   TransactionStatus,
@@ -47,6 +49,20 @@ export function AddTransactionModal({
   const [notes, setNotes] = useState(transaction?.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const { confirm, dialog } = useConfirmDialog();
+  const toast = useToast();
+
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [open]);
 
   if (!open) return null;
   const isWholesalerPayment = type === "wholesaler_payment";
@@ -68,20 +84,45 @@ export function AddTransactionModal({
     setError(null);
   };
 
+  const handleDelete = async () => {
+    if (!transaction) return;
+    confirm("¿Eliminar esta transacción? Esta acción no se puede deshacer.", async () => {
+      setDeleting(true);
+      setError(null);
+      try {
+        const response = await fetch(
+          `/api/contracts/${contractId}/transactions/${transaction.id}`,
+          { method: "DELETE" }
+        );
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.error || "No se pudo eliminar la transacción.");
+        }
+        toast.push(`${transaction.concept} eliminado.`, "success");
+        await onSaved();
+        onClose();
+      } catch (deleteError) {
+        setError((deleteError as Error).message);
+      } finally {
+        setDeleting(false);
+      }
+    }, { confirmLabel: "Eliminar" });
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (mode === "edit") {
+      confirm("¿Guardar cambios en esta transacción?", performSave, { confirmLabel: "Guardar" });
+    } else {
+      await performSave();
+    }
+  };
+
+  const performSave = async () => {
     setSaving(true);
     setError(null);
 
     try {
-      if (mode === "edit") {
-        const confirmed = window.confirm("¿Guardar cambios en esta transacción?");
-        if (!confirmed) {
-          setSaving(false);
-          return;
-        }
-      }
-
       const response = await fetch(
         mode === "edit" && transaction
           ? `/api/contracts/${contractId}/transactions/${transaction.id}`
@@ -235,22 +276,36 @@ export function AddTransactionModal({
             </p>
           ) : null}
 
-          <div className="flex flex-wrap justify-end gap-3 pt-2">
+          <div className="grid grid-cols-3 gap-3 pt-2">
+            {mode === "edit" ? (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleDelete}
+                disabled={deleting || saving}
+                className="rounded-lg px-4 py-2 text-xs text-rose-600 hover:bg-rose-50"
+              >
+                {deleting ? "Eliminando..." : "Eliminar"}
+              </Button>
+            ) : (
+              <div />
+            )}
             <Button
               type="button"
               variant="secondary"
               onClick={onClose}
-              disabled={saving}
+              disabled={saving || deleting}
               className="rounded-lg px-4 py-2 text-xs"
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={saving} className="rounded-lg px-4 py-2 text-xs">
+            <Button type="submit" disabled={saving || deleting} className="rounded-lg px-4 py-2 text-xs">
               {saving ? "Guardando..." : "Guardar"}
             </Button>
           </div>
         </form>
       </div>
+      {dialog}
     </div>
   );
 }

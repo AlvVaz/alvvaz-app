@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { SectionHeading } from "@/components/section-heading";
+import ToastProvider from "@/components/ui/toast";
 import { getAdminFromCookies } from "@/lib/auth/admin";
 import { getContracts } from "@/lib/db";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -76,14 +77,16 @@ export default async function PagosAdminPage() {
   ).sort((a, b) => a.localeCompare(b, "es"));
 
   return (
-    <div className="space-y-10">
-      <SectionHeading
-        title="Pagos"
-        subtitle="Registra cobros, pagos a mayoristas y comprobantes por contrato."
-        kicker="Admin"
-      />
+    <ToastProvider>
+      <div className="space-y-10">
+        <SectionHeading
+          title="Pagos"
+          subtitle="Registra cobros, pagos a mayoristas y comprobantes por contrato."
+          kicker="Admin"
+        />
 
-      <PaymentsContractsList contracts={paymentContracts} supplierOptions={supplierOptions} />
-    </div>
+        <PaymentsContractsList contracts={paymentContracts} supplierOptions={supplierOptions} />
+      </div>
+    </ToastProvider>
   );
 }

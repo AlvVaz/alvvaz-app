@@ -79,7 +79,7 @@ export function TransactionPanel({
 
   return (
     <section className="min-w-0">
-      <div className="flex items-center justify-between gap-3 px-1 pb-3">
+      <div className="flex items-center justify-between gap-3 px-1 pb-2 pt-0">
         <h3 className="font-display text-base text-brand-950">{title}</h3>
         <span className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">
           {transactions.length} movimientos
@@ -88,61 +88,98 @@ export function TransactionPanel({
 
       <div className="border-y border-slate-200">
         {transactions.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[580px] text-left text-sm">
-              <thead className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                <tr>
-                  <th className="w-8 px-2 py-3" aria-label="Estado" />
-                  <th className="px-4 py-3">{conceptHeader}</th>
-                  <th className="px-4 py-3">Monto</th>
-                  <th className="px-4 py-3">Fecha</th>
-                  <th className="px-4 py-3">Comprobante</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {transactions.map((transaction) => (
-                  <tr key={transaction.id} className="align-top">
-                    <td className="px-2 py-3 text-center">
-                      <span
-                        title={getStatusLabel(transaction.status)}
-                        aria-label={getStatusLabel(transaction.status)}
-                      >
-                        {getStatusEmoji(transaction.status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-brand-950">{transaction.concept}</div>
-                      {transaction.notes ? (
-                        <div className="mt-1 max-w-[240px] truncate text-xs text-slate-500">
-                          {transaction.notes}
-                        </div>
-                      ) : null}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-800">
-                      {formatAmount(transaction.amount)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                      {formatDate(transaction.date)}
-                    </td>
-                    <td className="relative px-4 py-3 pt-2 text-center">
-                      <div className="flex items-center justify-center">
-                        <AttachmentCell transaction={transaction} onChanged={onChanged} />
+          <>
+            {/* Desktop table view */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full min-w-[580px] text-left text-sm">
+                <thead className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  <tr>
+                    <th className="w-8 px-2 py-3" aria-label="Estado" />
+                    <th className="px-4 py-3">{conceptHeader}</th>
+                    <th className="px-4 py-3">Monto</th>
+                    <th className="px-4 py-3">Fecha</th>
+                    <th className="px-4 py-3">Comprobante</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {transactions.map((transaction) => (
+                    <tr key={transaction.id} className="align-top">
+                      <td className="px-2 py-3 text-center">
+                        <span
+                          title={getStatusLabel(transaction.status)}
+                          aria-label={getStatusLabel(transaction.status)}
+                        >
+                          {getStatusEmoji(transaction.status)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
                         <button
                           type="button"
                           onClick={() => setEditingTransaction(transaction)}
-                          className="absolute right-1 top-3.5 inline-flex h-6 w-6 items-center justify-center rounded-md text-base leading-none text-brand-700 transition hover:bg-brand-50 hover:text-brand-500"
-                          aria-label={`Editar ${transaction.concept}`}
-                          title="Editar"
+                          className="font-medium text-brand-950 transition hover:text-blue-600 hover:underline"
                         >
-                          ✎
+                          {transaction.concept}
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        {transaction.notes ? (
+                          <div className="mt-1 truncate text-xs text-slate-500">
+                            {transaction.notes.split(" ").slice(0, 2).join(" ")}…
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-800">
+                        {formatAmount(transaction.amount)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                        {formatDate(transaction.date)}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <AttachmentCell transaction={transaction} onChanged={onChanged} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile card view */}
+            <div className="md:hidden space-y-3 px-0 py-3">
+              {transactions.map((transaction) => (
+                <div key={transaction.id} className="rounded-lg border border-slate-200 bg-white p-3 space-y-3">
+                  <div className="flex items-start gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingTransaction(transaction)}
+                      className="font-medium text-brand-950 transition hover:text-blue-600 hover:underline"
+                    >
+                      {transaction.concept}
+                    </button>
+                    <span title={getStatusLabel(transaction.status)} className="shrink-0 ml-auto">
+                      {getStatusEmoji(transaction.status)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-lg font-semibold text-slate-800">
+                      {formatAmount(transaction.amount)}
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      {formatDate(transaction.date)}
+                    </div>
+                  </div>
+                  {transaction.notes ? (
+                    <div className="hidden text-xs text-slate-500 border-t border-slate-100 pt-2">
+                      {transaction.notes.split(" ").slice(0, 2).join(" ")}…
+                    </div>
+                  ) : null}
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
+                      Comprobante
+                    </span>
+                    <AttachmentCell transaction={transaction} onChanged={onChanged} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         ) : (
           <div className="px-4 py-8 text-center text-sm text-slate-500">{emptyLabel}</div>
         )}
