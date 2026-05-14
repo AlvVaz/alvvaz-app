@@ -21,6 +21,14 @@ import type { ContractStatus } from "@/lib/db";
 import { prisma } from "@/lib/prisma";
 import { ALLOW_CONTRACT_NUMBER_EDIT_FOR_ALL_ROLES } from "@/lib/contracts/config";
 import { canEditContractByRole } from "@/lib/contracts/edit-policy";
+import {
+  normalizeInstallmentCount,
+  normalizePaymentPlanFrequency,
+  normalizePlanAmount,
+  normalizePlanDate,
+  replacePaymentPlanForContract,
+  type PaymentPlanInput,
+} from "@/lib/payment-plans";
 
 type ActionState = { submittedAt: number; error?: string; field?: "contractNumber" | "general" };
 
@@ -52,6 +60,64 @@ function parseTravelers(raw: string): TripTraveler[] {
   } catch {
     return [];
   }
+}
+
+function getPaymentPlanInputFromForm(formData: FormData, endDateFallback: string): {
+  input: PaymentPlanInput | null;
+  error: string | null;
+} {
+  const planTypeRaw = String(formData.get("paymentPlanType") ?? "sin_plan").trim();
+  if (!planTypeRaw || planTypeRaw === "sin_plan") {
+    return { input: null, error: null };
+  }
+
+  const frequency = normalizePaymentPlanFrequency(planTypeRaw);
+  if (!frequency) {
+    return { input: null, error: "Tipo de plan de pagos invalido." };
+  }
+
+  const totalAmount = normalizePlanAmount(formData.get("totalPrice"));
+  const depositAmount = normalizePlanAmount(formData.get("firstPayment")) ?? 0;
+  const startDate = normalizePlanDate(formData.get("paymentPlanStartDate"));
+  const endDate = normalizePlanDate(endDateFallback);
+  const installmentCount = normalizeInstallmentCount(
+    formData.get("paymentPlanInstallmentCount"),
+    frequency
+  );
+
+  if (totalAmount === null || totalAmount <= 0) {
+    return { input: null, error: "El monto total del plan de pagos es invalido." };
+  }
+  if (depositAmount > totalAmount) {
+    return { input: null, error: "El primer pago no puede ser mayor al monto total." };
+  }
+  if (!startDate || startDate === undefined) {
+    return { input: null, error: "La fecha de inicio del plan de pagos es invalida." };
+  }
+  if (!endDate || endDate === undefined) {
+    return { input: null, error: "La fecha limite del plan de pagos es invalida." };
+  }
+  if (startDate > endDate) {
+    return {
+      input: null,
+      error: "La fecha de reserva no puede ser posterior a la liquidacion del plan de pagos.",
+    };
+  }
+  if (installmentCount === null) {
+    return { input: null, error: "El numero de pagos del plan de pagos es invalido." };
+  }
+
+  return {
+    input: {
+      totalAmount,
+      depositAmount,
+      startDate,
+      endDate,
+      frequency,
+      installmentCount,
+    },
+    error: null,
+  };
 }
 
 export async function createContractAction(
@@ -133,6 +199,10 @@ export async function createContractAction(
     mimeType: null,
     metadata: {},
   };
+  const paymentPlan = getPaymentPlanInputFromForm(formData, liquidationDate || departureDate);
+  if (paymentPlan.error) {
+    return { ...prevState, error: paymentPlan.error, field: "general" };
+  }
 
   const manualContractNumber = canEditContractNumber ? normalizedContractNumber : null;
   let createdContract: Awaited<ReturnType<typeof createContract>> | null = null;
@@ -182,6 +252,10 @@ export async function createContractAction(
 
   if (!createdContract) {
     return { ...prevState, error: "No se pudo asignar el folio. Intenta de nuevo." };
+  }
+
+  if (paymentPlan.input) {
+    await replacePaymentPlanForContract(createdContract.id, paymentPlan.input);
   }
 
   await syncTripFromContract(createdContract);
@@ -280,6 +354,11 @@ export async function updateContractAction(
   }
 
   const resolvedSeller = seller || organizer;
+  const paymentPlan = getPaymentPlanInputFromForm(formData, liquidationDate || departureDate);
+  if (paymentPlan.error) {
+    return { ...prevState, error: paymentPlan.error, field: "general" };
+  }
+
   let updated: Awaited<ReturnType<typeof updateContract>> | null = null;
   try {
     updated = await updateContract(id, {
@@ -315,6 +394,9 @@ export async function updateContractAction(
   }
 
   if (updated) {
+    if (paymentPlan.input) {
+      await replacePaymentPlanForContract(updated.id, paymentPlan.input);
+    }
     await syncTripFromContract(updated);
   }
 

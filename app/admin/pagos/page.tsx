@@ -4,6 +4,7 @@ import { SectionHeading } from "@/components/section-heading";
 import ToastProvider from "@/components/ui/toast";
 import { getAdminFromCookies } from "@/lib/auth/admin";
 import { getContracts } from "@/lib/db";
+import { getPaymentPlansByContractIds } from "@/lib/payment-plans";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { buildEmptyTransactionsByType, mapTransaction, type TransactionRow } from "@/lib/transactions";
 import type { TransactionsByType } from "@/types/transactions";
@@ -48,6 +49,14 @@ async function getTransactionRows(contractIds: string[]) {
   }
 }
 
+function getTodayDateOnly() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export default async function PagosAdminPage() {
   const admin = await getAdminFromCookies();
   if (!admin) {
@@ -56,18 +65,35 @@ export default async function PagosAdminPage() {
 
   const contracts = await getContracts();
   const activeContracts = contracts.filter((contract) => contract.status !== "canceled");
+  const activeContractIds = activeContracts.map((contract) => contract.id);
   const transactionsByContract = buildTransactionsByContract(
-    await getTransactionRows(activeContracts.map((contract) => contract.id))
+    await getTransactionRows(activeContractIds)
   );
+  const paymentPlansByContract = await getPaymentPlansByContractIds(activeContractIds);
 
   const paymentContracts: PaymentContract[] = activeContracts.map((contract) => ({
     id: contract.id,
     contractNumber: contract.contractNumber,
     clientName: contract.clientName,
     destination: contract.destination,
+    reservationDate: contract.reservationDate,
+    departureDate: contract.departureDate,
+    liquidationDate: contract.liquidationDate,
+    totalPrice: contract.totalPrice,
+    firstPayment: contract.firstPayment,
     status: contract.status,
     transactions: transactionsByContract.get(contract.id) ?? buildEmptyTransactionsByType(),
+    paymentPlan: paymentPlansByContract.get(contract.id) ?? null,
   }));
+  const today = getTodayDateOnly();
+  const overdueInstallmentCount = paymentContracts.reduce(
+    (count, contract) =>
+      count +
+      (contract.paymentPlan?.installments.filter(
+        (installment) => installment.status === "pendiente" && installment.dueDate < today
+      ).length ?? 0),
+    0
+  );
   const supplierOptions = Array.from(
     new Set(
       activeContracts
@@ -84,6 +110,12 @@ export default async function PagosAdminPage() {
           subtitle="Registra cobros, pagos a mayoristas y comprobantes por contrato."
           kicker="Admin"
         />
+
+        {overdueInstallmentCount > 0 ? (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-semibold text-rose-700">
+            Hay {overdueInstallmentCount} pago(s) vencido(s) en los planes de pago.
+          </div>
+        ) : null}
 
         <PaymentsContractsList contracts={paymentContracts} supplierOptions={supplierOptions} />
       </div>

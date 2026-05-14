@@ -163,9 +163,9 @@ export default function ClientsDashboard({
   return (
     <>
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-end gap-4">
+        <div className="grid gap-4 md:grid-cols-3 md:items-end">
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+            <label className="block text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
               Buscar por nombre o etiqueta
             </label>
             <input
@@ -173,18 +173,18 @@ export default function ClientsDashboard({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Empieza a escribir"
-              className="w-64 rounded-2xl border border-slate-200 px-4 py-2 text-sm"
+              className="block h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm"
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+            <label className="block text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
               Etiquetas
             </label>
-            <div ref={tagMenuRef} className="relative w-56">
+            <div ref={tagMenuRef} className="relative">
               <button
                 type="button"
                 onClick={() => setTagMenuOpen((prev) => !prev)}
-                className="flex w-full items-center justify-between rounded-2xl border border-brand-200 bg-white px-4 py-2 text-left text-sm text-brand-900 shadow-sm transition hover:border-brand-300"
+                className="flex h-11 w-full items-center justify-between rounded-2xl border border-brand-200 bg-white px-4 text-left text-sm text-brand-900 shadow-sm transition hover:border-brand-300"
               >
                 <span className={selectedTags.length ? "text-brand-900" : "text-slate-400"}>
                   {selectedLabel}
@@ -274,16 +274,19 @@ export default function ClientsDashboard({
               ) : null}
             </div>
           </div>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => {
-              setQuery("");
-              setSelectedTags([]);
-            }}
-          >
-            Limpiar filtros
-          </Button>
+          <div className="flex md:justify-center">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setQuery("");
+                setSelectedTags([]);
+              }}
+              className="h-11 w-full px-4 md:max-w-56"
+            >
+              Limpiar filtros
+            </Button>
+          </div>
         </div>
       </section>
 

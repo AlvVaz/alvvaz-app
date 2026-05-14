@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ThemedSelect } from "@/components/ui/themed-select";
 import { cn } from "@/lib/utils";
 import type { ContractStatus } from "@/lib/db";
+import type { PaymentInstallment, PaymentPlan, RuntimeInstallmentStatus } from "@/lib/payment-plans";
 import type { TransactionsByType } from "@/types/transactions";
 
+import { PaymentPlanModal } from "./PaymentPlanModal";
 import { TransactionPanel } from "./TransactionPanel";
 
 type PaymentState = "sin_pagos" | "parcial" | "pagado";
@@ -19,8 +23,14 @@ export type PaymentContract = {
   contractNumber: string | null;
   clientName: string;
   destination: string;
+  reservationDate: string | null;
+  departureDate: string | null;
+  liquidationDate: string | null;
+  totalPrice: string | null;
+  firstPayment: string | null;
   status: ContractStatus;
   transactions: TransactionsByType;
+  paymentPlan: PaymentPlan | null;
 };
 
 function normalizeText(value: string) {
@@ -60,11 +70,65 @@ function getTransactionCountLabel(count: number) {
   return count === 1 ? "1 transaccion" : `${count} transacciones`;
 }
 
-function getNoteCount(transactions: TransactionsByType) {
-  return [
-    ...transactions.customer_payment,
-    ...transactions.wholesaler_payment,
-  ].filter((t) => Boolean(t.notes)).length;
+function getTodayDateOnly() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getInstallmentRuntimeStatus(
+  installment: PaymentInstallment,
+  today = getTodayDateOnly()
+): RuntimeInstallmentStatus {
+  if (installment.status === "pagado") return "pagado";
+  return installment.dueDate < today ? "vencido" : "pendiente";
+}
+
+function getUpcomingInstallmentCount(plan: PaymentPlan | null, today = getTodayDateOnly()) {
+  if (!plan) return 0;
+  const todayDate = new Date(`${today}T00:00:00`);
+  const soon = new Date(todayDate);
+  soon.setDate(soon.getDate() + 7);
+  return plan.installments.filter((installment) => {
+    if (installment.status !== "pendiente") return false;
+    const dueDate = new Date(`${installment.dueDate}T00:00:00`);
+    return dueDate >= todayDate && dueDate <= soon;
+  }).length;
+}
+
+function getOverdueInstallmentCount(plan: PaymentPlan | null, today = getTodayDateOnly()) {
+  if (!plan) return 0;
+  return plan.installments.filter(
+    (installment) => installment.status === "pendiente" && installment.dueDate < today
+  ).length;
+}
+
+function formatAmount(value: string | number) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value);
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+  }).format(number);
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "Sin fecha";
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("es-MX", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+function getInstallmentBadgeClass(status: RuntimeInstallmentStatus) {
+  if (status === "pagado") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (status === "vencido") return "border-rose-200 bg-rose-50 text-rose-700";
+  return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
 export function PaymentsContractsList({
@@ -74,14 +138,30 @@ export function PaymentsContractsList({
   contracts: PaymentContract[];
   supplierOptions: string[];
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<FilterState>("todos");
   const [openContractId, setOpenContractId] = useState<string | null>(null);
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [selectedPlanContractId, setSelectedPlanContractId] = useState<string | null>(null);
+  const [planOverrides, setPlanOverrides] = useState<Record<string, PaymentPlan | null>>({});
+
+  const contractsWithPlans = useMemo(
+    () =>
+      contracts.map((contract) => ({
+        ...contract,
+        paymentPlan:
+          Object.prototype.hasOwnProperty.call(planOverrides, contract.id)
+            ? planOverrides[contract.id]
+            : contract.paymentPlan,
+      })),
+    [contracts, planOverrides]
+  );
 
   const filteredContracts = useMemo(() => {
     const normalizedQuery = normalizeText(query.trim());
 
-    return contracts.filter((contract) => {
+    return contractsWithPlans.filter((contract) => {
       const paymentState = getPaymentState(contract.transactions);
       const matchesStatus = statusFilter === "todos" || paymentState === statusFilter;
       const haystack = normalizeText(
@@ -93,12 +173,12 @@ export function PaymentsContractsList({
       );
       return matchesStatus && (!normalizedQuery || haystack.includes(normalizedQuery));
     });
-  }, [contracts, query, statusFilter]);
+  }, [contractsWithPlans, query, statusFilter]);
 
   return (
     <section className="space-y-6">
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px_auto] md:items-end">
           <label className="space-y-2">
             <span className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
               Buscar
@@ -125,6 +205,18 @@ export function PaymentsContractsList({
               ]}
             />
           </div>
+
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              setSelectedPlanContractId(null);
+              setPlanModalOpen(true);
+            }}
+            className="rounded-lg px-3 py-3 text-xs"
+          >
+            Asignar plan de pagos
+          </Button>
         </div>
       </div>
 
@@ -139,6 +231,14 @@ export function PaymentsContractsList({
               onToggle={() =>
                 setOpenContractId((current) => (current === contract.id ? null : contract.id))
               }
+              onEditPlan={() => {
+                setSelectedPlanContractId(contract.id);
+                setPlanModalOpen(true);
+              }}
+              onPlanChanged={(plan) => {
+                setPlanOverrides((current) => ({ ...current, [contract.id]: plan }));
+                router.refresh();
+              }}
             />
           ))
         ) : (
@@ -147,6 +247,127 @@ export function PaymentsContractsList({
           </div>
         )}
       </div>
+
+      <PaymentPlanModal
+        open={planModalOpen}
+        contracts={contractsWithPlans}
+        initialContractId={selectedPlanContractId}
+        onClose={() => setPlanModalOpen(false)}
+        onSaved={(contractId, plan) => {
+          setPlanOverrides((current) => ({ ...current, [contractId]: plan }));
+          router.refresh();
+        }}
+      />
+    </section>
+  );
+}
+
+function PaymentInstallmentsGrid({
+  contractId,
+  paymentPlan,
+  onEditPlan,
+  onChanged,
+}: {
+  contractId: string;
+  paymentPlan: PaymentPlan | null;
+  onEditPlan: () => void;
+  onChanged: () => Promise<void>;
+}) {
+  const [markingId, setMarkingId] = useState<string | null>(null);
+  const toast = useToast();
+
+  const handleMarkPaid = async (installment: PaymentInstallment) => {
+    setMarkingId(installment.id);
+    try {
+      const response = await fetch(
+        `/api/contracts/${contractId}/payment-plan/installments/${installment.id}/paid`,
+        { method: "PATCH" }
+      );
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error || "No se pudo marcar el pago como pagado.");
+      }
+      toast.push(`Pago #${installment.installmentNumber} pagado.`, "success");
+      await onChanged();
+    } catch (error) {
+      toast.push((error as Error).message, "error");
+    } finally {
+      setMarkingId(null);
+    }
+  };
+
+  return (
+    <section className="mt-6 border-t border-slate-200 pt-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1 pb-3">
+        <div>
+          <h3 className="font-display text-base text-brand-950">Plan de pagos</h3>
+          {paymentPlan ? (
+            <p className="mt-1 text-xs text-slate-500">
+              {paymentPlan.frequency} · {paymentPlan.installmentCount} pago(s) · Balance{" "}
+              {formatAmount(Number(paymentPlan.totalAmount) - Number(paymentPlan.depositAmount))}
+            </p>
+          ) : null}
+        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onEditPlan}
+          className="rounded-lg px-3 py-2 text-xs"
+        >
+          {paymentPlan ? "Editar plan" : "Crear plan"}
+        </Button>
+      </div>
+
+      {paymentPlan ? (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {paymentPlan.installments.map((installment) => {
+            const runtimeStatus = getInstallmentRuntimeStatus(installment);
+            const isPaid = runtimeStatus === "pagado";
+            return (
+              <div
+                key={installment.id}
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-600">
+                      Pago #{installment.installmentNumber}
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-brand-950">
+                      {formatAmount(installment.amount)}
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      "rounded-lg border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em]",
+                      getInstallmentBadgeClass(runtimeStatus)
+                    )}
+                  >
+                    {runtimeStatus}
+                  </span>
+                </div>
+                <p className="mt-3 text-sm text-slate-600">{formatDate(installment.dueDate)}</p>
+                <button
+                  type="button"
+                  onClick={() => handleMarkPaid(installment)}
+                  disabled={isPaid || markingId === installment.id}
+                  className="mt-4 w-full rounded-lg border border-brand-200 px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-brand-700 transition hover:border-brand-300 hover:text-brand-900 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                >
+                  {isPaid
+                    ? "Pagada"
+                    : markingId === installment.id
+                      ? "Marcando..."
+                      : "Marcar pagado"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-6 text-center text-sm text-slate-600">
+          Este contrato aún no tiene plan de pagos.
+        </div>
+      )}
     </section>
   );
 }
@@ -156,13 +377,18 @@ export function ContractCard({
   supplierOptions,
   open,
   onToggle,
+  onEditPlan,
+  onPlanChanged,
 }: {
   contract: PaymentContract;
   supplierOptions: string[];
   open: boolean;
   onToggle: () => void;
+  onEditPlan: () => void;
+  onPlanChanged: (plan: PaymentPlan | null) => void;
 }) {
   const [transactions, setTransactions] = useState(contract.transactions);
+  const [paymentPlan, setPaymentPlan] = useState(contract.paymentPlan);
   const [loading, setLoading] = useState(false);
   const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [notes, setNotes] = useState("");
@@ -173,7 +399,16 @@ export function ContractCard({
   const toast = useToast();
   const paymentState = getPaymentState(transactions);
   const transactionCount = getTransactionCount(transactions);
-  const noteCount = getNoteCount(transactions);
+  const overdueCount = getOverdueInstallmentCount(paymentPlan);
+  const upcomingCount = getUpcomingInstallmentCount(paymentPlan);
+
+  useEffect(() => {
+    setTransactions(contract.transactions);
+  }, [contract.transactions]);
+
+  useEffect(() => {
+    setPaymentPlan(contract.paymentPlan);
+  }, [contract.paymentPlan]);
 
   const loadNotesForIndicator = async () => {
     if (notesLoaded) return;
@@ -212,6 +447,18 @@ export function ContractCard({
     } finally {
       setLoading(false);
     }
+  };
+
+  const refreshPaymentPlan = async () => {
+    const response = await fetch(`/api/contracts/${contract.id}/payment-plan`, {
+      cache: "no-store",
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload?.error || "No se pudo cargar el plan de pagos.");
+    }
+    setPaymentPlan(payload.plan);
+    onPlanChanged(payload.plan);
   };
 
   useEffect(() => {
@@ -296,6 +543,15 @@ export function ContractCard({
             <span className="hidden md:inline">{getTransactionCountLabel(transactionCount)}</span>
             <span className="md:hidden">{transactionCount}</span>
           </Badge>
+          {overdueCount > 0 ? (
+            <Badge className="shrink-0 rounded-lg border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-700">
+              {overdueCount} pago(s) vencido(s)
+            </Badge>
+          ) : upcomingCount > 0 ? (
+            <Badge className="shrink-0 rounded-lg border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-700">
+              Vence pronto
+            </Badge>
+          ) : null}
         </button>
         <button
           type="button"
@@ -346,6 +602,15 @@ export function ContractCard({
             />
             </div>
           </div>
+          <PaymentInstallmentsGrid
+            contractId={contract.id}
+            paymentPlan={paymentPlan}
+            onEditPlan={onEditPlan}
+            onChanged={async () => {
+              await refreshTransactions();
+              await refreshPaymentPlan();
+            }}
+          />
         </div>
       ) : null}
 
