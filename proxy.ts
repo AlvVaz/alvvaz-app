@@ -11,6 +11,7 @@ const ADMIN_ALLOWED_ADMIN_ROUTES = [
   "/admin/settings",
 ];
 const ADMIN_ALLOWED_ADMIN_APIS = ["/api/admin/contracts", "/api/admin/magazine"];
+const ADMIN_CRON_APIS = ["/api/admin/payment-reminders"];
 
 function isAllowedForAdmin(pathname: string) {
   if (pathname === "/admin") return false;
@@ -34,6 +35,17 @@ export async function proxy(request: NextRequest) {
 
   if (!isAdminApi && !isAdminRoute) {
     return NextResponse.next();
+  }
+
+  if (
+    isAdminApi &&
+    ADMIN_CRON_APIS.some((route) => pathname === route || pathname.startsWith(`${route}/`))
+  ) {
+    const cronSecret = process.env.CRON_SECRET;
+    if (cronSecret && request.headers.get("authorization") === `Bearer ${cronSecret}`) {
+      return NextResponse.next();
+    }
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   if (isAdminRoute && pathname.startsWith(ADMIN_LOGIN_PATH)) {

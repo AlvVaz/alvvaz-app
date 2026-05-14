@@ -28,6 +28,13 @@ type ContractFormProps = {
 
 const emptyTraveler: TripTraveler = { name: "", phone: "", contract: "" };
 const emptyContractItem = { qty: "1", details: "" };
+const paymentPlanTypeOptions = [
+  { value: "sin_plan", label: "Sin plan" },
+  { value: "contado", label: "Contado" },
+  { value: "semanal", label: "Semanal" },
+  { value: "quincenal", label: "Quincenal" },
+  { value: "mensual", label: "Mensual" },
+];
 
 const parseContractItems = (description?: string | null) => {
   if (!description) return [{ ...emptyContractItem }];
@@ -81,6 +88,84 @@ const formatMoney = (value: string) => {
   }).format(parsed);
 };
 
+const addDays = (date: Date, days: number) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};
+
+const addMonths = (date: Date, months: number) => {
+  const next = new Date(date);
+  const day = next.getDate();
+  next.setMonth(next.getMonth() + months);
+  if (next.getDate() !== day) {
+    next.setDate(0);
+  }
+  return next;
+};
+
+const toDateOnly = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const formatPreviewDate = (value: string) => {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("es-MX", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+};
+
+const formatCurrencyPreview = (value: number) =>
+  new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+  }).format(value);
+
+const buildPaymentPlanDates = ({
+  startDate,
+  endDate,
+  frequency,
+  installmentCount,
+}: {
+  startDate: string;
+  endDate: string;
+  frequency: string;
+  installmentCount?: number;
+}) => {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
+  if (frequency === "contado" || start >= end) return [toDateOnly(end)];
+
+  const dates: string[] = [];
+  let current = start;
+  while (current < end && dates.length < 119) {
+    dates.push(toDateOnly(current));
+    const next =
+      frequency === "mensual"
+        ? addMonths(current, 1)
+        : addDays(current, frequency === "quincenal" ? 14 : 7);
+    if (next <= current) break;
+    current = next;
+  }
+
+  const endDateOnly = toDateOnly(end);
+  if (dates[dates.length - 1] !== endDateOnly) {
+    dates.push(endDateOnly);
+  }
+
+  const count = Math.min(Math.max(installmentCount ?? dates.length, 1), dates.length);
+  if (count >= dates.length) return dates;
+  if (count === 1) return [endDateOnly];
+  return [...dates.slice(0, count - 1), endDateOnly];
+};
+
 export function ContractForm({
   action,
   deleteAction,
@@ -120,6 +205,9 @@ export function ContractForm({
   const [clientNameValue, setClientNameValue] = useState(
     initialContract ? seedContract?.clientName ?? seedContract?.title ?? "" : ""
   );
+  const [reservationDateValue, setReservationDateValue] = useState(
+    seedContract?.reservationDate ?? ""
+  );
   const [departureDateValue, setDepartureDateValue] = useState(
     seedContract?.departureDate ?? ""
   );
@@ -140,6 +228,13 @@ export function ContractForm({
     seedContract?.balanceDue ?? ""
   );
   const [isBalanceAuto, setIsBalanceAuto] = useState(true);
+  const [paymentPlanType, setPaymentPlanType] = useState("sin_plan");
+  const [paymentPlanStartDate, setPaymentPlanStartDate] = useState(
+    seedContract?.reservationDate ?? ""
+  );
+  const [paymentPlanStartTouched, setPaymentPlanStartTouched] = useState(false);
+  const [paymentPlanInstallmentCount, setPaymentPlanInstallmentCount] = useState("1");
+  const [paymentPlanCountTouched, setPaymentPlanCountTouched] = useState(false);
 
   const buildFileName = () => {
     const baseTitle =
@@ -212,6 +307,57 @@ export function ContractForm({
   const travelerCount = normalizedTravelers.filter(
     (traveler) => traveler.name || traveler.phone || traveler.contract
   ).length;
+  const autoPaymentPlanCount = useMemo(() => {
+    if (paymentPlanType === "sin_plan") return 0;
+    return buildPaymentPlanDates({
+      startDate: paymentPlanStartDate,
+      endDate: liquidationDateValue,
+      frequency: paymentPlanType,
+    }).length;
+  }, [liquidationDateValue, paymentPlanStartDate, paymentPlanType]);
+  const paymentPlanPreview = useMemo(() => {
+    if (paymentPlanType === "sin_plan") return [];
+    const total = parseMoney(totalPriceValue);
+    const deposit = parseMoney(firstPaymentValue) ?? 0;
+    const count = paymentPlanType === "contado" ? 1 : Number(paymentPlanInstallmentCount);
+    const dates = buildPaymentPlanDates({
+      startDate: paymentPlanStartDate,
+      endDate: liquidationDateValue,
+      frequency: paymentPlanType,
+      installmentCount: count,
+    });
+
+    if (
+      total === null ||
+      deposit > total ||
+      !Number.isInteger(count) ||
+      count < 1 ||
+      dates.length === 0
+    ) {
+      return [];
+    }
+
+    const balance = Math.max(total - deposit, 0);
+    const actualCount = dates.length;
+    const baseAmount = Math.floor((balance / actualCount) * 100) / 100;
+    const totalBase = baseAmount * actualCount;
+    const remainder = Number((balance - totalBase).toFixed(2));
+
+    return dates.map((dueDate, index) => {
+      return {
+        number: index + 1,
+        dueDate,
+        amount: Number((baseAmount + (index === actualCount - 1 ? remainder : 0)).toFixed(2)),
+      };
+    });
+  }, [
+    firstPaymentValue,
+    liquidationDateValue,
+    paymentPlanInstallmentCount,
+    paymentPlanStartDate,
+    paymentPlanType,
+    totalPriceValue,
+  ]);
 
   const [passengerCountValue, setPassengerCountValue] = useState(
     initialContract
@@ -234,6 +380,27 @@ export function ContractForm({
       setLiquidationDateValue(departureDateValue);
     }
   }, [departureDateValue, isLiquidationAuto]);
+
+  useEffect(() => {
+    if (paymentPlanStartTouched) return;
+    setPaymentPlanStartDate(reservationDateValue);
+  }, [paymentPlanStartTouched, reservationDateValue]);
+
+  useEffect(() => {
+    if (paymentPlanType === "sin_plan") return;
+    const nextCount = paymentPlanType === "contado" ? 1 : autoPaymentPlanCount;
+    if (!nextCount) return;
+
+    const currentCount = Number(paymentPlanInstallmentCount);
+    if (!paymentPlanCountTouched || !Number.isInteger(currentCount) || currentCount > nextCount) {
+      setPaymentPlanInstallmentCount(String(nextCount));
+    }
+  }, [
+    autoPaymentPlanCount,
+    paymentPlanCountTouched,
+    paymentPlanInstallmentCount,
+    paymentPlanType,
+  ]);
 
   useEffect(() => {
     if (!travelers.length) return;
@@ -315,6 +482,7 @@ export function ContractForm({
         setContractNumberValue(suggestedContractNumber ?? "");
         setTitleValue(baseContract.title ?? baseContract.clientName ?? "");
         setClientNameValue("");
+        setReservationDateValue(baseContract.reservationDate ?? "");
         setDepartureDateValue(baseContract.departureDate ?? "");
         setLiquidationDateValue(baseContract.liquidationDate ?? "");
         setIsLiquidationAuto(
@@ -325,6 +493,11 @@ export function ContractForm({
         setFirstPaymentValue(baseContract.firstPayment ?? "");
         setBalanceDueValue(baseContract.balanceDue ?? "");
         setIsBalanceAuto(true);
+        setPaymentPlanType("sin_plan");
+        setPaymentPlanStartDate(baseContract.reservationDate ?? "");
+        setPaymentPlanStartTouched(false);
+        setPaymentPlanInstallmentCount("1");
+        setPaymentPlanCountTouched(false);
         setPassengerCountValue("0");
         return;
       }
@@ -333,6 +506,7 @@ export function ContractForm({
       setContractItems([{ ...emptyContractItem }]);
       setTitleValue("");
       setContractNumberValue(suggestedContractNumber ?? "");
+      setReservationDateValue("");
       setDepartureDateValue("");
       setLiquidationDateValue("");
       setIsLiquidationAuto(true);
@@ -340,6 +514,11 @@ export function ContractForm({
       setFirstPaymentValue("");
       setBalanceDueValue("");
       setIsBalanceAuto(true);
+      setPaymentPlanType("sin_plan");
+      setPaymentPlanStartDate("");
+      setPaymentPlanStartTouched(false);
+      setPaymentPlanInstallmentCount("1");
+      setPaymentPlanCountTouched(false);
       setPassengerCountValue("0");
       return;
     }
@@ -349,6 +528,7 @@ export function ContractForm({
       setContractNumberValue(initialContract.contractNumber ?? "");
       setTitleValue(initialContract.title ?? initialContract.clientName ?? "");
       setClientNameValue(initialContract.clientName ?? initialContract.title ?? "");
+      setReservationDateValue(initialContract.reservationDate ?? "");
       setDepartureDateValue(initialContract.departureDate ?? "");
       setLiquidationDateValue(initialContract.liquidationDate ?? "");
     setIsLiquidationAuto(
@@ -359,6 +539,11 @@ export function ContractForm({
     setFirstPaymentValue(initialContract.firstPayment ?? "");
     setBalanceDueValue(initialContract.balanceDue ?? "");
     setIsBalanceAuto(true);
+    setPaymentPlanType("sin_plan");
+    setPaymentPlanStartDate(initialContract.reservationDate ?? "");
+    setPaymentPlanStartTouched(false);
+    setPaymentPlanInstallmentCount("1");
+    setPaymentPlanCountTouched(false);
   };
 
   const handleReset = (event: FormEvent<HTMLFormElement>) => {
@@ -618,6 +803,16 @@ export function ContractForm({
       {initialContract ? <input type="hidden" name="id" value={initialContract.id} /> : null}
       <input type="hidden" name="travelers" value={travelersPayload} />
       <input type="hidden" name="description" value={descriptionPayload} />
+      <input
+        type="hidden"
+        name="paymentPlanStartDate"
+        value={paymentPlanStartDate}
+      />
+      <input
+        type="hidden"
+        name="paymentPlanInstallmentCount"
+        value={paymentPlanType === "contado" ? "1" : paymentPlanInstallmentCount}
+      />
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
@@ -688,7 +883,8 @@ export function ContractForm({
           type="date"
           name="reservationDate"
           required
-          defaultValue={seedContract?.reservationDate ?? ""}
+          value={reservationDateValue}
+          onChange={(event) => setReservationDateValue(event.target.value)}
           className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
         />
       </div>
@@ -1004,6 +1200,116 @@ export function ContractForm({
 
       <div className="md:col-span-2 space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+          Plan de pagos
+        </label>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Tipo
+              </p>
+              <ThemedSelect
+                name="paymentPlanType"
+                value={paymentPlanType}
+                onChange={(value) => {
+                  setPaymentPlanType(value);
+                  setPaymentPlanCountTouched(false);
+                  if (value === "contado") {
+                    setPaymentPlanInstallmentCount("1");
+                  }
+                }}
+                options={paymentPlanTypeOptions}
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Inicio de pagos
+              </p>
+              <input
+                type="date"
+                value={paymentPlanStartDate}
+                onChange={(event) => {
+                  setPaymentPlanStartDate(event.target.value);
+                  setPaymentPlanStartTouched(true);
+                  setPaymentPlanCountTouched(false);
+                }}
+                disabled={paymentPlanType === "sin_plan"}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400"
+              />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Pagos
+                </p>
+                {paymentPlanType !== "sin_plan" && paymentPlanType !== "contado" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (paymentPlanCountTouched) {
+                        setPaymentPlanInstallmentCount(String(Math.max(autoPaymentPlanCount, 1)));
+                        setPaymentPlanCountTouched(false);
+                        return;
+                      }
+                      setPaymentPlanCountTouched(true);
+                    }}
+                    className="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-600"
+                  >
+                    {paymentPlanCountTouched ? "Auto" : "Ajustar"}
+                  </button>
+                ) : null}
+              </div>
+              <input
+                type="number"
+                min={1}
+                max={Math.max(autoPaymentPlanCount, 1)}
+                value={paymentPlanType === "contado" ? "1" : paymentPlanInstallmentCount}
+                onChange={(event) => {
+                  setPaymentPlanInstallmentCount(event.target.value);
+                  setPaymentPlanCountTouched(true);
+                }}
+                disabled={paymentPlanType === "sin_plan" || paymentPlanType === "contado"}
+                readOnly={!paymentPlanCountTouched}
+                onWheel={preventNumberInputWheel}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm read-only:bg-slate-100 disabled:bg-slate-100 disabled:text-slate-400"
+              />
+            </div>
+          </div>
+
+          {paymentPlanType !== "sin_plan" ? (
+            <div className="mt-4 border-t border-slate-200 pt-4">
+              {paymentPlanPreview.length > 0 ? (
+                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                  {paymentPlanPreview.slice(0, 8).map((installment) => (
+                    <div
+                      key={installment.number}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
+                    >
+                      <div className="font-semibold text-brand-950">
+                        Pago #{installment.number}
+                      </div>
+                      <div>{formatPreviewDate(installment.dueDate)}</div>
+                      <div>{formatCurrencyPreview(installment.amount)}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  Completa monto total, primer pago, fecha de reserva y liquidación para ver el calendario.
+                </p>
+              )}
+              {paymentPlanPreview.length > 8 ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  Mostrando 8 de {paymentPlanPreview.length} pagos.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="md:col-span-2 space-y-2">
+        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
           Notas
         </label>
         <textarea
@@ -1168,8 +1474,3 @@ export function ContractForm({
     </form>
   );
 }
-
-
-
-
-
