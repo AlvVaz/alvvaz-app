@@ -64,7 +64,13 @@ export default async function PagosAdminPage() {
   }
 
   const contracts = await getContracts();
-  const activeContracts = contracts.filter((contract) => contract.status !== "canceled");
+ const activeContracts = contracts
+    .filter((contract) => contract.status !== "canceled")
+    .sort((a, b) => {
+      const numA = a.contractNumber ? parseInt(a.contractNumber, 10) : -1;
+      const numB = b.contractNumber ? parseInt(b.contractNumber, 10) : -1;
+      return numB - numA;
+    });
   const activeContractIds = activeContracts.map((contract) => contract.id);
   const transactionsByContract = buildTransactionsByContract(
     await getTransactionRows(activeContractIds)
