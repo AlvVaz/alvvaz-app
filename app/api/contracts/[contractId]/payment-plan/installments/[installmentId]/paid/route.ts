@@ -29,6 +29,15 @@ function toDateOnly(value: Date) {
   return `${year}-${month}-${day}`;
 }
 
+type ExistingTransactionRow = {
+  id: string;
+  concept: string;
+};
+
+function normalizeConcept(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 export async function PATCH(_request: Request, context: RouteContext) {
   const authError = await requireAdmin();
   if (authError) return authError;
@@ -55,6 +64,62 @@ export async function PATCH(_request: Request, context: RouteContext) {
 
   if (installment.status === "pagado") {
     return NextResponse.json({ ok: true });
+  }
+
+  const { data: linkedInstallments, error: linkedInstallmentsError } = await supabase
+    .from("payment_installments")
+    .select("transaction_id")
+    .eq("plan_id", installment.plan_id)
+    .not("transaction_id", "is", null);
+
+  if (linkedInstallmentsError) {
+    return NextResponse.json({ error: linkedInstallmentsError.message }, { status: 500 });
+  }
+
+  const linkedTransactionIds = new Set(
+    (linkedInstallments ?? [])
+      .map((row) => String(row.transaction_id ?? "").trim())
+      .filter(Boolean)
+  );
+
+  const { data: existingTransactions, error: existingTransactionError } = await supabase
+    .from("contract_transactions")
+    .select("id, concept")
+    .eq("contract_id", contractId)
+    .eq("type", "customer_payment")
+    .eq("status", "pagado")
+    .eq("amount", installment.amount)
+    .order("date", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: true });
+
+  if (existingTransactionError) {
+    return NextResponse.json({ error: existingTransactionError.message }, { status: 500 });
+  }
+
+  const reusableTransactions = ((existingTransactions ?? []) as ExistingTransactionRow[]).filter(
+    (transaction) => !linkedTransactionIds.has(transaction.id)
+  );
+  const expectedConcept = normalizeConcept(`Pago #${installment.installment_number}`);
+  const reusableTransaction =
+    reusableTransactions.find((transaction) => normalizeConcept(transaction.concept) === expectedConcept) ??
+    reusableTransactions[0];
+
+  if (reusableTransaction) {
+    const { error: linkError } = await supabase
+      .from("payment_installments")
+      .update({ status: "pagado", transaction_id: reusableTransaction.id })
+      .eq("id", installmentId)
+      .eq("status", "pendiente");
+
+    if (linkError) {
+      return NextResponse.json({ error: linkError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      transactionId: reusableTransaction.id,
+      reusedExistingTransaction: true,
+    });
   }
 
   const { data: transaction, error: transactionError } = await supabase

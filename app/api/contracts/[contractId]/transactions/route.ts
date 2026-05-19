@@ -18,6 +18,20 @@ type RouteContext = {
   params: Promise<{ contractId: string }>;
 };
 
+type PaymentInstallmentForTransaction = {
+  id: string;
+  amount: string | number;
+  status: string;
+  payment_plans:
+    | {
+        contract_id: string;
+      }
+    | {
+        contract_id: string;
+      }[]
+    | null;
+};
+
 async function resolveContractId(context: RouteContext) {
   const params = await context.params;
   return String(params.contractId ?? "").trim();
@@ -34,6 +48,10 @@ async function contractExists(contractId: string) {
     select: { id: true },
   });
   return Boolean(contract);
+}
+
+function getInstallmentPlan(row: PaymentInstallmentForTransaction) {
+  return Array.isArray(row.payment_plans) ? row.payment_plans[0] : row.payment_plans;
 }
 
 export async function GET(_request: Request, context: RouteContext) {
@@ -88,6 +106,8 @@ export async function POST(request: Request, context: RouteContext) {
   const date = normalizeOptionalDate((body as Record<string, unknown>).date);
   const status = normalizeTransactionStatus((body as Record<string, unknown>).status) ?? "pendiente";
   const notes = String((body as Record<string, unknown>).notes ?? "").trim() || null;
+  const paymentInstallmentId =
+    String((body as Record<string, unknown>).paymentInstallmentId ?? "").trim() || null;
 
   if (!type) {
     return NextResponse.json({ error: "Tipo de transaccion invalido." }, { status: 400 });
@@ -103,6 +123,50 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const supabase = getSupabaseAdmin();
+  let linkedInstallment: PaymentInstallmentForTransaction | null = null;
+
+  if (paymentInstallmentId) {
+    if (type !== "customer_payment") {
+      return NextResponse.json(
+        { error: "Solo los cobros al cliente pueden vincular una cuota." },
+        { status: 400 }
+      );
+    }
+    if (status !== "pagado") {
+      return NextResponse.json(
+        { error: "Para pagar una cuota, el movimiento debe estar en estado pagado." },
+        { status: 400 }
+      );
+    }
+
+    const { data: installment, error: installmentError } = await supabase
+      .from("payment_installments")
+      .select("id, amount, status, payment_plans!inner(contract_id)")
+      .eq("id", paymentInstallmentId)
+      .single();
+
+    if (installmentError || !installment) {
+      return NextResponse.json(
+        { error: installmentError?.message || "Cuota no encontrada." },
+        { status: 404 }
+      );
+    }
+
+    linkedInstallment = installment as PaymentInstallmentForTransaction;
+    if (getInstallmentPlan(linkedInstallment)?.contract_id !== contractId) {
+      return NextResponse.json({ error: "La cuota no pertenece a este contrato." }, { status: 400 });
+    }
+    if (linkedInstallment.status !== "pendiente") {
+      return NextResponse.json({ error: "Esta cuota ya fue pagada." }, { status: 400 });
+    }
+    if (Number(linkedInstallment.amount) !== amount) {
+      return NextResponse.json(
+        { error: "El monto del cobro debe coincidir con la cuota seleccionada." },
+        { status: 400 }
+      );
+    }
+  }
+
   const { data, error } = await supabase
     .from("contract_transactions")
     .insert({
@@ -119,6 +183,21 @@ export async function POST(request: Request, context: RouteContext) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (linkedInstallment) {
+    const { error: installmentUpdateError } = await supabase
+      .from("payment_installments")
+      .update({ status: "pagado", transaction_id: data.id })
+      .eq("id", linkedInstallment.id)
+      .eq("status", "pendiente")
+      .select("id")
+      .single();
+
+    if (installmentUpdateError) {
+      await supabase.from("contract_transactions").delete().eq("id", data.id);
+      return NextResponse.json({ error: installmentUpdateError.message }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ transaction: data }, { status: 201 });

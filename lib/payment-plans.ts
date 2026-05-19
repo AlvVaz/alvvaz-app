@@ -1,3 +1,6 @@
+import type { Prisma } from "@prisma/client";
+
+import { prisma } from "@/lib/prisma";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export type PaymentPlanFrequency = "contado" | "semanal" | "quincenal" | "mensual";
@@ -37,6 +40,22 @@ export type PaymentPlanInput = {
   endDate: string;
   frequency: PaymentPlanFrequency;
   installmentCount: number;
+  installments?: PaymentPlanInstallmentInput[];
+};
+
+export type PaymentPlanInstallmentInput = {
+  dueDate: string;
+  amount: number;
+};
+
+export type ContractPaymentPlanSummaryInput = {
+  totalAmount: number;
+  depositAmount: number;
+  startDate: string;
+  endDate: string;
+  frequency: PaymentPlanFrequency;
+  installmentCount: number;
+  updatedFrom?: "contratos" | "pagos";
 };
 
 type PaymentPlanRow = {
@@ -102,6 +121,19 @@ export function normalizePlanDate(value: unknown) {
 function toCurrencyString(value: string | number) {
   const number = Number(value);
   return Number.isFinite(number) ? number.toFixed(2) : String(value);
+}
+
+function toContractMoneyString(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function getObjectMetadata(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function addDays(date: Date, days: number) {
@@ -258,7 +290,13 @@ export async function getPaymentPlanByContractId(contractId: string) {
 
 export async function replacePaymentPlanForContract(contractId: string, input: PaymentPlanInput) {
   const supabase = getSupabaseAdmin();
-  const installments = calculateInstallmentDrafts(input);
+  const installments =
+    input.installments?.map((installment, index) => ({
+      installment_number: index + 1,
+      due_date: installment.dueDate,
+      amount: installment.amount,
+      status: "pendiente" as PaymentInstallmentStatus,
+    })) ?? calculateInstallmentDrafts(input);
 
   const { data: existingPlan, error: existingError } = await supabase
     .from("payment_plans")
@@ -310,4 +348,56 @@ export async function replacePaymentPlanForContract(contractId: string, input: P
   }
 
   return getPaymentPlanByContractId(contractId);
+}
+
+export async function syncContractPaymentPlanSummary(
+  contractId: string,
+  input: ContractPaymentPlanSummaryInput
+) {
+  const contract = await prisma.contract.findUnique({
+    where: { id: contractId },
+    select: { metadata: true },
+  });
+  if (!contract) return null;
+
+  const balance = Number((input.totalAmount - input.depositAmount).toFixed(2));
+  const metadata = getObjectMetadata(contract.metadata);
+
+  return prisma.contract.update({
+    where: { id: contractId },
+    data: {
+      totalPrice: toContractMoneyString(input.totalAmount),
+      firstPayment: toContractMoneyString(input.depositAmount),
+      balanceDue: toContractMoneyString(Math.max(balance, 0)),
+      liquidationDate: input.endDate,
+      metadata: {
+        ...metadata,
+        paymentPlan: {
+          frequency: input.frequency,
+          startDate: input.startDate,
+          endDate: input.endDate,
+          installmentCount: input.installmentCount,
+          updatedFrom: input.updatedFrom ?? "pagos",
+          updatedAt: new Date().toISOString(),
+        },
+      } as Prisma.InputJsonValue,
+    },
+  });
+}
+
+export async function clearContractPaymentPlanSummary(contractId: string) {
+  const contract = await prisma.contract.findUnique({
+    where: { id: contractId },
+    select: { metadata: true },
+  });
+  if (!contract) return null;
+
+  const metadata = getObjectMetadata(contract.metadata);
+  const nextMetadata = { ...metadata };
+  delete nextMetadata.paymentPlan;
+
+  return prisma.contract.update({
+    where: { id: contractId },
+    data: { metadata: nextMetadata as Prisma.InputJsonValue },
+  });
 }

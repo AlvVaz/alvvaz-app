@@ -23,8 +23,10 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 ## Admin Payments
 
 - `/admin/contratos` can optionally create or replace an admin-only payment plan when a contract is saved; due dates are generated from reservation date through trip liquidation date.
-- `/admin/pagos` shows payment-plan alerts, scheduled installments, and a modal to create or replace a plan for existing contracts.
-- Payment plans are stored in Supabase tables `payment_plans` and `payment_installments`; overdue status is calculated at runtime and is not persisted.
+- `/admin/pagos` shows read-only payment-plan alerts from the Alertas button: overdue cuotas, cuotas due tomorrow, and pending cuotas within the next 7 days. Alert rows include contract links and WhatsApp links when a usable phone is available.
+- Payment plans are stored in Supabase tables `payment_plans` and `payment_installments`; overdue status is calculated at runtime and is not persisted. Admins can edit individual cuota dates and amounts before saving a plan, as long as the cuota total matches the balance. Saving a plan from `/admin/pagos` also backfills the contract payment summary so the contract editor shows the plan instead of `Sin plan`; `/admin/contratos` also hydrates existing contracts from the payment-plan tables. Deleting a payment plan removes scheduled cuotas and clears that contract plan summary, but keeps registered transactions and cost fields.
+- Linking a cuota from the customer transaction modal marks it paid only when the cobro is saved as `pagado` and the amount matches the selected cuota.
+- If a linked customer transaction is deleted, changed away from `pagado`, or changed to a different amount, the related cuota is returned to `pendiente`.
 - Vercel Cron calls `/api/admin/payment-reminders/daily` daily at 8 AM Mexico City time to send the admin Telegram summary. Required env vars: `CRON_SECRET`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
 
 ## Learn More

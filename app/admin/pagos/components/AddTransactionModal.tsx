@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ThemedSelect } from "@/components/ui/themed-select";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import type { PaymentInstallment, PaymentPlan } from "@/lib/payment-plans";
 import type {
   ContractTransaction,
   TransactionStatus,
@@ -19,6 +20,8 @@ type AddTransactionModalProps = {
   defaultConcept?: string;
   transaction?: ContractTransaction;
   supplierOptions?: string[];
+  paymentPlan?: PaymentPlan | null;
+  initialInstallmentId?: string | null;
   onClose: () => void;
   onSaved: () => Promise<void>;
 };
@@ -31,6 +34,18 @@ function getTitle(type: TransactionType, mode: "create" | "edit") {
 const fieldClass =
   "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm transition focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-200";
 
+function todayDateOnly() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getInstallmentConcept(installment: PaymentInstallment) {
+  return `Pago #${installment.installmentNumber}`;
+}
+
 export function AddTransactionModal({
   contractId,
   type,
@@ -38,14 +53,31 @@ export function AddTransactionModal({
   defaultConcept = "",
   transaction,
   supplierOptions = [],
+  paymentPlan = null,
+  initialInstallmentId = null,
   onClose,
   onSaved,
 }: AddTransactionModalProps) {
   const mode = transaction ? "edit" : "create";
-  const [concept, setConcept] = useState(transaction?.concept ?? defaultConcept);
-  const [amount, setAmount] = useState(transaction?.amount ?? "");
-  const [date, setDate] = useState(transaction?.date ?? "");
-  const [status, setStatus] = useState<TransactionStatus>(transaction?.status ?? "pendiente");
+  const pendingInstallments =
+    mode === "create" && type === "customer_payment"
+      ? paymentPlan?.installments.filter((installment) => installment.status === "pendiente") ?? []
+      : [];
+  const initialInstallment =
+    pendingInstallments.find((installment) => installment.id === initialInstallmentId) ?? null;
+  const [selectedInstallmentId, setSelectedInstallmentId] = useState(initialInstallment?.id ?? "");
+  const [concept, setConcept] = useState(
+    initialInstallment
+      ? getInstallmentConcept(initialInstallment)
+      : transaction?.concept ?? defaultConcept
+  );
+  const [amount, setAmount] = useState(initialInstallment?.amount ?? transaction?.amount ?? "");
+  const [date, setDate] = useState(
+    initialInstallment ? todayDateOnly() : transaction?.date ?? ""
+  );
+  const [status, setStatus] = useState<TransactionStatus>(
+    initialInstallment ? "pagado" : transaction?.status ?? "pendiente"
+  );
   const [notes, setNotes] = useState(transaction?.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,12 +108,33 @@ export function AddTransactionModal({
   ).map((supplier) => ({ value: supplier, label: supplier }));
 
   const reset = () => {
-    setConcept(transaction?.concept ?? defaultConcept);
-    setAmount(transaction?.amount ?? "");
-    setDate(transaction?.date ?? "");
-    setStatus(transaction?.status ?? "pendiente");
+    setSelectedInstallmentId(initialInstallment?.id ?? "");
+    setConcept(
+      initialInstallment
+        ? getInstallmentConcept(initialInstallment)
+        : transaction?.concept ?? defaultConcept
+    );
+    setAmount(initialInstallment?.amount ?? transaction?.amount ?? "");
+    setDate(initialInstallment ? todayDateOnly() : transaction?.date ?? "");
+    setStatus(initialInstallment ? "pagado" : transaction?.status ?? "pendiente");
     setNotes(transaction?.notes ?? "");
     setError(null);
+  };
+
+  const handleInstallmentChange = (installmentId: string) => {
+    setSelectedInstallmentId(installmentId);
+    const installment = pendingInstallments.find((item) => item.id === installmentId);
+    if (!installment) {
+      setConcept(transaction?.concept ?? defaultConcept);
+      setAmount(transaction?.amount ?? "");
+      setDate(transaction?.date ?? "");
+      setStatus(transaction?.status ?? "pendiente");
+      return;
+    }
+    setConcept(getInstallmentConcept(installment));
+    setAmount(installment.amount);
+    setDate((current) => current || todayDateOnly());
+    setStatus("pagado");
   };
 
   const handleDelete = async () => {
@@ -137,6 +190,10 @@ export function AddTransactionModal({
             date,
             status,
             notes,
+            paymentInstallmentId:
+              mode === "create" && type === "customer_payment"
+                ? selectedInstallmentId || null
+                : null,
           }),
         }
       );
@@ -214,6 +271,27 @@ export function AddTransactionModal({
               />
             )}
           </label>
+
+          {!isWholesalerPayment && mode === "create" && pendingInstallments.length > 0 ? (
+            <div className="space-y-2">
+              <span className="block text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                Cuota del plan
+              </span>
+              <ThemedSelect
+                value={selectedInstallmentId}
+                onChange={handleInstallmentChange}
+                options={[
+                  { value: "", label: "Sin vincular cuota" },
+                  ...pendingInstallments.map((installment) => ({
+                    value: installment.id,
+                    label: `${getInstallmentConcept(installment)} · ${installment.amount} · ${
+                      installment.dueDate
+                    }`,
+                  })),
+                ]}
+              />
+            </div>
+          ) : null}
 
           <div className="grid gap-4 md:grid-cols-2">
             <label className="block space-y-2">

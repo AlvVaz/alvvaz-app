@@ -27,6 +27,7 @@ import {
   normalizePlanAmount,
   normalizePlanDate,
   replacePaymentPlanForContract,
+  syncContractPaymentPlanSummary,
   type PaymentPlanInput,
 } from "@/lib/payment-plans";
 
@@ -256,6 +257,10 @@ export async function createContractAction(
 
   if (paymentPlan.input) {
     await replacePaymentPlanForContract(createdContract.id, paymentPlan.input);
+    await syncContractPaymentPlanSummary(createdContract.id, {
+      ...paymentPlan.input,
+      updatedFrom: "contratos",
+    });
   }
 
   await syncTripFromContract(createdContract);
@@ -396,6 +401,10 @@ export async function updateContractAction(
   if (updated) {
     if (paymentPlan.input) {
       await replacePaymentPlanForContract(updated.id, paymentPlan.input);
+      await syncContractPaymentPlanSummary(updated.id, {
+        ...paymentPlan.input,
+        updatedFrom: "contratos",
+      });
     }
     await syncTripFromContract(updated);
   }

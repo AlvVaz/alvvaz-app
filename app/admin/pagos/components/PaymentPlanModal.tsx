@@ -37,6 +37,12 @@ const frequencyOptions = [
 const fieldClass =
   "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm transition focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:bg-slate-100 disabled:text-slate-400";
 
+type InstallmentDraft = {
+  number: number;
+  dueDate: string;
+  amount: string;
+};
+
 function parseMoney(value: string | null | undefined) {
   const cleaned = String(value ?? "").replace(/[^\d.-]/g, "");
   const parsed = Number(cleaned);
@@ -74,16 +80,6 @@ function toDateOnly(date: Date) {
 
 function todayDateOnly() {
   return toDateOnly(new Date());
-}
-
-function formatDate(value: string) {
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("es-MX", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(date);
 }
 
 function formatAmount(value: number) {
@@ -193,6 +189,7 @@ export function PaymentPlanModal({
   const [frequency, setFrequency] = useState<PaymentPlanFrequency>("mensual");
   const [installmentCount, setInstallmentCount] = useState("3");
   const [installmentCountTouched, setInstallmentCountTouched] = useState(false);
+  const [installmentDrafts, setInstallmentDrafts] = useState<InstallmentDraft[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -242,19 +239,70 @@ export function PaymentPlanModal({
     }
   }, [autoInstallmentCount, frequency, installmentCount, installmentCountTouched]);
 
-  const preview = useMemo(
-    () =>
-      buildPreview({
-        totalAmount,
-        depositAmount,
-        startDate,
-        endDate,
-        frequency,
-        installmentCount,
-      }),
-    [depositAmount, endDate, frequency, installmentCount, startDate, totalAmount]
-  );
+  const preview = useMemo(() => {
+    const existingPlan = selectedContract?.paymentPlan;
+    const matchesExistingPlan =
+      existingPlan &&
+      totalAmount === existingPlan.totalAmount &&
+      depositAmount === existingPlan.depositAmount &&
+      startDate === existingPlan.startDate &&
+      endDate === existingPlan.endDate &&
+      frequency === existingPlan.frequency &&
+      installmentCount === String(existingPlan.installmentCount);
+
+    if (matchesExistingPlan) {
+      return existingPlan.installments.map((installment) => ({
+        number: installment.installmentNumber,
+        dueDate: installment.dueDate,
+        amount: parseMoney(installment.amount),
+      }));
+    }
+
+    return buildPreview({
+      totalAmount,
+      depositAmount,
+      startDate,
+      endDate,
+      frequency,
+      installmentCount,
+    });
+  }, [depositAmount, endDate, frequency, installmentCount, selectedContract, startDate, totalAmount]);
   const balance = Math.max(parseMoney(totalAmount) - parseMoney(depositAmount), 0);
+  const installmentDraftTotal = Number(
+    installmentDrafts
+      .reduce((sum, installment) => sum + parseMoney(installment.amount), 0)
+      .toFixed(2)
+  );
+  const installmentDraftsValid =
+    installmentDrafts.length > 0 &&
+    installmentDrafts.every(
+      (installment) =>
+        /^\d{4}-\d{2}-\d{2}$/.test(installment.dueDate) &&
+        parseMoney(installment.amount) >= 0
+    ) &&
+    installmentDraftTotal === Number(balance.toFixed(2));
+
+  useEffect(() => {
+    setInstallmentDrafts(
+      preview.map((installment) => ({
+        number: installment.number,
+        dueDate: installment.dueDate,
+        amount: installment.amount.toFixed(2),
+      }))
+    );
+  }, [preview]);
+
+  const updateInstallmentDraft = (
+    number: number,
+    field: "dueDate" | "amount",
+    value: string
+  ) => {
+    setInstallmentDrafts((current) =>
+      current.map((installment) =>
+        installment.number === number ? { ...installment, [field]: value } : installment
+      )
+    );
+  };
 
   if (!open) return null;
 
@@ -278,6 +326,10 @@ export function PaymentPlanModal({
           endDate,
           frequency,
           installmentCount: frequency === "contado" ? 1 : installmentCount,
+          installments: installmentDrafts.map((installment) => ({
+            dueDate: installment.dueDate,
+            amount: installment.amount,
+          })),
         }),
       });
       const payload = await response.json();
@@ -452,29 +504,58 @@ export function PaymentPlanModal({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                  Preview
+                  Vista previa
                 </p>
                 <p className="text-sm text-slate-600">Balance a programar: {formatAmount(balance)}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Cuotas editadas: {formatAmount(installmentDraftTotal)}
+                </p>
               </div>
               <span className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">
-                {preview.length} pago(s)
+                {installmentDrafts.length} pago(s)
               </span>
             </div>
 
-            {preview.length > 0 ? (
+            {installmentDrafts.length > 0 ? (
               <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                {preview.map((installment) => (
+                {installmentDrafts.map((installment) => (
                   <div
                     key={installment.number}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                    className="space-y-3 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm"
                   >
                     <div className="font-semibold text-brand-950">
                       Pago #{installment.number}
                     </div>
-                    <div className="text-slate-600">{formatDate(installment.dueDate)}</div>
-                    <div className="font-semibold text-slate-800">
-                      {formatAmount(installment.amount)}
-                    </div>
+                    <label className="block space-y-1">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-600">
+                        Fecha
+                      </span>
+                      <input
+                        value={installment.dueDate}
+                        onChange={(event) =>
+                          updateInstallmentDraft(installment.number, "dueDate", event.target.value)
+                        }
+                        type="date"
+                        required
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                      />
+                    </label>
+                    <label className="block space-y-1">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-600">
+                        Monto
+                      </span>
+                      <input
+                        value={installment.amount}
+                        onChange={(event) =>
+                          updateInstallmentDraft(installment.number, "amount", event.target.value)
+                        }
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        required
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800"
+                      />
+                    </label>
                   </div>
                 ))}
               </div>
@@ -490,12 +571,27 @@ export function PaymentPlanModal({
               {error}
             </p>
           ) : null}
+          {installmentDrafts.length > 0 && !installmentDraftsValid ? (
+            <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              La suma de las cuotas debe coincidir con el balance antes de guardar.
+            </p>
+          ) : null}
 
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+              disabled={saving}
+              className="rounded-lg px-5 py-3 text-xs"
+            >
               Cancelar
             </Button>
-            <Button type="submit" disabled={saving || preview.length === 0}>
+            <Button
+              type="submit"
+              disabled={saving || !installmentDraftsValid}
+              className="rounded-lg px-5 py-3 text-xs"
+            >
               {saving ? "Guardando..." : "Guardar plan"}
             </Button>
           </div>

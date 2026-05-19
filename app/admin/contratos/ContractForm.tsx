@@ -35,6 +35,32 @@ const paymentPlanTypeOptions = [
   { value: "quincenal", label: "Quincenal" },
   { value: "mensual", label: "Mensual" },
 ];
+const paymentPlanTypes = paymentPlanTypeOptions.map((option) => option.value);
+
+function getContractPaymentPlanSummary(contract?: Contract | null) {
+  const metadataPlan = contract?.metadata?.paymentPlan;
+  if (!metadataPlan || typeof metadataPlan !== "object" || Array.isArray(metadataPlan)) {
+    return null;
+  }
+
+  const plan = metadataPlan as Record<string, unknown>;
+  const frequency = String(plan.frequency ?? "").trim();
+  if (!paymentPlanTypes.includes(frequency) || frequency === "sin_plan") {
+    return null;
+  }
+
+  const startDate = String(plan.startDate ?? "").trim();
+  const installmentCount = Number(plan.installmentCount);
+
+  return {
+    frequency,
+    startDate: startDate || contract?.reservationDate || "",
+    installmentCount:
+      Number.isInteger(installmentCount) && installmentCount > 0
+        ? String(installmentCount)
+        : "1",
+  };
+}
 
 const parseContractItems = (description?: string | null) => {
   if (!description) return [{ ...emptyContractItem }];
@@ -228,13 +254,18 @@ export function ContractForm({
     seedContract?.balanceDue ?? ""
   );
   const [isBalanceAuto, setIsBalanceAuto] = useState(true);
-  const [paymentPlanType, setPaymentPlanType] = useState("sin_plan");
-  const [paymentPlanStartDate, setPaymentPlanStartDate] = useState(
-    seedContract?.reservationDate ?? ""
+  const seedPaymentPlan = getContractPaymentPlanSummary(seedContract);
+  const [paymentPlanType, setPaymentPlanType] = useState(
+    seedPaymentPlan?.frequency ?? "sin_plan"
   );
-  const [paymentPlanStartTouched, setPaymentPlanStartTouched] = useState(false);
-  const [paymentPlanInstallmentCount, setPaymentPlanInstallmentCount] = useState("1");
-  const [paymentPlanCountTouched, setPaymentPlanCountTouched] = useState(false);
+  const [paymentPlanStartDate, setPaymentPlanStartDate] = useState(
+    seedPaymentPlan?.startDate ?? seedContract?.reservationDate ?? ""
+  );
+  const [paymentPlanStartTouched, setPaymentPlanStartTouched] = useState(Boolean(seedPaymentPlan));
+  const [paymentPlanInstallmentCount, setPaymentPlanInstallmentCount] = useState(
+    seedPaymentPlan?.installmentCount ?? "1"
+  );
+  const [paymentPlanCountTouched, setPaymentPlanCountTouched] = useState(Boolean(seedPaymentPlan));
 
   const buildFileName = () => {
     const baseTitle =
@@ -475,6 +506,7 @@ export function ContractForm({
 
   const resetFormState = () => {
     const baseContract = initialContract ?? seedContract;
+    const basePaymentPlan = getContractPaymentPlanSummary(baseContract);
     if (!initialContract) {
       if (baseContract) {
         setTravelers([emptyTraveler]);
@@ -493,11 +525,13 @@ export function ContractForm({
         setFirstPaymentValue(baseContract.firstPayment ?? "");
         setBalanceDueValue(baseContract.balanceDue ?? "");
         setIsBalanceAuto(true);
-        setPaymentPlanType("sin_plan");
-        setPaymentPlanStartDate(baseContract.reservationDate ?? "");
-        setPaymentPlanStartTouched(false);
-        setPaymentPlanInstallmentCount("1");
-        setPaymentPlanCountTouched(false);
+        setPaymentPlanType(basePaymentPlan?.frequency ?? "sin_plan");
+        setPaymentPlanStartDate(
+          basePaymentPlan?.startDate ?? baseContract.reservationDate ?? ""
+        );
+        setPaymentPlanStartTouched(Boolean(basePaymentPlan));
+        setPaymentPlanInstallmentCount(basePaymentPlan?.installmentCount ?? "1");
+        setPaymentPlanCountTouched(Boolean(basePaymentPlan));
         setPassengerCountValue("0");
         return;
       }
@@ -539,11 +573,13 @@ export function ContractForm({
     setFirstPaymentValue(initialContract.firstPayment ?? "");
     setBalanceDueValue(initialContract.balanceDue ?? "");
     setIsBalanceAuto(true);
-    setPaymentPlanType("sin_plan");
-    setPaymentPlanStartDate(initialContract.reservationDate ?? "");
-    setPaymentPlanStartTouched(false);
-    setPaymentPlanInstallmentCount("1");
-    setPaymentPlanCountTouched(false);
+    setPaymentPlanType(basePaymentPlan?.frequency ?? "sin_plan");
+    setPaymentPlanStartDate(
+      basePaymentPlan?.startDate ?? initialContract.reservationDate ?? ""
+    );
+    setPaymentPlanStartTouched(Boolean(basePaymentPlan));
+    setPaymentPlanInstallmentCount(basePaymentPlan?.installmentCount ?? "1");
+    setPaymentPlanCountTouched(Boolean(basePaymentPlan));
   };
 
   const handleReset = (event: FormEvent<HTMLFormElement>) => {

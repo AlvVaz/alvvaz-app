@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 
+import { SectionHeading } from "@/components/section-heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ThemedSelect } from "@/components/ui/themed-select";
 import { cn } from "@/lib/utils";
-import type { ContractStatus } from "@/lib/db";
+import type { ContractStatus, TripTraveler } from "@/lib/db";
 import type { PaymentInstallment, PaymentPlan, RuntimeInstallmentStatus } from "@/lib/payment-plans";
 import type { TransactionsByType } from "@/types/transactions";
 
@@ -17,12 +19,15 @@ import { TransactionPanel } from "./TransactionPanel";
 
 type PaymentState = "sin_pagos" | "parcial" | "pagado";
 type FilterState = "todos" | "parcial" | "pagado";
+type AlertCategory = "overdue" | "tomorrow" | "upcoming";
 
 export type PaymentContract = {
   id: string;
   contractNumber: string | null;
   clientName: string;
   destination: string;
+  travelers: TripTraveler[];
+  contactPhone: string | null;
   reservationDate: string | null;
   departureDate: string | null;
   liquidationDate: string | null;
@@ -78,6 +83,22 @@ function getTodayDateOnly() {
   return `${year}-${month}-${day}`;
 }
 
+function addDaysDateOnly(dateOnly: string, days: number) {
+  const date = new Date(`${dateOnly}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function diffDays(fromDateOnly: string, toDateOnly: string) {
+  const from = new Date(`${fromDateOnly}T00:00:00`).getTime();
+  const to = new Date(`${toDateOnly}T00:00:00`).getTime();
+  if (!Number.isFinite(from) || !Number.isFinite(to)) return 0;
+  return Math.floor((to - from) / 86_400_000);
+}
+
 function getInstallmentRuntimeStatus(
   installment: PaymentInstallment,
   today = getTodayDateOnly()
@@ -131,6 +152,267 @@ function getInstallmentBadgeClass(status: RuntimeInstallmentStatus) {
   return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
+function buildWhatsAppUrl(phone: string | null, contract: PaymentContract) {
+  if (!phone) return null;
+  let digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.length === 10) digits = `52${digits}`;
+  if (digits.length < 10) return null;
+
+  const folio = contract.contractNumber ? `#${contract.contractNumber}` : "tu contrato";
+  const message = `Hola ${contract.clientName}, te contactamos de AlvVaz sobre el pago pendiente del contrato ${folio}.`;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
+
+type PaymentAlert = {
+  key: string;
+  category: AlertCategory;
+  contract: PaymentContract;
+  installment: PaymentInstallment;
+  daysOverdue: number;
+  whatsappUrl: string | null;
+};
+
+function buildPaymentAlerts(contracts: PaymentContract[], today = getTodayDateOnly()) {
+  const tomorrow = addDaysDateOnly(today, 1);
+  const soon = addDaysDateOnly(today, 7);
+  const alerts: PaymentAlert[] = [];
+
+  contracts.forEach((contract) => {
+    contract.paymentPlan?.installments.forEach((installment) => {
+      if (installment.status !== "pendiente") return;
+
+      let category: AlertCategory | null = null;
+      if (installment.dueDate < today) {
+        category = "overdue";
+      } else if (installment.dueDate === tomorrow) {
+        category = "tomorrow";
+      } else if (installment.dueDate <= soon) {
+        category = "upcoming";
+      }
+
+      if (!category) return;
+      alerts.push({
+        key: `${contract.id}-${installment.id}`,
+        category,
+        contract,
+        installment,
+        daysOverdue: Math.max(diffDays(installment.dueDate, today), 0),
+        whatsappUrl: buildWhatsAppUrl(contract.contactPhone, contract),
+      });
+    });
+  });
+
+  return alerts.sort((a, b) => {
+    const byDate = a.installment.dueDate.localeCompare(b.installment.dueDate);
+    if (byDate !== 0) return byDate;
+    return (a.contract.contractNumber ?? "").localeCompare(b.contract.contractNumber ?? "");
+  });
+}
+
+function getAlertStatusLabel(alert: PaymentAlert) {
+  if (alert.category === "overdue") {
+    return alert.daysOverdue > 7 ? "Vencida +7 dias" : "Vencida";
+  }
+  if (alert.category === "tomorrow") return "Vence mañana";
+  return alert.installment.dueDate === getTodayDateOnly() ? "Vence hoy" : "Proxima";
+}
+
+function getAlertBadgeClass(category: AlertCategory) {
+  if (category === "overdue") return "border-rose-200 bg-rose-50 text-rose-700";
+  if (category === "tomorrow") return "border-amber-200 bg-amber-50 text-amber-700";
+  return "border-blue-200 bg-blue-50 text-blue-700";
+}
+
+function PaymentAlertsModal({
+  open,
+  alerts,
+  onClose,
+}: {
+  open: boolean;
+  alerts: PaymentAlert[];
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  if (!open) return null;
+
+  const grouped: Record<AlertCategory, PaymentAlert[]> = {
+    overdue: alerts.filter((alert) => alert.category === "overdue"),
+    tomorrow: alerts.filter((alert) => alert.category === "tomorrow"),
+    upcoming: alerts.filter((alert) => alert.category === "upcoming"),
+  };
+
+  const sections: { key: AlertCategory; title: string; empty: string }[] = [
+    { key: "tomorrow", title: "Vencen mañana", empty: "No hay cuotas para mañana." },
+    { key: "overdue", title: "Vencidas", empty: "No hay cuotas vencidas." },
+    { key: "upcoming", title: "Proximos 7 dias", empty: "No hay cuotas proximas." },
+  ];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-slate-950/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Alertas de pagos"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[calc(100vh-2rem)] w-full max-w-6xl overflow-y-auto overscroll-contain rounded-3xl border border-slate-200 bg-white p-6 shadow-xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-5">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+              Pagos
+            </p>
+            <h2 className="font-display text-2xl text-brand-950">Alertas</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Cuotas pendientes vencidas, para mañana y dentro de los próximos 7 días.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-slate-200 px-3 py-1 text-sm text-slate-600 transition hover:border-brand-300 hover:text-brand-700"
+            aria-label="Cerrar alertas"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          {sections.map((section) => (
+            <div
+              key={section.key}
+              className={cn(
+                "rounded-2xl border p-4",
+                getAlertBadgeClass(section.key)
+              )}
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.18em]">
+                {section.title}
+              </p>
+              <p className="mt-2 font-display text-3xl">{grouped[section.key].length}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 space-y-6">
+          {sections.map((section) => (
+            <section key={section.key} className="space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <h3 className="font-display text-lg text-brand-950">{section.title}</h3>
+                <Badge className={cn("rounded-lg", getAlertBadgeClass(section.key))}>
+                  {grouped[section.key].length} cuota(s)
+                </Badge>
+              </div>
+
+              {grouped[section.key].length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                  {section.empty}
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {grouped[section.key].map((alert) => (
+                    <article
+                      key={alert.key}
+                      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                    >
+                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_160px_150px_auto] lg:items-center">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Link
+                              href={`/admin/contratos#contract-${alert.contract.id}`}
+                              className="font-display text-lg text-brand-950 transition hover:text-brand-700"
+                            >
+                              {alert.contract.contractNumber
+                                ? `#${alert.contract.contractNumber}`
+                                : "Sin folio"}
+                            </Link>
+                            <Badge
+                              className={cn(
+                                "rounded-lg px-2 py-1 text-[10px]",
+                                getAlertBadgeClass(alert.category)
+                              )}
+                            >
+                              {getAlertStatusLabel(alert)}
+                            </Badge>
+                          </div>
+                          <p className="mt-1 truncate text-sm font-semibold text-slate-800">
+                            {alert.contract.clientName}
+                          </p>
+                          <p className="truncate text-sm text-slate-600">
+                            {alert.contract.destination}
+                          </p>
+                          <p className="mt-1 truncate text-[11px] uppercase tracking-[0.12em] text-slate-400">
+                            ID {alert.contract.id}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-600">
+                            Cuota
+                          </p>
+                          <p className="mt-1 text-sm text-slate-700">
+                            Pago #{alert.installment.installmentNumber}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-600">
+                            Fecha
+                          </p>
+                          <p className="mt-1 text-sm text-slate-700">
+                            {formatDate(alert.installment.dueDate)}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
+                          <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-brand-950">
+                            {formatAmount(alert.installment.amount)}
+                          </span>
+                          {alert.whatsappUrl ? (
+                            <a
+                              href={alert.whatsappUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700 transition hover:border-emerald-300 hover:text-emerald-800"
+                            >
+                              WhatsApp
+                            </a>
+                          ) : (
+                            <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
+                              Sin WhatsApp
+                            </span>
+                          )}
+                          <Link
+                            href={`/admin/contratos#contract-${alert.contract.id}`}
+                            className="rounded-lg border border-brand-200 px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-brand-700 transition hover:border-brand-300 hover:text-brand-900"
+                          >
+                            Contrato
+                          </Link>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PaymentsContractsList({
   contracts,
   supplierOptions,
@@ -142,6 +424,7 @@ export function PaymentsContractsList({
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<FilterState>("todos");
   const [openContractId, setOpenContractId] = useState<string | null>(null);
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [selectedPlanContractId, setSelectedPlanContractId] = useState<string | null>(null);
   const [planOverrides, setPlanOverrides] = useState<Record<string, PaymentPlan | null>>({});
@@ -156,6 +439,17 @@ export function PaymentsContractsList({
             : contract.paymentPlan,
       })),
     [contracts, planOverrides]
+  );
+
+  const alerts = useMemo(() => buildPaymentAlerts(contractsWithPlans), [contractsWithPlans]);
+  const alertCounts = useMemo(
+    () => ({
+      overdue: alerts.filter((alert) => alert.category === "overdue").length,
+      tomorrow: alerts.filter((alert) => alert.category === "tomorrow").length,
+      upcoming: alerts.filter((alert) => alert.category === "upcoming").length,
+      total: alerts.length,
+    }),
+    [alerts]
   );
 
   const filteredContracts = useMemo(() => {
@@ -177,6 +471,43 @@ export function PaymentsContractsList({
 
   return (
     <section className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <SectionHeading
+          title="Pagos"
+          subtitle="Registra cobros, pagos a mayoristas y comprobantes por contrato."
+          kicker="Admin"
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => setAlertsOpen(true)}
+          className={cn(
+            "relative mt-1 rounded-lg border-2 px-6 py-4 text-sm shadow-sm hover:shadow-md",
+            alertCounts.total > 0
+              ? "border-amber-200 bg-amber-50 text-brand-950 hover:border-amber-300"
+              : "border-brand-200 bg-white text-brand-950 hover:border-brand-300",
+            alertCounts.overdue > 0 &&
+              "border-rose-200 bg-rose-50 text-rose-800 hover:border-rose-300"
+          )}
+        >
+          {alertCounts.total > 0 ? (
+            <span
+              className={cn(
+                "absolute -right-1.5 -top-1.5 h-3.5 w-3.5 rounded-full ring-4 ring-white",
+                alertCounts.overdue > 0 ? "bg-rose-500" : "bg-amber-400"
+              )}
+              aria-hidden="true"
+            />
+          ) : null}
+          Alertas
+          {alertCounts.total > 0 ? (
+            <span className="rounded-full bg-white px-2.5 py-1 text-[11px] shadow-sm">
+              {alertCounts.total}
+            </span>
+          ) : null}
+        </Button>
+      </div>
+
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px_auto] md:items-end">
           <label className="space-y-2">
@@ -258,6 +589,11 @@ export function PaymentsContractsList({
           router.refresh();
         }}
       />
+      <PaymentAlertsModal
+        open={alertsOpen}
+        alerts={alerts}
+        onClose={() => setAlertsOpen(false)}
+      />
     </section>
   );
 }
@@ -273,26 +609,31 @@ function PaymentInstallmentsGrid({
   onEditPlan: () => void;
   onChanged: () => Promise<void>;
 }) {
-  const [markingId, setMarkingId] = useState<string | null>(null);
+  const [deletingPlan, setDeletingPlan] = useState(false);
   const toast = useToast();
 
-  const handleMarkPaid = async (installment: PaymentInstallment) => {
-    setMarkingId(installment.id);
+  const handleDeletePlan = async () => {
+    if (!paymentPlan) return;
+    const confirmed = window.confirm(
+      "¿Eliminar este plan de pagos? Las cuotas programadas se eliminarán, pero las transacciones registradas se conservarán."
+    );
+    if (!confirmed) return;
+
+    setDeletingPlan(true);
     try {
-      const response = await fetch(
-        `/api/contracts/${contractId}/payment-plan/installments/${installment.id}/paid`,
-        { method: "PATCH" }
-      );
+      const response = await fetch(`/api/contracts/${contractId}/payment-plan`, {
+        method: "DELETE",
+      });
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload?.error || "No se pudo marcar el pago como pagado.");
+        throw new Error(payload?.error || "No se pudo eliminar el plan de pagos.");
       }
-      toast.push(`Pago #${installment.installmentNumber} pagado.`, "success");
+      toast.push("Plan de pagos eliminado.", "success");
       await onChanged();
     } catch (error) {
       toast.push((error as Error).message, "error");
     } finally {
-      setMarkingId(null);
+      setDeletingPlan(false);
     }
   };
 
@@ -308,14 +649,28 @@ function PaymentInstallmentsGrid({
             </p>
           ) : null}
         </div>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={onEditPlan}
-          className="rounded-lg px-3 py-2 text-xs"
-        >
-          {paymentPlan ? "Editar plan" : "Crear plan"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {paymentPlan ? (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleDeletePlan}
+              disabled={deletingPlan}
+              className="rounded-lg border-rose-200 px-3 py-2 text-xs text-rose-700 hover:border-rose-300 hover:text-rose-800"
+            >
+              {deletingPlan ? "Eliminando..." : "Eliminar plan"}
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onEditPlan}
+            disabled={deletingPlan}
+            className="rounded-lg px-3 py-2 text-xs"
+          >
+            {paymentPlan ? "Editar plan" : "Crear plan"}
+          </Button>
+        </div>
       </div>
 
       {paymentPlan ? (
@@ -347,18 +702,9 @@ function PaymentInstallmentsGrid({
                   </span>
                 </div>
                 <p className="mt-3 text-sm text-slate-600">{formatDate(installment.dueDate)}</p>
-                <button
-                  type="button"
-                  onClick={() => handleMarkPaid(installment)}
-                  disabled={isPaid || markingId === installment.id}
-                  className="mt-4 w-full rounded-lg border border-brand-200 px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-brand-700 transition hover:border-brand-300 hover:text-brand-900 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                >
-                  {isPaid
-                    ? "Pagada"
-                    : markingId === installment.id
-                      ? "Marcando..."
-                      : "Marcar pagado"}
-                </button>
+                <p className="mt-4 flex min-h-11 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">
+                  {isPaid ? "Pagada" : "Registrar el cobro"}
+                </p>
               </div>
             );
           })}
@@ -586,7 +932,11 @@ export function ContractCard({
               emptyLabel="Sin cobros registrados."
               addLabel="Registrar cobro"
               transactions={transactions.customer_payment}
-              onChanged={refreshTransactions}
+              paymentPlan={paymentPlan}
+              onChanged={async () => {
+                await refreshTransactions();
+                await refreshPaymentPlan();
+              }}
             />
             </div>
             <div className="xl:pl-6">
@@ -606,10 +956,7 @@ export function ContractCard({
             contractId={contract.id}
             paymentPlan={paymentPlan}
             onEditPlan={onEditPlan}
-            onChanged={async () => {
-              await refreshTransactions();
-              await refreshPaymentPlan();
-            }}
+            onChanged={refreshPaymentPlan}
           />
         </div>
       ) : null}

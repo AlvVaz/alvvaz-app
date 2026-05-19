@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { SectionHeading } from "@/components/section-heading";
 import { getAdminFromCookies } from "@/lib/auth/admin";
 import { getContracts } from "@/lib/db";
+import { getPaymentPlansByContractIds, type PaymentPlan } from "@/lib/payment-plans";
 import { prisma } from "@/lib/prisma";
 import { ALLOW_CONTRACT_NUMBER_EDIT_FOR_ALL_ROLES } from "@/lib/contracts/config";
 
@@ -32,6 +33,44 @@ function getNextContractNumber(contracts: Awaited<ReturnType<typeof getContracts
     }
   });
   return String(max + 1).padStart(4, "0");
+}
+
+function formatContractMoney(value: string) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return value;
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(parsed);
+}
+
+function applyPaymentPlanSummaryToContract(
+  contract: Awaited<ReturnType<typeof getContracts>>[number],
+  plan: PaymentPlan | null
+) {
+  if (!plan) return contract;
+
+  const balance = Number(plan.totalAmount) - Number(plan.depositAmount);
+  return {
+    ...contract,
+    totalPrice: formatContractMoney(plan.totalAmount),
+    firstPayment: formatContractMoney(plan.depositAmount),
+    balanceDue: Number.isFinite(balance)
+      ? formatContractMoney(Math.max(balance, 0).toFixed(2))
+      : contract.balanceDue,
+    liquidationDate: plan.endDate,
+    metadata: {
+      ...contract.metadata,
+      paymentPlan: {
+        frequency: plan.frequency,
+        startDate: plan.startDate,
+        endDate: plan.endDate,
+        installmentCount: plan.installmentCount,
+        updatedFrom: "payment_plans",
+        updatedAt: plan.updatedAt ?? plan.createdAt ?? null,
+      },
+    },
+  };
 }
 
 function parseReservationParts(value?: string | null): ReservationParts | null {
@@ -96,7 +135,16 @@ export default async function ContratosAdminPage() {
     redirect("/admin/login");
   }
 
-  const contracts = await getContracts();
+  const rawContracts = await getContracts();
+  const paymentPlansByContract = await getPaymentPlansByContractIds(
+    rawContracts.map((contract) => contract.id)
+  );
+  const contracts = rawContracts.map((contract) =>
+    applyPaymentPlanSummaryToContract(
+      contract,
+      paymentPlansByContract.get(contract.id) ?? null
+    )
+  );
   const adminUsers = await prisma.adminUser.findMany({
     orderBy: [{ username: "asc" }, { email: "asc" }],
   });

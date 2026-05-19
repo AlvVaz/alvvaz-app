@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import type { PaymentPlan } from "@/lib/payment-plans";
 import type { ContractTransaction, TransactionType } from "@/types/transactions";
 
 import { AddTransactionModal } from "./AddTransactionModal";
@@ -16,6 +17,9 @@ type TransactionPanelProps = {
   addLabel: string;
   transactions: ContractTransaction[];
   supplierOptions?: string[];
+  paymentPlan?: PaymentPlan | null;
+  initialInstallmentId?: string | null;
+  onInitialInstallmentHandled?: () => void;
   onChanged: () => Promise<void>;
 };
 
@@ -67,6 +71,9 @@ export function TransactionPanel({
   addLabel,
   transactions,
   supplierOptions = [],
+  paymentPlan = null,
+  initialInstallmentId = null,
+  onInitialInstallmentHandled,
   onChanged,
 }: TransactionPanelProps) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -76,6 +83,15 @@ export function TransactionPanel({
       ? getNextNumberedConcept(transactions, "Anticipo")
       : "";
   const conceptHeader = type === "customer_payment" ? "Concepto" : "Mayorista";
+  const transactionModalOpen = modalOpen || Boolean(initialInstallmentId);
+  const handleModalClose = () => {
+    setModalOpen(false);
+    onInitialInstallmentHandled?.();
+  };
+  const handleModalSaved = async () => {
+    await onChanged();
+    onInitialInstallmentHandled?.();
+  };
 
   return (
     <section className="min-w-0">
@@ -197,14 +213,16 @@ export function TransactionPanel({
       </div>
 
       <AddTransactionModal
-        key={`${type}-${defaultConcept}`}
+        key={`${type}-${defaultConcept}-${initialInstallmentId ?? "manual"}`}
         contractId={contractId}
         type={type}
-        open={modalOpen}
+        open={transactionModalOpen}
         defaultConcept={defaultConcept}
         supplierOptions={type === "wholesaler_payment" ? supplierOptions : []}
-        onClose={() => setModalOpen(false)}
-        onSaved={onChanged}
+        paymentPlan={paymentPlan}
+        initialInstallmentId={initialInstallmentId}
+        onClose={handleModalClose}
+        onSaved={handleModalSaved}
       />
 
       {editingTransaction ? (

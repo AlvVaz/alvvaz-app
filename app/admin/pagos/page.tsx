@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 
-import { SectionHeading } from "@/components/section-heading";
 import ToastProvider from "@/components/ui/toast";
 import { getAdminFromCookies } from "@/lib/auth/admin";
 import { getContracts } from "@/lib/db";
@@ -49,12 +48,23 @@ async function getTransactionRows(contractIds: string[]) {
   }
 }
 
-function getTodayDateOnly() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+function getContractPhone(contract: Awaited<ReturnType<typeof getContracts>>[number]) {
+  const travelerPhone = contract.travelers
+    .map((traveler) => traveler.phone.trim())
+    .find(Boolean);
+  if (travelerPhone) return travelerPhone;
+
+  const metadataPhoneCandidates = [
+    contract.metadata.phone,
+    contract.metadata.contact,
+    contract.metadata.telefono,
+    contract.metadata.whatsapp,
+  ];
+  return (
+    metadataPhoneCandidates
+      .map((value) => String(value ?? "").trim())
+      .find(Boolean) ?? null
+  );
 }
 
 export default async function PagosAdminPage() {
@@ -64,7 +74,7 @@ export default async function PagosAdminPage() {
   }
 
   const contracts = await getContracts();
- const activeContracts = contracts
+  const activeContracts = contracts
     .filter((contract) => contract.status !== "canceled")
     .sort((a, b) => {
       const numA = a.contractNumber ? parseInt(a.contractNumber, 10) : -1;
@@ -82,6 +92,8 @@ export default async function PagosAdminPage() {
     contractNumber: contract.contractNumber,
     clientName: contract.clientName,
     destination: contract.destination,
+    travelers: contract.travelers,
+    contactPhone: getContractPhone(contract),
     reservationDate: contract.reservationDate,
     departureDate: contract.departureDate,
     liquidationDate: contract.liquidationDate,
@@ -91,15 +103,6 @@ export default async function PagosAdminPage() {
     transactions: transactionsByContract.get(contract.id) ?? buildEmptyTransactionsByType(),
     paymentPlan: paymentPlansByContract.get(contract.id) ?? null,
   }));
-  const today = getTodayDateOnly();
-  const overdueInstallmentCount = paymentContracts.reduce(
-    (count, contract) =>
-      count +
-      (contract.paymentPlan?.installments.filter(
-        (installment) => installment.status === "pendiente" && installment.dueDate < today
-      ).length ?? 0),
-    0
-  );
   const supplierOptions = Array.from(
     new Set(
       activeContracts
@@ -111,18 +114,6 @@ export default async function PagosAdminPage() {
   return (
     <ToastProvider>
       <div className="space-y-10">
-        <SectionHeading
-          title="Pagos"
-          subtitle="Registra cobros, pagos a mayoristas y comprobantes por contrato."
-          kicker="Admin"
-        />
-
-        {overdueInstallmentCount > 0 ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-semibold text-rose-700">
-            Hay {overdueInstallmentCount} pago(s) vencido(s) en los planes de pago.
-          </div>
-        ) : null}
-
         <PaymentsContractsList contracts={paymentContracts} supplierOptions={supplierOptions} />
       </div>
     </ToastProvider>

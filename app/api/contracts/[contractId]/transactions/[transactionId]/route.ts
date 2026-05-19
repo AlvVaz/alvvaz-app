@@ -88,6 +88,41 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  if (status !== "pagado") {
+    const { error: installmentError } = await supabase
+      .from("payment_installments")
+      .update({ status: "pendiente", transaction_id: null })
+      .eq("transaction_id", transactionId);
+
+    if (installmentError) {
+      return NextResponse.json({ error: installmentError.message }, { status: 500 });
+    }
+  } else {
+    const { data: linkedInstallments, error: linkedInstallmentsError } = await supabase
+      .from("payment_installments")
+      .select("id, amount")
+      .eq("transaction_id", transactionId);
+
+    if (linkedInstallmentsError) {
+      return NextResponse.json({ error: linkedInstallmentsError.message }, { status: 500 });
+    }
+
+    const mismatchedInstallmentIds = (linkedInstallments ?? [])
+      .filter((installment) => Number(installment.amount) !== amount)
+      .map((installment) => String(installment.id));
+
+    if (mismatchedInstallmentIds.length > 0) {
+      const { error: installmentError } = await supabase
+        .from("payment_installments")
+        .update({ status: "pendiente", transaction_id: null })
+        .in("id", mismatchedInstallmentIds);
+
+      if (installmentError) {
+        return NextResponse.json({ error: installmentError.message }, { status: 500 });
+      }
+    }
+  }
+
   return NextResponse.json({ transaction: data });
 }
 
@@ -136,6 +171,15 @@ export async function DELETE(_request: Request, context: RouteContext) {
     if (storageError) {
       return NextResponse.json({ error: storageError.message }, { status: 500 });
     }
+  }
+
+  const { error: installmentError } = await supabase
+    .from("payment_installments")
+    .update({ status: "pendiente", transaction_id: null })
+    .eq("transaction_id", transactionId);
+
+  if (installmentError) {
+    return NextResponse.json({ error: installmentError.message }, { status: 500 });
   }
 
   const { error } = await supabase
