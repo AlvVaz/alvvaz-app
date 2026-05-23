@@ -305,7 +305,7 @@ export function AddTransactionModal({
                 type="number"
                 min="0"
                 step="0.01"
-                className={fieldClass}
+                className={`${fieldClass} no-number-spinner`}
               />
             </label>
 
