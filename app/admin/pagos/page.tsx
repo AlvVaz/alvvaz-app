@@ -102,6 +102,7 @@ export default async function PagosAdminPage() {
     status: contract.status,
     transactions: transactionsByContract.get(contract.id) ?? buildEmptyTransactionsByType(),
     paymentPlan: paymentPlansByContract.get(contract.id) ?? null,
+    generalNotes: contract.generalNotes ?? null,
   }));
   const supplierOptions = Array.from(
     new Set(

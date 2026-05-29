@@ -89,6 +89,7 @@ export type Contract = {
   travelers: TripTraveler[];
   description: string | null;
   notes: string | null;
+  generalNotes: string | null;
   totalPrice: string | null;
   firstPayment: string | null;
   balanceDue: string | null;

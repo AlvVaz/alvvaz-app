@@ -36,6 +36,7 @@ export type PaymentContract = {
   status: ContractStatus;
   transactions: TransactionsByType;
   paymentPlan: PaymentPlan | null;
+  generalNotes: string | null;
 };
 
 function normalizeText(value: string) {
@@ -737,7 +738,7 @@ export function ContractCard({
   const [paymentPlan, setPaymentPlan] = useState(contract.paymentPlan);
   const [loading, setLoading] = useState(false);
   const [notesModalOpen, setNotesModalOpen] = useState(false);
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState(contract.generalNotes ?? "");
   const [notesLoading, setNotesLoading] = useState(false);
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesError, setNotesError] = useState<string | null>(null);
