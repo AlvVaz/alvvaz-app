@@ -1234,6 +1234,70 @@ export function ContractForm({
         </div>
       </div>
 
+      <div className="space-y-2">
+        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+          Liquidación del viaje
+        </label>
+        <input
+          type="date"
+          name="liquidationDate"
+          value={liquidationDateValue}
+          onChange={(event) => {
+            setLiquidationDateValue(event.target.value);
+            setIsLiquidationAuto(false);
+          }}
+          className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
+        {(() => {
+          const currentStatus =
+            seedContract?.status ??
+            (seedContract?.isPaid ? "paid" : seedContract?.isSigned ? "signed" : "");
+          return (
+            <>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="status"
+                  value="signed"
+                  defaultChecked={currentStatus === "signed"}
+                />
+                Firmado
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="status"
+                  value="paid"
+                  defaultChecked={currentStatus === "paid"}
+                />
+                Pagado
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="status"
+                  value="pending"
+                  defaultChecked={currentStatus === "pending"}
+                />
+                Pendiente
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="status"
+                  value="canceled"
+                  defaultChecked={currentStatus === "canceled"}
+                />
+                Cancelado
+              </label>
+            </>
+          );
+        })()}
+      </div>
+
       <div className="md:col-span-2 space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
           Plan de pagos
@@ -1356,70 +1420,6 @@ export function ContractForm({
         />
       </div>
 
-      <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          Liquidación del viaje
-        </label>
-        <input
-          type="date"
-          name="liquidationDate"
-          value={liquidationDateValue}
-          onChange={(event) => {
-            setLiquidationDateValue(event.target.value);
-            setIsLiquidationAuto(false);
-          }}
-          className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
-        />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
-        {(() => {
-          const currentStatus =
-            seedContract?.status ??
-            (seedContract?.isPaid ? "paid" : seedContract?.isSigned ? "signed" : "");
-          return (
-            <>
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            name="status"
-            value="signed"
-            defaultChecked={currentStatus === "signed"}
-          />
-          Firmado
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            name="status"
-            value="paid"
-            defaultChecked={currentStatus === "paid"}
-          />
-          Pagado
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            name="status"
-            value="pending"
-            defaultChecked={currentStatus === "pending"}
-          />
-          Pendiente
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            name="status"
-            value="canceled"
-            defaultChecked={currentStatus === "canceled"}
-          />
-          Cancelado
-        </label>
-            </>
-          );
-        })()}
-      </div>
-
       {isLocked ? (
         <p className="md:col-span-2 text-[11px] uppercase tracking-[0.18em] text-slate-400">
           Edicion disponible solo durante los primeros 3 dias para rol admin.
@@ -1476,11 +1476,7 @@ export function ContractForm({
             {pdfError ? <span className="text-rose-600">{pdfError}</span> : null}
           </div>
         </div>
-      ) : (
-        <div className="md:col-span-2 rounded-2xl border border-dashed border-brand-200 bg-white/70 p-4 text-xs text-slate-600">
-          El PDF final se generara desde la plantilla y se almacenara en Supabase.
-        </div>
-      )}
+      ) : null}
 
       <div className="md:col-span-2 flex flex-wrap items-center justify-end gap-3">
         <Button
