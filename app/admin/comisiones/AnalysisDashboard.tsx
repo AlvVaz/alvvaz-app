@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { SectionHeading } from "@/components/section-heading";
@@ -70,6 +70,14 @@ function parseReservationParts(value?: string | null): ReservationParts | null {
 
 function toDateKey(parts: ReservationParts) {
   return parts.year * 10000 + parts.month * 100 + parts.day;
+}
+
+function getPreviousMonthParts(date: Date) {
+  const monthIndex = date.getMonth();
+  if (monthIndex === 0) {
+    return { year: date.getFullYear() - 1, month: 12 };
+  }
+  return { year: date.getFullYear(), month: monthIndex };
 }
 
 function endOfDay(date: Date) {
@@ -148,6 +156,58 @@ const shortDateFormatter = new Intl.DateTimeFormat("es-MX", {
   month: "short",
 });
 
+const monthOptions = [
+  { value: 1, label: "Enero" },
+  { value: 2, label: "Febrero" },
+  { value: 3, label: "Marzo" },
+  { value: 4, label: "Abril" },
+  { value: 5, label: "Mayo" },
+  { value: 6, label: "Junio" },
+  { value: 7, label: "Julio" },
+  { value: 8, label: "Agosto" },
+  { value: 9, label: "Septiembre" },
+  { value: 10, label: "Octubre" },
+  { value: 11, label: "Noviembre" },
+  { value: 12, label: "Diciembre" },
+];
+
+const currentSellerOptions = [
+  {
+    key: "miguel-alvarado",
+    label: "Miguel Alvarado",
+    aliases: ["miguel", "miguel alvarado", "miguel alvardo"],
+  },
+  {
+    key: "jessy-marquez",
+    label: "Jessy Marquez",
+    aliases: ["jessy", "jessy marquez"],
+  },
+  {
+    key: "luis-gutierrez",
+    label: "Luis Gutierrez",
+    aliases: ["luis", "jose luis", "luis gutierrez", "luis gutierres"],
+  },
+];
+
+function normalizeSellerAlias(value?: string | null) {
+  return (value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+function normalizeCurrentSeller(value?: string | null) {
+  const alias = normalizeSellerAlias(value);
+  if (!alias) return null;
+  return (
+    currentSellerOptions.find((seller) =>
+      seller.aliases.some((sellerAlias) => normalizeSellerAlias(sellerAlias) === alias)
+    ) ?? null
+  );
+}
+
 function formatShortDate(value?: string | null) {
   if (!value) return "Sin fecha";
   const date = new Date(`${value}T00:00:00`);
@@ -180,9 +240,23 @@ export function AnalysisDashboard({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
+  const [today] = useState(() => {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const previousMonth = getPreviousMonthParts(date);
+    return {
+      year,
+      month,
+      dateKey: toDateKey({ year, month, day: date.getDate() }),
+      defaultCompletedYear: previousMonth.year,
+      defaultCompletedMonth: previousMonth.month,
+    };
+  });
+  const currentYear = today.year;
+  const currentMonth = today.month;
+  const [completedMonth, setCompletedMonth] = useState(today.defaultCompletedMonth);
+  const [completedYear, setCompletedYear] = useState(today.defaultCompletedYear);
 
   const rawMode = searchParams.get("mode");
   const rawYear = parseNumber(searchParams.get("year"));
@@ -222,15 +296,22 @@ export function AnalysisDashboard({
       ? "all"
       : selectedAdminKey;
 
-  const years = useMemo(() => {
-    const yearsSet = new Set<number>();
-    yearsSet.add(currentYear);
-    for (const contract of contracts) {
-      const parts = parseReservationParts(contract.reservationDate);
-      if (parts) yearsSet.add(parts.year);
-    }
-    return Array.from(yearsSet).sort((a, b) => b - a);
-  }, [contracts, currentYear]);
+  const yearsSet = new Set<number>();
+  yearsSet.add(currentYear);
+  for (const contract of contracts) {
+    const parts = parseReservationParts(contract.reservationDate);
+    if (parts) yearsSet.add(parts.year);
+  }
+  const years = Array.from(yearsSet).sort((a, b) => b - a);
+
+  const completedYearsSet = new Set<number>();
+  completedYearsSet.add(currentYear);
+  completedYearsSet.add(today.defaultCompletedYear);
+  for (const contract of contracts) {
+    const parts = parseReservationParts(contract.returnDate);
+    if (parts) completedYearsSet.add(parts.year);
+  }
+  const completedYears = Array.from(completedYearsSet).sort((a, b) => b - a);
 
   const adminFilterOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -446,13 +527,88 @@ export function AnalysisDashboard({
   ]);
 
   const showEmptyState = computed.noData || computed.isRangeIncomplete;
-  const salesSeries = computed.buckets.map(
-    (bucket) => computed.bucketMap.get(bucket.key)?.sales ?? 0
-  );
-  const revenueSeries = computed.buckets.map(
-    (bucket) => computed.bucketMap.get(bucket.key)?.revenue ?? 0
-  );
   const isSingleMonth = computed.buckets.length === 1;
+  const completedBySeller = useMemo(() => {
+    const sellers = new Map<
+      string,
+      {
+        key: string;
+        name: string;
+        count: number;
+        total: number;
+        contracts: Contract[];
+      }
+    >();
+
+    const ensureSeller = (seller: { key: string; label: string }) => {
+      const existing = sellers.get(seller.key);
+      if (existing) return existing;
+      const entry = {
+        key: seller.key,
+        name: seller.label,
+        count: 0,
+        total: 0,
+        contracts: [] as Contract[],
+      };
+      sellers.set(seller.key, entry);
+      return entry;
+    };
+
+    for (const seller of currentSellerOptions) {
+      ensureSeller(seller);
+    }
+
+    for (const contract of contracts) {
+      const seller = normalizeCurrentSeller(contract.seller);
+      if (!seller) continue;
+      const returnParts = parseReservationParts(contract.returnDate);
+      if (!returnParts) continue;
+      if (returnParts.year !== completedYear || returnParts.month !== completedMonth) {
+        continue;
+      }
+      if (toDateKey(returnParts) > today.dateKey) continue;
+      const isCompletedSale =
+        contract.status === "signed" ||
+        contract.status === "paid" ||
+        ((contract.isSigned || contract.isPaid) &&
+          contract.status !== "pending" &&
+          contract.status !== "canceled");
+      if (!isCompletedSale) continue;
+
+      const entry = ensureSeller(seller);
+      entry.count += 1;
+      entry.total += parseMoney(contract.totalPrice);
+      entry.contracts.push(contract);
+    }
+
+    const groups = Array.from(sellers.values()).map((entry) => ({
+      ...entry,
+      contracts: [...entry.contracts].sort((a, b) => {
+        const aParts = parseReservationParts(a.returnDate);
+        const bParts = parseReservationParts(b.returnDate);
+        const aKey = aParts ? toDateKey(aParts) : Number.POSITIVE_INFINITY;
+        const bKey = bParts ? toDateKey(bParts) : Number.POSITIVE_INFINITY;
+        if (aKey !== bKey) return aKey - bKey;
+        return (a.contractNumber ?? a.id).localeCompare(
+          b.contractNumber ?? b.id,
+          "es",
+          { sensitivity: "base" }
+        );
+      }),
+    }));
+
+    groups.sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      if (b.total !== a.total) return b.total - a.total;
+      return a.name.localeCompare(b.name, "es", { sensitivity: "base" });
+    });
+
+    const totalContracts = groups.reduce((sum, entry) => sum + entry.count, 0);
+    const totalAmount = groups.reduce((sum, entry) => sum + entry.total, 0);
+    const maxTotal = Math.max(1, ...groups.map((entry) => entry.total));
+
+    return { groups, totalContracts, totalAmount, maxTotal };
+  }, [contracts, completedMonth, completedYear, today.dateKey]);
 
   return (
     <div className="space-y-8">
@@ -612,6 +768,146 @@ export function AnalysisDashboard({
               </span>
             ) : null}
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h3 className="font-display text-lg text-brand-950">
+              Viajes Completados por Asesor (Comisiones)
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Contratos firmados o pagados con fecha de regreso en el mes seleccionado.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="sr-only" htmlFor="completed-month">
+              Mes completado
+            </label>
+            <select
+              id="completed-month"
+              value={String(completedMonth)}
+              onChange={(event) => setCompletedMonth(Number(event.target.value))}
+              className="rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-600 hover:border-brand-400"
+            >
+              {monthOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            <label className="sr-only" htmlFor="completed-year">
+              Año completado
+            </label>
+            <select
+              id="completed-year"
+              value={String(completedYear)}
+              onChange={(event) => setCompletedYear(Number(event.target.value))}
+              className="rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-600 hover:border-brand-400"
+            >
+              {completedYears.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <span className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+            {completedBySeller.totalContracts} contratos completados
+          </span>
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700">
+            {formatCurrencyDetailed(completedBySeller.totalAmount)}
+          </span>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          {completedBySeller.groups.map((entry) => {
+            const width =
+              entry.total > 0
+                ? Math.max(8, Math.round((entry.total / completedBySeller.maxTotal) * 100))
+                : 0;
+            if (entry.contracts.length === 0) {
+              return (
+                <div
+                  key={entry.key}
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-3"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-brand-950">{entry.name}</p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.2em] text-brand-600">
+                        {entry.count} contratos completados
+                      </p>
+                    </div>
+                    <span className="font-display text-lg font-semibold text-brand-600">
+                      {formatCurrencyDetailed(entry.total)}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-brand-500"
+                      style={{ width: `${width}%` }}
+                    />
+                  </div>
+
+                  <span className="mt-3 block text-xs text-slate-400">
+                    Sin contratos completados este mes.
+                  </span>
+                </div>
+              );
+            }
+
+            return (
+              <details
+                key={entry.key}
+                className="group rounded-2xl border border-slate-200 bg-white px-4 py-3"
+              >
+                <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-brand-950">{entry.name}</p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.2em] text-brand-600">
+                        {entry.count} contratos completados
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-display text-lg font-semibold text-brand-600">
+                        {formatCurrencyDetailed(entry.total)}
+                      </span>
+                      <span className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+                        <span className="group-open:hidden">Ver contratos</span>
+                        <span className="hidden group-open:inline">Ocultar contratos</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-brand-500"
+                      style={{ width: `${width}%` }}
+                    />
+                  </div>
+                </summary>
+
+                <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                  {entry.contracts.map((contract) => (
+                    <span
+                      key={contract.id}
+                      className="max-w-full break-all rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700"
+                    >
+                      {contract.contractNumber ? `#${contract.contractNumber}` : contract.id}
+                    </span>
+                  ))}
+                </div>
+              </details>
+            );
+          })}
         </div>
       </section>
 
