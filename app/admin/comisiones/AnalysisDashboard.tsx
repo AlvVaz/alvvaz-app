@@ -578,9 +578,11 @@ export function AnalysisDashboard({
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="font-display text-lg text-brand-950">
-            Ingresos Netos por Mes
+            Ventas Generadas Acumuladas por Mes (MXN)
           </h3>
-          <p className="mt-1 text-sm text-slate-500">Precio Neto Acumulado.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Suma del precio de contratos firmados o pagados según el mes de reserva.
+          </p>
           <div className="mt-6">
             <div className="flex h-28 items-end gap-2">
               {computed.buckets.map((bucket) => {
