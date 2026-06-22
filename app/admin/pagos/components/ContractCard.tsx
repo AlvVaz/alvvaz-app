@@ -20,6 +20,10 @@ import { TransactionPanel } from "./TransactionPanel";
 type PaymentState = "sin_pagos" | "parcial" | "pagado";
 type FilterState = "todos" | "parcial" | "pagado";
 type AlertCategory = "overdue" | "tomorrow" | "upcoming";
+type PaymentDetailsPayload = {
+  transactions: TransactionsByType;
+  plan: PaymentPlan | null;
+};
 
 export type PaymentContract = {
   id: string;
@@ -422,6 +426,8 @@ export function PaymentsContractsList({
   const [selectedPlanContractId, setSelectedPlanContractId] = useState<string | null>(null);
   const [planOverrides, setPlanOverrides] = useState<Record<string, PaymentPlan | null>>({});
   const [loadedPlanIds, setLoadedPlanIds] = useState<Record<string, true>>({});
+  const paymentDetailsCache = useRef<Record<string, PaymentDetailsPayload>>({});
+  const paymentDetailsRequests = useRef<Record<string, Promise<PaymentDetailsPayload>>>({});
 
   const contractsWithPlans = useMemo(
     () =>
@@ -466,10 +472,47 @@ export function PaymentsContractsList({
     [alerts]
   );
 
-  const markPaymentPlanLoaded = (contractId: string, plan: PaymentPlan | null) => {
+  const markPaymentPlanLoaded = useCallback((contractId: string, plan: PaymentPlan | null) => {
     setPlanOverrides((current) => ({ ...current, [contractId]: plan }));
     setLoadedPlanIds((current) => ({ ...current, [contractId]: true }));
-  };
+  }, []);
+
+  const loadPaymentDetailsForContract = useCallback(
+    async (contractId: string, options: { force?: boolean } = {}) => {
+      if (!options.force) {
+        const cachedDetails = paymentDetailsCache.current[contractId];
+        if (cachedDetails) return cachedDetails;
+
+        const pendingRequest = paymentDetailsRequests.current[contractId];
+        if (pendingRequest) return pendingRequest;
+      }
+
+      const request = fetch(`/api/contracts/${contractId}/payment-details`, {
+        cache: "no-store",
+      })
+        .then(async (response) => {
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload?.error || "No se pudieron cargar los pagos.");
+          }
+
+          const details = {
+            transactions: payload.transactions as TransactionsByType,
+            plan: (payload.plan ?? null) as PaymentPlan | null,
+          };
+          paymentDetailsCache.current[contractId] = details;
+          markPaymentPlanLoaded(contractId, details.plan);
+          return details;
+        })
+        .finally(() => {
+          delete paymentDetailsRequests.current[contractId];
+        });
+
+      paymentDetailsRequests.current[contractId] = request;
+      return request;
+    },
+    [markPaymentPlanLoaded]
+  );
 
   const loadPaymentPlan = async (contractId: string) => {
     const response = await fetch(`/api/contracts/${contractId}/payment-plan`, {
@@ -604,6 +647,10 @@ export function PaymentsContractsList({
               onPlanChanged={(plan) => {
                 markPaymentPlanLoaded(contract.id, plan);
                 router.refresh();
+              }}
+              loadPaymentDetailsForContract={loadPaymentDetailsForContract}
+              prefetchPaymentDetails={() => {
+                void loadPaymentDetailsForContract(contract.id).catch(() => undefined);
               }}
             />
           ))
@@ -777,6 +824,8 @@ export function ContractCard({
   onEditPlan,
   onPaymentPlanLoaded,
   onPlanChanged,
+  loadPaymentDetailsForContract,
+  prefetchPaymentDetails,
 }: {
   contract: PaymentContract;
   supplierOptions: string[];
@@ -785,6 +834,11 @@ export function ContractCard({
   onEditPlan: () => void;
   onPaymentPlanLoaded: (plan: PaymentPlan | null) => void;
   onPlanChanged: (plan: PaymentPlan | null) => void;
+  loadPaymentDetailsForContract: (
+    contractId: string,
+    options?: { force?: boolean }
+  ) => Promise<PaymentDetailsPayload>;
+  prefetchPaymentDetails: () => void;
 }) {
   const [transactions, setTransactions] = useState(contract.transactions);
   const [paymentPlan, setPaymentPlan] = useState(contract.paymentPlan);
@@ -835,18 +889,12 @@ export function ContractCard({
     setPaymentPlan(contract.paymentPlan);
   }, [contract.paymentPlan]);
 
-  const loadPaymentDetails = useCallback(async (markAsChanged = false) => {
+  const loadPaymentDetails = useCallback(async (markAsChanged = false, forceRefresh = markAsChanged) => {
     setLoading(true);
     setDetailsLoading(true);
     setDetailsError(null);
     try {
-      const response = await fetch(`/api/contracts/${contract.id}/payment-details`, {
-        cache: "no-store",
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || "No se pudieron cargar los pagos.");
-      }
+      const payload = await loadPaymentDetailsForContract(contract.id, { force: forceRefresh });
       setTransactions(payload.transactions);
       setPaymentPlan(payload.plan);
       setDetailsLoaded(true);
@@ -865,7 +913,7 @@ export function ContractCard({
       setDetailsLoading(false);
       setLoading(false);
     }
-  }, [contract.id, onPaymentPlanLoaded, onPlanChanged, toast]);
+  }, [contract.id, loadPaymentDetailsForContract, onPaymentPlanLoaded, onPlanChanged, toast]);
 
   useEffect(() => {
     if (!open || detailsLoaded || detailsRequestStarted.current) return;
@@ -951,6 +999,8 @@ export function ContractCard({
         <button
           type="button"
           onClick={onToggle}
+          onFocus={prefetchPaymentDetails}
+          onMouseEnter={prefetchPaymentDetails}
           className="flex min-w-0 flex-1 items-center gap-4 text-left"
         >
           <span
@@ -1047,7 +1097,7 @@ export function ContractCard({
                     transactions={transactions.wholesaler_payment}
                     supplierOptions={supplierOptions}
                     onChanged={async () => {
-                      await loadPaymentDetails();
+                      await loadPaymentDetails(false, true);
                     }}
                   />
                 </div>
