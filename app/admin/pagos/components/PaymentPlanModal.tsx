@@ -17,12 +17,14 @@ type PaymentPlanContract = {
   totalPrice: string | null;
   firstPayment: string | null;
   paymentPlan: PaymentPlan | null;
+  paymentPlanLoaded: boolean;
 };
 
 type PaymentPlanModalProps = {
   open: boolean;
   contracts: PaymentPlanContract[];
   initialContractId?: string | null;
+  loadPaymentPlan: (contractId: string) => Promise<PaymentPlan | null>;
   onClose: () => void;
   onSaved: (contractId: string, plan: PaymentPlan) => void;
 };
@@ -177,11 +179,34 @@ export function PaymentPlanModal({
   open,
   contracts,
   initialContractId,
+  loadPaymentPlan,
   onClose,
   onSaved,
 }: PaymentPlanModalProps) {
   const [selectedContractId, setSelectedContractId] = useState(initialContractId ?? "");
-  const selectedContract = contracts.find((contract) => contract.id === selectedContractId) ?? null;
+  const [planOverrides, setPlanOverrides] = useState<Record<string, PaymentPlan | null>>({});
+  const [loadedPlanIds, setLoadedPlanIds] = useState<Record<string, true>>({});
+  const selectedBaseContract = useMemo(
+    () => contracts.find((contract) => contract.id === selectedContractId) ?? null,
+    [contracts, selectedContractId]
+  );
+  const selectedContract = useMemo(() => {
+    if (!selectedBaseContract) return null;
+    const hasOverride = Object.prototype.hasOwnProperty.call(
+      planOverrides,
+      selectedContractId
+    );
+    return {
+      ...selectedBaseContract,
+      paymentPlan: hasOverride
+        ? planOverrides[selectedContractId]
+        : selectedBaseContract.paymentPlan,
+      paymentPlanLoaded:
+        selectedBaseContract.paymentPlanLoaded ||
+        Boolean(loadedPlanIds[selectedContractId]) ||
+        hasOverride,
+    };
+  }, [loadedPlanIds, planOverrides, selectedBaseContract, selectedContractId]);
   const [totalAmount, setTotalAmount] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
   const [startDate, setStartDate] = useState(todayDateOnly());
@@ -191,6 +216,7 @@ export function PaymentPlanModal({
   const [installmentCountTouched, setInstallmentCountTouched] = useState(false);
   const [installmentDrafts, setInstallmentDrafts] = useState<InstallmentDraft[]>([]);
   const [saving, setSaving] = useState(false);
+  const [loadingPlan, setLoadingPlan] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const contractOptions = contracts.map((contract) => ({
@@ -204,7 +230,32 @@ export function PaymentPlanModal({
   }, [contracts, initialContractId, open]);
 
   useEffect(() => {
-    if (!selectedContract) return;
+    if (!open || !selectedBaseContract || selectedContract?.paymentPlanLoaded) return;
+    let active = true;
+    setLoadingPlan(true);
+    setError(null);
+    loadPaymentPlan(selectedBaseContract.id)
+      .then((plan) => {
+        if (!active) return;
+        setPlanOverrides((current) => ({ ...current, [selectedBaseContract.id]: plan }));
+        setLoadedPlanIds((current) => ({ ...current, [selectedBaseContract.id]: true }));
+      })
+      .catch((loadError) => {
+        if (!active) return;
+        setError((loadError as Error).message);
+      })
+      .finally(() => {
+        if (active) {
+          setLoadingPlan(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadPaymentPlan, open, selectedBaseContract, selectedContract?.paymentPlanLoaded]);
+
+  useEffect(() => {
+    if (!selectedContract || !selectedContract.paymentPlanLoaded) return;
     const existingPlan = selectedContract.paymentPlan;
     setTotalAmount(existingPlan?.totalAmount ?? formatMoneyInput(selectedContract.totalPrice));
     setDepositAmount(existingPlan?.depositAmount ?? formatMoneyInput(selectedContract.firstPayment));
@@ -336,6 +387,8 @@ export function PaymentPlanModal({
       if (!response.ok) {
         throw new Error(payload?.error || "No se pudo guardar el plan.");
       }
+      setPlanOverrides((current) => ({ ...current, [selectedContractId]: payload.plan as PaymentPlan }));
+      setLoadedPlanIds((current) => ({ ...current, [selectedContractId]: true }));
       onSaved(selectedContractId, payload.plan as PaymentPlan);
       onClose();
     } catch (submitError) {
@@ -384,6 +437,9 @@ export function PaymentPlanModal({
                 searchable
                 searchPlaceholder="Buscar contrato"
               />
+              {loadingPlan ? (
+                <p className="text-xs text-slate-500">Cargando plan actual...</p>
+              ) : null}
             </div>
 
             <label className="block space-y-2">
@@ -589,7 +645,12 @@ export function PaymentPlanModal({
             </Button>
             <Button
               type="submit"
-              disabled={saving || !installmentDraftsValid}
+              disabled={
+                saving ||
+                loadingPlan ||
+                !selectedContract?.paymentPlanLoaded ||
+                !installmentDraftsValid
+              }
               className="rounded-lg px-5 py-3 text-xs"
             >
               {saving ? "Guardando..." : "Guardar plan"}

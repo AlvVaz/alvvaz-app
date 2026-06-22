@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
@@ -35,8 +35,27 @@ export type PaymentContract = {
   firstPayment: string | null;
   status: ContractStatus;
   transactions: TransactionsByType;
+  transactionsLoaded: boolean;
+  transactionSummary: {
+    customerPaymentCount: number;
+    wholesalerPaymentCount: number;
+    pendingCustomerPaymentCount: number;
+  };
   paymentPlan: PaymentPlan | null;
+  paymentPlanLoaded: boolean;
+  paymentAlertSummary: {
+    overdue: number;
+    upcoming: number;
+  };
   generalNotes: string | null;
+};
+
+export type InitialPaymentAlert = {
+  key: string;
+  category: AlertCategory;
+  contractId: string;
+  installment: PaymentInstallment;
+  daysOverdue: number;
 };
 
 function normalizeText(value: string) {
@@ -55,7 +74,7 @@ function getInitials(name: string) {
     .join("");
 }
 
-function getPaymentState(transactions: TransactionsByType): PaymentState {
+function getPaymentStateFromTransactions(transactions: TransactionsByType): PaymentState {
   const customerPayments = transactions.customer_payment;
   if (customerPayments.length === 0) return "sin_pagos";
   return customerPayments.some((transaction) => transaction.status === "pendiente")
@@ -63,13 +82,31 @@ function getPaymentState(transactions: TransactionsByType): PaymentState {
     : "pagado";
 }
 
+function getPaymentState(contract: PaymentContract): PaymentState {
+  if (contract.transactionsLoaded) {
+    return getPaymentStateFromTransactions(contract.transactions);
+  }
+  if (contract.transactionSummary.customerPaymentCount === 0) return "sin_pagos";
+  return contract.transactionSummary.pendingCustomerPaymentCount > 0 ? "parcial" : "pagado";
+}
+
 function getStateBadgeClass(state: PaymentState) {
   if (state === "sin_pagos") return "border-slate-200 bg-slate-50 text-slate-600";
   return "border-blue-200 bg-blue-50 text-blue-700";
 }
 
-function getTransactionCount(transactions: TransactionsByType) {
+function getTransactionCountFromTransactions(transactions: TransactionsByType) {
   return transactions.customer_payment.length + transactions.wholesaler_payment.length;
+}
+
+function getTransactionCount(contract: PaymentContract) {
+  if (contract.transactionsLoaded) {
+    return getTransactionCountFromTransactions(contract.transactions);
+  }
+  return (
+    contract.transactionSummary.customerPaymentCount +
+    contract.transactionSummary.wholesalerPaymentCount
+  );
 }
 
 function getTransactionCountLabel(count: number) {
@@ -82,22 +119,6 @@ function getTodayDateOnly() {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
-}
-
-function addDaysDateOnly(dateOnly: string, days: number) {
-  const date = new Date(`${dateOnly}T00:00:00`);
-  date.setDate(date.getDate() + days);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function diffDays(fromDateOnly: string, toDateOnly: string) {
-  const from = new Date(`${fromDateOnly}T00:00:00`).getTime();
-  const to = new Date(`${toDateOnly}T00:00:00`).getTime();
-  if (!Number.isFinite(from) || !Number.isFinite(to)) return 0;
-  return Math.floor((to - from) / 86_400_000);
 }
 
 function getInstallmentRuntimeStatus(
@@ -173,43 +194,6 @@ type PaymentAlert = {
   daysOverdue: number;
   whatsappUrl: string | null;
 };
-
-function buildPaymentAlerts(contracts: PaymentContract[], today = getTodayDateOnly()) {
-  const tomorrow = addDaysDateOnly(today, 1);
-  const soon = addDaysDateOnly(today, 7);
-  const alerts: PaymentAlert[] = [];
-
-  contracts.forEach((contract) => {
-    contract.paymentPlan?.installments.forEach((installment) => {
-      if (installment.status !== "pendiente") return;
-
-      let category: AlertCategory | null = null;
-      if (installment.dueDate < today) {
-        category = "overdue";
-      } else if (installment.dueDate === tomorrow) {
-        category = "tomorrow";
-      } else if (installment.dueDate <= soon) {
-        category = "upcoming";
-      }
-
-      if (!category) return;
-      alerts.push({
-        key: `${contract.id}-${installment.id}`,
-        category,
-        contract,
-        installment,
-        daysOverdue: Math.max(diffDays(installment.dueDate, today), 0),
-        whatsappUrl: buildWhatsAppUrl(contract.contactPhone, contract),
-      });
-    });
-  });
-
-  return alerts.sort((a, b) => {
-    const byDate = a.installment.dueDate.localeCompare(b.installment.dueDate);
-    if (byDate !== 0) return byDate;
-    return (a.contract.contractNumber ?? "").localeCompare(b.contract.contractNumber ?? "");
-  });
-}
 
 function getAlertStatusLabel(alert: PaymentAlert) {
   if (alert.category === "overdue") {
@@ -417,9 +401,11 @@ function PaymentAlertsModal({
 export function PaymentsContractsList({
   contracts,
   supplierOptions,
+  initialAlerts,
 }: {
   contracts: PaymentContract[];
   supplierOptions: string[];
+  initialAlerts: InitialPaymentAlert[];
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -429,20 +415,41 @@ export function PaymentsContractsList({
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [selectedPlanContractId, setSelectedPlanContractId] = useState<string | null>(null);
   const [planOverrides, setPlanOverrides] = useState<Record<string, PaymentPlan | null>>({});
+  const [loadedPlanIds, setLoadedPlanIds] = useState<Record<string, true>>({});
 
   const contractsWithPlans = useMemo(
     () =>
-      contracts.map((contract) => ({
-        ...contract,
-        paymentPlan:
-          Object.prototype.hasOwnProperty.call(planOverrides, contract.id)
-            ? planOverrides[contract.id]
-            : contract.paymentPlan,
-      })),
-    [contracts, planOverrides]
+      contracts.map((contract) => {
+        const hasOverride = Object.prototype.hasOwnProperty.call(planOverrides, contract.id);
+        return {
+          ...contract,
+          paymentPlan: hasOverride ? planOverrides[contract.id] : contract.paymentPlan,
+          paymentPlanLoaded:
+            contract.paymentPlanLoaded || hasOverride || Boolean(loadedPlanIds[contract.id]),
+        };
+      }),
+    [contracts, loadedPlanIds, planOverrides]
   );
 
-  const alerts = useMemo(() => buildPaymentAlerts(contractsWithPlans), [contractsWithPlans]);
+  const contractsById = useMemo(
+    () => new Map(contractsWithPlans.map((contract) => [contract.id, contract])),
+    [contractsWithPlans]
+  );
+  const alerts = useMemo(
+    () =>
+      initialAlerts.flatMap((alert) => {
+        const contract = contractsById.get(alert.contractId);
+        if (!contract) return [];
+        return [
+          {
+            ...alert,
+            contract,
+            whatsappUrl: buildWhatsAppUrl(contract.contactPhone, contract),
+          },
+        ];
+      }),
+    [contractsById, initialAlerts]
+  );
   const alertCounts = useMemo(
     () => ({
       overdue: alerts.filter((alert) => alert.category === "overdue").length,
@@ -453,11 +460,29 @@ export function PaymentsContractsList({
     [alerts]
   );
 
+  const markPaymentPlanLoaded = (contractId: string, plan: PaymentPlan | null) => {
+    setPlanOverrides((current) => ({ ...current, [contractId]: plan }));
+    setLoadedPlanIds((current) => ({ ...current, [contractId]: true }));
+  };
+
+  const loadPaymentPlan = async (contractId: string) => {
+    const response = await fetch(`/api/contracts/${contractId}/payment-plan`, {
+      cache: "no-store",
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload?.error || "No se pudo cargar el plan de pagos.");
+    }
+    const plan = (payload.plan ?? null) as PaymentPlan | null;
+    markPaymentPlanLoaded(contractId, plan);
+    return plan;
+  };
+
   const filteredContracts = useMemo(() => {
     const normalizedQuery = normalizeText(query.trim());
 
     return contractsWithPlans.filter((contract) => {
-      const paymentState = getPaymentState(contract.transactions);
+      const paymentState = getPaymentState(contract);
       const matchesStatus = statusFilter === "todos" || paymentState === statusFilter;
       const haystack = normalizeText(
         [
@@ -567,8 +592,11 @@ export function PaymentsContractsList({
                 setSelectedPlanContractId(contract.id);
                 setPlanModalOpen(true);
               }}
+              onPaymentPlanLoaded={(plan) => {
+                markPaymentPlanLoaded(contract.id, plan);
+              }}
               onPlanChanged={(plan) => {
-                setPlanOverrides((current) => ({ ...current, [contract.id]: plan }));
+                markPaymentPlanLoaded(contract.id, plan);
                 router.refresh();
               }}
             />
@@ -584,9 +612,10 @@ export function PaymentsContractsList({
         open={planModalOpen}
         contracts={contractsWithPlans}
         initialContractId={selectedPlanContractId}
+        loadPaymentPlan={loadPaymentPlan}
         onClose={() => setPlanModalOpen(false)}
         onSaved={(contractId, plan) => {
-          setPlanOverrides((current) => ({ ...current, [contractId]: plan }));
+          markPaymentPlanLoaded(contractId, plan);
           router.refresh();
         }}
       />
@@ -725,6 +754,7 @@ export function ContractCard({
   open,
   onToggle,
   onEditPlan,
+  onPaymentPlanLoaded,
   onPlanChanged,
 }: {
   contract: PaymentContract;
@@ -732,11 +762,18 @@ export function ContractCard({
   open: boolean;
   onToggle: () => void;
   onEditPlan: () => void;
+  onPaymentPlanLoaded: (plan: PaymentPlan | null) => void;
   onPlanChanged: (plan: PaymentPlan | null) => void;
 }) {
   const [transactions, setTransactions] = useState(contract.transactions);
   const [paymentPlan, setPaymentPlan] = useState(contract.paymentPlan);
   const [loading, setLoading] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsLoaded, setDetailsLoaded] = useState(
+    contract.transactionsLoaded && contract.paymentPlanLoaded
+  );
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const detailsRequestStarted = useRef(false);
   const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [notes, setNotes] = useState(contract.generalNotes ?? "");
   const [notesLoading, setNotesLoading] = useState(false);
@@ -744,20 +781,75 @@ export function ContractCard({
   const [notesError, setNotesError] = useState<string | null>(null);
   const [notesLoaded, setNotesLoaded] = useState(false);
   const toast = useToast();
-  const paymentState = getPaymentState(transactions);
-  const transactionCount = getTransactionCount(transactions);
-  const overdueCount = getOverdueInstallmentCount(paymentPlan);
-  const upcomingCount = getUpcomingInstallmentCount(paymentPlan);
+  const paymentState = detailsLoaded
+    ? getPaymentStateFromTransactions(transactions)
+    : getPaymentState(contract);
+  const transactionCount = detailsLoaded
+    ? getTransactionCountFromTransactions(transactions)
+    : getTransactionCount(contract);
+  const overdueCount = detailsLoaded
+    ? getOverdueInstallmentCount(paymentPlan)
+    : contract.paymentAlertSummary.overdue;
+  const upcomingCount = detailsLoaded
+    ? getUpcomingInstallmentCount(paymentPlan)
+    : contract.paymentAlertSummary.upcoming;
 
   useEffect(() => {
     setTransactions(contract.transactions);
-  }, [contract.transactions]);
+    setPaymentPlan(contract.paymentPlan);
+    setDetailsLoaded(contract.transactionsLoaded && contract.paymentPlanLoaded);
+    detailsRequestStarted.current = false;
+  }, [
+    contract.id,
+    contract.paymentPlan,
+    contract.paymentPlanLoaded,
+    contract.transactions,
+    contract.transactionsLoaded,
+  ]);
 
   useEffect(() => {
     setPaymentPlan(contract.paymentPlan);
   }, [contract.paymentPlan]);
 
-  const loadNotesForIndicator = async () => {
+  const loadPaymentDetails = useCallback(async (markAsChanged = false) => {
+    setLoading(true);
+    setDetailsLoading(true);
+    setDetailsError(null);
+    try {
+      const response = await fetch(`/api/contracts/${contract.id}/payment-details`, {
+        cache: "no-store",
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error || "No se pudieron cargar los pagos.");
+      }
+      setTransactions(payload.transactions);
+      setPaymentPlan(payload.plan);
+      setDetailsLoaded(true);
+      detailsRequestStarted.current = true;
+      onPaymentPlanLoaded(payload.plan);
+      if (markAsChanged) {
+        onPlanChanged(payload.plan);
+      }
+    } catch (error) {
+      detailsRequestStarted.current = false;
+      setDetailsError((error as Error).message);
+      if (markAsChanged) {
+        toast.push((error as Error).message, "error");
+      }
+    } finally {
+      setDetailsLoading(false);
+      setLoading(false);
+    }
+  }, [contract.id, onPaymentPlanLoaded, onPlanChanged, toast]);
+
+  useEffect(() => {
+    if (!open || detailsLoaded || detailsRequestStarted.current) return;
+    detailsRequestStarted.current = true;
+    loadPaymentDetails();
+  }, [detailsLoaded, loadPaymentDetails, open]);
+
+  const loadNotesForIndicator = useCallback(async () => {
     if (notesLoaded) return;
     try {
       const response = await fetch(`/api/contracts/${contract.id}/notes`, {
@@ -772,41 +864,13 @@ export function ContractCard({
       console.error("Error loading notes for indicator:", error);
       setNotesLoaded(true);
     }
-  };
+  }, [contract.id, notesLoaded]);
 
   useEffect(() => {
     if (open) {
       loadNotesForIndicator();
     }
-  }, [open]);
-
-  const refreshTransactions = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/contracts/${contract.id}/transactions`, {
-        cache: "no-store",
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || "No se pudieron cargar los pagos.");
-      }
-      setTransactions(payload.transactions);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const refreshPaymentPlan = async () => {
-    const response = await fetch(`/api/contracts/${contract.id}/payment-plan`, {
-      cache: "no-store",
-    });
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload?.error || "No se pudo cargar el plan de pagos.");
-    }
-    setPaymentPlan(payload.plan);
-    onPlanChanged(payload.plan);
-  };
+  }, [loadNotesForIndicator, open]);
 
   useEffect(() => {
     if (notesModalOpen) {
@@ -924,41 +988,56 @@ export function ContractCard({
               </span>
             ) : null}
           </div>
-          <div className="grid gap-6 xl:grid-cols-2 xl:gap-0 xl:divide-x xl:divide-slate-200">
-            <div className="xl:pr-6">
-            <TransactionPanel
-              contractId={contract.id}
-              type="customer_payment"
-              title="Cobros al cliente"
-              emptyLabel="Sin cobros registrados."
-              addLabel="Registrar cobro"
-              transactions={transactions.customer_payment}
-              paymentPlan={paymentPlan}
-              onChanged={async () => {
-                await refreshTransactions();
-                await refreshPaymentPlan();
-              }}
-            />
+          {detailsLoading && !detailsLoaded ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600">
+              Cargando pagos del contrato...
             </div>
-            <div className="xl:pl-6">
-            <TransactionPanel
-              contractId={contract.id}
-              type="wholesaler_payment"
-              title="Pagos al mayorista"
-              emptyLabel="Sin pagos registrados."
-              addLabel="Registrar pago"
-              transactions={transactions.wholesaler_payment}
-              supplierOptions={supplierOptions}
-              onChanged={refreshTransactions}
-            />
+          ) : detailsError ? (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-700">
+              {detailsError}
             </div>
-          </div>
-          <PaymentInstallmentsGrid
-            contractId={contract.id}
-            paymentPlan={paymentPlan}
-            onEditPlan={onEditPlan}
-            onChanged={refreshPaymentPlan}
-          />
+          ) : (
+            <>
+              <div className="grid gap-6 xl:grid-cols-2 xl:gap-0 xl:divide-x xl:divide-slate-200">
+                <div className="xl:pr-6">
+                  <TransactionPanel
+                    contractId={contract.id}
+                    type="customer_payment"
+                    title="Cobros al cliente"
+                    emptyLabel="Sin cobros registrados."
+                    addLabel="Registrar cobro"
+                    transactions={transactions.customer_payment}
+                    paymentPlan={paymentPlan}
+                    onChanged={async () => {
+                      await loadPaymentDetails(true);
+                    }}
+                  />
+                </div>
+                <div className="xl:pl-6">
+                  <TransactionPanel
+                    contractId={contract.id}
+                    type="wholesaler_payment"
+                    title="Pagos al mayorista"
+                    emptyLabel="Sin pagos registrados."
+                    addLabel="Registrar pago"
+                    transactions={transactions.wholesaler_payment}
+                    supplierOptions={supplierOptions}
+                    onChanged={async () => {
+                      await loadPaymentDetails();
+                    }}
+                  />
+                </div>
+              </div>
+              <PaymentInstallmentsGrid
+                contractId={contract.id}
+                paymentPlan={paymentPlan}
+                onEditPlan={onEditPlan}
+                onChanged={async () => {
+                  await loadPaymentDetails(true);
+                }}
+              />
+            </>
+          )}
         </div>
       ) : null}
 
