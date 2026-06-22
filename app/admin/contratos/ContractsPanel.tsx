@@ -150,7 +150,8 @@ export default function ContractsPanel({
 
       const matchesName =
         matchesValue(contract.title, normalizedName) ||
-        matchesValue(contract.clientName, normalizedName);
+        matchesValue(contract.clientName, normalizedName) ||
+        matchesValue(contract.destination, normalizedName);
 
       const travelerMatches = contract.travelers?.some((traveler) => {
         if (!normalizedContact) return false;
