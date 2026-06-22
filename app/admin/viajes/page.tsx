@@ -2,6 +2,8 @@ import { SectionHeading } from "@/components/section-heading";
 import { Button } from "@/components/ui/button";
 import { ThemedSelect } from "@/components/ui/themed-select";
 import { getTrips } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 import { TripForm } from "./TripForm";
 import {
@@ -16,15 +18,91 @@ import TripsPanel from "./TripsPanel";
 export const dynamic = "force-dynamic";
 
 type ViajesAdminPageProps = {
-  searchParams?: { year?: string; status?: string };
+  searchParams?: { year?: string; status?: string; limit?: string };
 };
 
+const INITIAL_TRIP_LIMIT = 100;
+const TRIP_LIMIT_STEP = 100;
+const MAX_TRIP_LIMIT = 800;
+
+function parseTripLimit(value?: string) {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(parsed) || parsed < INITIAL_TRIP_LIMIT) {
+    return INITIAL_TRIP_LIMIT;
+  }
+  return Math.min(parsed, MAX_TRIP_LIMIT);
+}
+
+function toDateOnly(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getTripYearWhere(selectedYear: string): Prisma.TripWhereInput | null {
+  if (selectedYear === "all") return null;
+  const year = Number.parseInt(selectedYear, 10);
+  if (!Number.isFinite(year)) return null;
+  const start = new Date(year, 0, 1);
+  const end = new Date(year + 1, 0, 1);
+  return {
+    OR: [
+      { departureDate: { startsWith: selectedYear } },
+      { returnDate: { startsWith: selectedYear } },
+      { createdAt: { gte: start, lt: end } },
+    ],
+  };
+}
+
+function getTripStatusWhere(selectedStatus: string): Prisma.TripWhereInput | null {
+  const today = toDateOnly(new Date());
+  if (selectedStatus === "upcoming") {
+    return {
+      OR: [{ returnDate: null }, { returnDate: { gte: today } }],
+    };
+  }
+  if (selectedStatus === "completed") {
+    return { returnDate: { lt: today } };
+  }
+  return null;
+}
+
+function combineTripWhere(...filters: Array<Prisma.TripWhereInput | null>) {
+  const activeFilters = filters.filter((filter): filter is Prisma.TripWhereInput =>
+    Boolean(filter)
+  );
+  if (activeFilters.length === 0) return undefined;
+  if (activeFilters.length === 1) return activeFilters[0];
+  return { AND: activeFilters };
+}
+
 export default async function ViajesAdminPage({ searchParams }: ViajesAdminPageProps) {
-  const trips = await getTrips();
   const selectedYear = searchParams?.year ?? "all";
   const selectedStatus = searchParams?.status ?? "all";
+  const tripLimit = parseTripLimit(searchParams?.limit);
+  const tripWhere = combineTripWhere(
+    getTripYearWhere(selectedYear),
+    getTripStatusWhere(selectedStatus)
+  );
 
-  const resolveTripYear = (trip: (typeof trips)[number]) => {
+  const [trips, totalTrips, yearRows] = await Promise.all([
+    getTrips({ take: tripLimit, where: tripWhere }),
+    prisma.trip.count({ where: tripWhere }),
+    prisma.trip.findMany({
+      select: {
+        departureDate: true,
+        returnDate: true,
+        createdAt: true,
+      },
+    }),
+  ]);
+
+  const resolveTripYear = (trip: {
+    departureDate: string | null;
+    returnDate: string | null;
+    createdAt: Date | string;
+  }) => {
     const base = trip.departureDate || trip.returnDate || trip.createdAt;
     if (!base) return null;
     const date = new Date(base);
@@ -33,7 +111,7 @@ export default async function ViajesAdminPage({ searchParams }: ViajesAdminPageP
 
   const years = Array.from(
     new Set(
-      trips
+      yearRows
         .map(resolveTripYear)
         .filter((value): value is number => typeof value === "number")
     )
@@ -116,6 +194,9 @@ export default async function ViajesAdminPage({ searchParams }: ViajesAdminPageP
         updateAction={updateTripAction}
         updateStageAction={updateTripStageAction}
         deleteAction={deleteTripAction}
+        loadedCount={trips.length}
+        totalCount={totalTrips}
+        nextLimit={Math.min(tripLimit + TRIP_LIMIT_STEP, totalTrips)}
       />
     </div>
   );

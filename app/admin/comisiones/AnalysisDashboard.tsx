@@ -4,13 +4,32 @@ import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { SectionHeading } from "@/components/section-heading";
-import type { Contract, Trip } from "@/lib/db";
 
 import { AnalysisFilters } from "./AnalysisFilters";
 
 type FilterMode = "range" | "month" | "year";
 
 type ReservationParts = { year: number; month: number; day: number };
+export type AnalysisContract = {
+  id: string;
+  tripId: string | null;
+  contractNumber: string | null;
+  reservationDate: string | null;
+  seller: string | null;
+  organizer: string | null;
+  departureDate: string | null;
+  returnDate: string | null;
+  supplier: string | null;
+  totalPrice: string | null;
+  status: "pending" | "signed" | "paid" | "canceled";
+  isSigned: boolean;
+  isPaid: boolean;
+};
+
+export type AnalysisTrip = {
+  id: string;
+  organizer: string;
+};
 
 function parseReservationParts(value?: string | null): ReservationParts | null {
   if (!value) return null;
@@ -233,8 +252,8 @@ export function AnalysisDashboard({
   trips,
   adminOptions,
 }: {
-  contracts: Contract[];
-  trips: Trip[];
+  contracts: AnalysisContract[];
+  trips: AnalysisTrip[];
   adminOptions: Array<{ value: string; label: string }>;
 }) {
   const router = useRouter();
@@ -416,7 +435,7 @@ export function AnalysisDashboard({
         signedPaid: number;
         pending: number;
         total: number;
-        contracts: Contract[];
+        contracts: AnalysisContract[];
       }
     >();
 
@@ -536,7 +555,7 @@ export function AnalysisDashboard({
         name: string;
         count: number;
         total: number;
-        contracts: Contract[];
+        contracts: AnalysisContract[];
       }
     >();
 
@@ -548,7 +567,7 @@ export function AnalysisDashboard({
         name: seller.label,
         count: 0,
         total: 0,
-        contracts: [] as Contract[],
+        contracts: [] as AnalysisContract[],
       };
       sellers.set(seller.key, entry);
       return entry;

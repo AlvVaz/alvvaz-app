@@ -630,8 +630,12 @@ function sortTripsByDeparture(a: Trip, b: Trip) {
   return new Date(a.departureDate).getTime() - new Date(b.departureDate).getTime();
 }
 
-export async function getTrips() {
-  const trips = await prisma.trip.findMany();
+export async function getTrips(options?: { take?: number; where?: Prisma.TripWhereInput }) {
+  const trips = await prisma.trip.findMany({
+    where: options?.where,
+    orderBy: { createdAt: "desc" },
+    take: options?.take,
+  });
   return trips.map(mapTrip).sort(sortTripsByDeparture);
 }
 
@@ -777,8 +781,12 @@ export async function deleteTripsByIds(ids: string[]) {
   return result.count;
 }
 
-export async function getContracts() {
-  const contracts = await prisma.contract.findMany({ orderBy: { createdAt: "desc" } });
+export async function getContracts(options?: { take?: number; where?: Prisma.ContractWhereInput }) {
+  const contracts = await prisma.contract.findMany({
+    where: options?.where,
+    orderBy: { createdAt: "desc" },
+    take: options?.take,
+  });
   return contracts.map(mapContract);
 }
 

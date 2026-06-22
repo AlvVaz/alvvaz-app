@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 
 import type { Contract } from "@/lib/db";
 import type { AdminRoleForContracts } from "@/lib/contracts/edit-policy";
@@ -18,6 +19,9 @@ type ContractsPanelProps = {
   organizerOptions?: { value: string; label: string }[];
   canEditContractNumber?: boolean;
   currentAdminRole: AdminRoleForContracts;
+  loadedCount: number;
+  totalCount: number;
+  nextLimit: number;
 };
 
 const normalize = (value: string) => value.trim().toLowerCase();
@@ -36,6 +40,9 @@ export default function ContractsPanel({
   organizerOptions = [],
   canEditContractNumber = false,
   currentAdminRole,
+  loadedCount,
+  totalCount,
+  nextLimit,
 }: ContractsPanelProps) {
   const [filters, setFilters] = useState({
     id: "",
@@ -186,9 +193,20 @@ export default function ContractsPanel({
             />
           </label>
         </div>
-        <p className="mt-3 text-xs text-slate-500">
-          Mostrando {filteredContracts.length} de {contracts.length} contratos.
-        </p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-slate-500">
+            Mostrando {filteredContracts.length} de {loadedCount} contratos cargados.
+            {totalCount > loadedCount ? ` ${totalCount - loadedCount} pendientes por cargar.` : ""}
+          </p>
+          {totalCount > loadedCount ? (
+            <Link
+              href={`/admin/contratos?limit=${nextLimit}`}
+              className="rounded-full border border-brand-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 transition hover:border-brand-300 hover:text-brand-900"
+            >
+              Cargar más
+            </Link>
+          ) : null}
+        </div>
       </section>
 
       <ContractsSection

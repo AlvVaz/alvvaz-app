@@ -19,19 +19,30 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type ReservationParts = { year: number; month: number; day: number };
+type ContratosAdminPageProps = {
+  searchParams?: { limit?: string };
+};
 
-function getNextContractNumber(contracts: Awaited<ReturnType<typeof getContracts>>) {
-  const base = 2141;
-  let max = base;
-  contracts.forEach((contract) => {
-    const value = String(contract.contractNumber ?? "").trim();
-    if (!/^\d+$/.test(value)) return;
-    const parsed = Number(value);
-    if (Number.isFinite(parsed) && parsed > max) {
-      max = parsed;
-    }
-  });
+const INITIAL_CONTRACT_LIMIT = 75;
+const CONTRACT_LIMIT_STEP = 75;
+const MAX_CONTRACT_LIMIT = 600;
+const MIN_CONTRACT_NUMBER = 2141;
+
+function parseContractLimit(value?: string) {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(parsed) || parsed < INITIAL_CONTRACT_LIMIT) {
+    return INITIAL_CONTRACT_LIMIT;
+  }
+  return Math.min(parsed, MAX_CONTRACT_LIMIT);
+}
+
+async function getNextContractNumber() {
+  const result = await prisma.$queryRaw<{ max: number | null }[]>`
+    SELECT MAX(CAST("contractNumber" AS INTEGER)) AS max
+    FROM "Contract"
+    WHERE "contractNumber" ~ '^[0-9]+$'
+  `;
+  const max = Math.max(result[0]?.max ?? 0, MIN_CONTRACT_NUMBER);
   return String(max + 1).padStart(4, "0");
 }
 
@@ -73,78 +84,15 @@ function applyPaymentPlanSummaryToContract(
   };
 }
 
-function parseReservationParts(value?: string | null): ReservationParts | null {
-  if (!value) return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-
-  const ymdMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (ymdMatch) {
-    const year = Number(ymdMatch[1]);
-    const month = Number(ymdMatch[2]);
-    const day = Number(ymdMatch[3]);
-    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
-      return null;
-    }
-    return { year, month, day };
-  }
-
-  const slashMatch = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-  if (slashMatch) {
-    const first = Number(slashMatch[1]);
-    const second = Number(slashMatch[2]);
-    const year = Number(slashMatch[3]);
-    if (!Number.isFinite(year) || !Number.isFinite(first) || !Number.isFinite(second)) {
-      return null;
-    }
-
-    let month = first;
-    let day = second;
-
-    if (first > 12 && second <= 12) {
-      day = first;
-      month = second;
-    } else if (second > 12 && first <= 12) {
-      month = first;
-      day = second;
-    } else {
-      month = first;
-      day = second;
-    }
-
-    if (month < 1 || month > 12 || day < 1 || day > 31) {
-      const swappedMonth = second;
-      const swappedDay = first;
-      if (swappedMonth >= 1 && swappedMonth <= 12 && swappedDay >= 1 && swappedDay <= 31) {
-        return { year, month: swappedMonth, day: swappedDay };
-      }
-      return null;
-    }
-
-    return { year, month, day };
-  }
-
-  const date = new Date(trimmed);
-  if (Number.isNaN(date.getTime())) return null;
-  return { year: date.getFullYear(), month: date.getMonth() + 1, day: date.getDate() };
-}
-
-export default async function ContratosAdminPage() {
+export default async function ContratosAdminPage({
+  searchParams,
+}: ContratosAdminPageProps) {
   const admin = await getAdminFromCookies();
   if (!admin) {
     redirect("/admin/login");
   }
 
-  const rawContracts = await getContracts();
-  const paymentPlansByContract = await getPaymentPlansByContractIds(
-    rawContracts.map((contract) => contract.id)
-  );
-  const contracts = rawContracts.map((contract) =>
-    applyPaymentPlanSummaryToContract(
-      contract,
-      paymentPlansByContract.get(contract.id) ?? null
-    )
-  );
+  const contractLimit = parseContractLimit(searchParams?.limit);
   const adminUsers = await prisma.adminUser.findMany({
     orderBy: [{ username: "asc" }, { email: "asc" }],
   });
@@ -165,18 +113,35 @@ export default async function ContratosAdminPage() {
   );
 
   const currentYear = new Date().getFullYear();
-  const visibleContracts =
+  const adminOrganizerFilters = Array.from(normalizedOrganizerKeys).map((organizer) => ({
+    organizer: { equals: organizer, mode: "insensitive" as const },
+  }));
+  const contractWhere =
     admin.role === "admin"
-      ? contracts.filter((contract) => {
-          const organizer = contract.organizer?.trim().toLowerCase();
-          if (!organizer || !normalizedOrganizerKeys.has(organizer)) return false;
-          const year = parseReservationParts(contract.reservationDate)?.year;
-          return year === currentYear;
-        })
-      : contracts;
+      ? {
+          AND: [
+            adminOrganizerFilters.length > 0 ? { OR: adminOrganizerFilters } : {},
+            { reservationDate: { startsWith: String(currentYear) } },
+          ],
+        }
+      : undefined;
+
+  const [rawContracts, totalVisibleContracts, suggestedContractNumber] = await Promise.all([
+    getContracts({ take: contractLimit, where: contractWhere }),
+    prisma.contract.count({ where: contractWhere }),
+    getNextContractNumber(),
+  ]);
+  const paymentPlansByContract = await getPaymentPlansByContractIds(
+    rawContracts.map((contract) => contract.id)
+  );
+  const visibleContracts = rawContracts.map((contract) =>
+    applyPaymentPlanSummaryToContract(
+      contract,
+      paymentPlansByContract.get(contract.id) ?? null
+    )
+  );
 
   const latestContract = visibleContracts[0] ?? null;
-  const nextContractNumber = getNextContractNumber(contracts);
   const canEditContractNumber =
     ALLOW_CONTRACT_NUMBER_EDIT_FOR_ALL_ROLES || admin.role === "owner";
 
@@ -212,7 +177,7 @@ export default async function ContratosAdminPage() {
               draftContract={latestContract}
               submitLabel="Crear contrato"
               organizerOptions={organizerOptions}
-              suggestedContractNumber={nextContractNumber}
+              suggestedContractNumber={suggestedContractNumber}
               canEditContractNumber={canEditContractNumber}
             />
           </div>
@@ -227,6 +192,9 @@ export default async function ContratosAdminPage() {
         organizerOptions={organizerOptions}
         canEditContractNumber={canEditContractNumber}
         currentAdminRole={admin.role}
+        loadedCount={visibleContracts.length}
+        totalCount={totalVisibleContracts}
+        nextLimit={Math.min(contractLimit + CONTRACT_LIMIT_STEP, totalVisibleContracts)}
       />
     </div>
     </ContractsToastProvider>
