@@ -22,6 +22,8 @@ type TripsSectionProps = {
   updateAction: (formData: FormData) => void | Promise<void>;
   updateStageAction: (id: string, stage: number) => Promise<void>;
   deleteAction: (formData: FormData) => void | Promise<void>;
+  hideTitle?: boolean;
+  forceOpenGroups?: boolean;
 };
 
 export default function TripsSection({
@@ -32,6 +34,8 @@ export default function TripsSection({
   updateAction,
   updateStageAction,
   deleteAction,
+  hideTitle = false,
+  forceOpenGroups = false,
 }: TripsSectionProps) {
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -244,7 +248,7 @@ export default function TripsSection({
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="font-display text-lg text-brand-950">{title}</h3>
+        {hideTitle ? <span /> : <h3 className="font-display text-lg text-brand-950">{title}</h3>}
         <div className="flex flex-wrap items-center gap-3">
           <span className="inline-flex h-8 items-center rounded-full border border-brand-200 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
             {allTrips.length} viajes
@@ -277,6 +281,7 @@ export default function TripsSection({
           {groups.map((group) => (
             <details
               key={group.label}
+              open={forceOpenGroups ? true : undefined}
               className="rounded-3xl border border-slate-200 bg-white shadow-sm"
             >
               <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">

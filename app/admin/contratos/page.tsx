@@ -7,6 +7,11 @@ import {
   ADMIN_PAYMENT_PLANS_CACHE_TAG,
 } from "@/lib/admin-cache-tags";
 import { getAdminFromCookies } from "@/lib/auth/admin";
+import {
+  getAdminContractWhere,
+  isContractFrom2025,
+  sortContractsByFolioDesc,
+} from "@/lib/contracts/admin-list";
 import { getContracts } from "@/lib/db";
 import { getPaymentPlansByContractIds, type PaymentPlan } from "@/lib/payment-plans";
 import { prisma } from "@/lib/prisma";
@@ -25,19 +30,25 @@ import {
 export const dynamic = "force-dynamic";
 
 type ContratosAdminPageProps = {
-  searchParams?: { limit?: string };
+  searchParams?: {
+    approvedLimit?: string;
+    pendingLimit?: string;
+    canceledLimit?: string;
+  };
 };
 
-const INITIAL_CONTRACT_LIMIT = 40;
-const CONTRACT_LIMIT_STEP = 40;
+const INITIAL_CONTRACT_SECTION_LIMIT = 15;
+const CONTRACT_SECTION_LIMIT_STEP = 15;
+const INITIAL_LEGACY_2025_LIMIT = 40;
+const LEGACY_2025_LIMIT_STEP = 40;
 const MAX_CONTRACT_LIMIT = 600;
 const MIN_CONTRACT_NUMBER = 2141;
 const ADMIN_CONTRACTS_CACHE_SECONDS = 30;
 
 function parseContractLimit(value?: string) {
   const parsed = Number.parseInt(String(value ?? ""), 10);
-  if (!Number.isFinite(parsed) || parsed < INITIAL_CONTRACT_LIMIT) {
-    return INITIAL_CONTRACT_LIMIT;
+  if (!Number.isFinite(parsed) || parsed < INITIAL_CONTRACT_SECTION_LIMIT) {
+    return INITIAL_CONTRACT_SECTION_LIMIT;
   }
   return Math.min(parsed, MAX_CONTRACT_LIMIT);
 }
@@ -68,32 +79,96 @@ const getCachedAdminUsers = unstable_cache(
 
 const getCachedContractsPageData = unstable_cache(
   async (
-    contractLimit: number,
+    approvedLimit: number,
+    pendingLimit: number,
+    canceledLimit: number,
     adminRole: string,
     organizerKeys: string[],
     currentYear: number
   ) => {
-    const adminOrganizerFilters = organizerKeys.map((organizer) => ({
-      organizer: { equals: organizer, mode: "insensitive" as const },
-    }));
-    const contractWhere =
-      adminRole === "admin"
-        ? {
-            AND: [
-              adminOrganizerFilters.length > 0 ? { OR: adminOrganizerFilters } : {},
-              { reservationDate: { startsWith: String(currentYear) } },
-            ],
-          }
-        : undefined;
+    const contractWhere = getAdminContractWhere(
+      adminRole,
+      organizerKeys,
+      currentYear
+    );
+    const contractIndexRows = await prisma.contract.findMany({
+      where: contractWhere,
+      select: {
+        id: true,
+        contractNumber: true,
+        reservationDate: true,
+        departureDate: true,
+        createdAt: true,
+        status: true,
+      },
+    });
+    const legacy2025Rows = contractIndexRows.filter(isContractFrom2025);
+    const currentContractRows = sortContractsByFolioDesc(
+      contractIndexRows.filter((contract) => !isContractFrom2025(contract))
+    );
+    const approvedRows = currentContractRows.filter(
+      (contract) => contract.status === "paid" || contract.status === "signed"
+    );
+    const pendingRows = currentContractRows.filter(
+      (contract) => contract.status === "pending"
+    );
+    const canceledRows = currentContractRows.filter(
+      (contract) => contract.status === "canceled"
+    );
+    const selectedRows = [
+      ...pendingRows.slice(0, pendingLimit),
+      ...approvedRows.slice(0, approvedLimit),
+      ...canceledRows.slice(0, canceledLimit),
+    ];
+    const contractIds = selectedRows.map((contract) => contract.id);
+    const contractOrder = new Map(
+      contractIds.map((contractId, index) => [contractId, index])
+    );
 
-    const [rawContracts, totalVisibleContracts, suggestedContractNumber] =
-      await Promise.all([
-        getContracts({ take: contractLimit, where: contractWhere }),
-        prisma.contract.count({ where: contractWhere }),
-        getNextContractNumber(),
-      ]);
+    const [rawContracts, suggestedContractNumber] = await Promise.all([
+      contractIds.length
+        ? getContracts({ where: { id: { in: contractIds } } })
+        : Promise.resolve([]),
+      getNextContractNumber(),
+    ]);
 
-    return { rawContracts, totalVisibleContracts, suggestedContractNumber };
+    rawContracts.sort(
+      (a, b) =>
+        (contractOrder.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+        (contractOrder.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+    );
+
+    return {
+      rawContracts,
+      sectionCounts: {
+        approved: {
+          loaded: Math.min(approvedLimit, approvedRows.length),
+          total: approvedRows.length,
+          nextLimit: Math.min(
+            approvedLimit + CONTRACT_SECTION_LIMIT_STEP,
+            approvedRows.length
+          ),
+        },
+        pending: {
+          loaded: Math.min(pendingLimit, pendingRows.length),
+          total: pendingRows.length,
+          nextLimit: Math.min(
+            pendingLimit + CONTRACT_SECTION_LIMIT_STEP,
+            pendingRows.length
+          ),
+        },
+        canceled: {
+          loaded: Math.min(canceledLimit, canceledRows.length),
+          total: canceledRows.length,
+          nextLimit: Math.min(
+            canceledLimit + CONTRACT_SECTION_LIMIT_STEP,
+            canceledRows.length
+          ),
+        },
+      },
+      totalLegacy2025Contracts: legacy2025Rows.length,
+      suggestedContractNumber,
+    };
   },
   ["admin-contracts-page-data"],
   {
@@ -161,7 +236,9 @@ export default async function ContratosAdminPage({
     redirect("/admin/login");
   }
 
-  const contractLimit = parseContractLimit(searchParams?.limit);
+  const approvedLimit = parseContractLimit(searchParams?.approvedLimit);
+  const pendingLimit = parseContractLimit(searchParams?.pendingLimit);
+  const canceledLimit = parseContractLimit(searchParams?.canceledLimit);
   const adminUsers = await getCachedAdminUsers();
   const currentAdminUser = adminUsers.find((user) => user.email === admin.email);
   const organizerOptions = adminUsers.map((user) => ({
@@ -180,13 +257,19 @@ export default async function ContratosAdminPage({
   );
 
   const currentYear = new Date().getFullYear();
-  const { rawContracts, totalVisibleContracts, suggestedContractNumber } =
-    await getCachedContractsPageData(
-      contractLimit,
-      admin.role,
-      Array.from(normalizedOrganizerKeys),
-      currentYear
-    );
+  const {
+    rawContracts,
+    sectionCounts,
+    totalLegacy2025Contracts,
+    suggestedContractNumber,
+  } = await getCachedContractsPageData(
+    approvedLimit,
+    pendingLimit,
+    canceledLimit,
+    admin.role,
+    Array.from(normalizedOrganizerKeys),
+    currentYear
+  );
   const paymentPlansByContract = new Map(
     await getCachedPaymentPlanEntries(
       rawContracts.map((contract) => contract.id).join(",")
@@ -250,9 +333,15 @@ export default async function ContratosAdminPage({
         organizerOptions={organizerOptions}
         canEditContractNumber={canEditContractNumber}
         currentAdminRole={admin.role}
-        loadedCount={visibleContracts.length}
-        totalCount={totalVisibleContracts}
-        nextLimit={Math.min(contractLimit + CONTRACT_LIMIT_STEP, totalVisibleContracts)}
+        sectionCounts={sectionCounts}
+        currentLimits={{
+          approved: approvedLimit,
+          pending: pendingLimit,
+          canceled: canceledLimit,
+        }}
+        legacy2025TotalCount={totalLegacy2025Contracts}
+        legacy2025InitialLimit={INITIAL_LEGACY_2025_LIMIT}
+        legacy2025LimitStep={LEGACY_2025_LIMIT_STEP}
       />
     </div>
     </ContractsToastProvider>

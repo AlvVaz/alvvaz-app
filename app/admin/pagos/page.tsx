@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import ToastProvider from "@/components/ui/toast";
 import { getAdminFromCookies } from "@/lib/auth/admin";
+import { sortContractsByFolioDesc } from "@/lib/contracts/admin-list";
 import { getContracts } from "@/lib/db";
 import { prisma } from "@/lib/prisma";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -171,11 +172,16 @@ export default async function PagosAdminPage({ searchParams }: PagosAdminPagePro
   const activeContractWhere = {
     status: { not: "canceled" },
   } satisfies Prisma.ContractWhereInput;
-  const [activeContracts, totalActiveContracts, supplierRows] = await Promise.all([
-    getContracts({
-      take: contractLimit,
+  const [contractIndexRows, totalActiveContracts, supplierRows] = await Promise.all([
+    prisma.contract.findMany({
       where: activeContractWhere,
-      orderBy: [{ contractNumber: "desc" }, { createdAt: "desc" }],
+      select: {
+        id: true,
+        contractNumber: true,
+        reservationDate: true,
+        departureDate: true,
+        createdAt: true,
+      },
     }),
     prisma.contract.count({ where: activeContractWhere }),
     prisma.contract.findMany({
@@ -184,6 +190,20 @@ export default async function PagosAdminPage({ searchParams }: PagosAdminPagePro
       distinct: ["supplier"],
     }),
   ]);
+  const activeContractIdsForPage = sortContractsByFolioDesc(contractIndexRows)
+    .slice(0, contractLimit)
+    .map((contract) => contract.id);
+  const contractOrder = new Map(
+    activeContractIdsForPage.map((contractId, index) => [contractId, index])
+  );
+  const activeContracts = activeContractIdsForPage.length
+    ? await getContracts({ where: { id: { in: activeContractIdsForPage } } })
+    : [];
+  activeContracts.sort(
+    (a, b) =>
+      (contractOrder.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+      (contractOrder.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+  );
   const activeContractIds = activeContracts.map((contract) => contract.id);
   const activeContractIdSet = new Set(activeContractIds);
   const [transactionSummaryRows, paymentAlertRows] = await Promise.all([
