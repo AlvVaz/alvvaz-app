@@ -794,6 +794,7 @@ export function ContractCard({
     contract.transactionsLoaded && contract.paymentPlanLoaded
   );
   const [detailsError, setDetailsError] = useState<string | null>(null);
+  const previousContractId = useRef(contract.id);
   const detailsRequestStarted = useRef(false);
   const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [notes, setNotes] = useState(contract.generalNotes ?? "");
@@ -816,6 +817,8 @@ export function ContractCard({
     : contract.paymentAlertSummary.upcoming;
 
   useEffect(() => {
+    if (previousContractId.current === contract.id) return;
+    previousContractId.current = contract.id;
     setTransactions(contract.transactions);
     setPaymentPlan(contract.paymentPlan);
     setDetailsLoaded(contract.transactionsLoaded && contract.paymentPlanLoaded);
