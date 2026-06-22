@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import ToastProvider from "@/components/ui/toast";
 import { getAdminFromCookies } from "@/lib/auth/admin";
 import { getContracts } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { buildEmptyTransactionsByType } from "@/lib/transactions";
+import type { Prisma } from "@prisma/client";
 import type { TransactionStatus, TransactionType } from "@/types/transactions";
 
 import {
@@ -14,6 +16,10 @@ import {
 } from "./components/ContractCard";
 
 export const dynamic = "force-dynamic";
+
+type PagosAdminPageProps = {
+  searchParams?: { limit?: string };
+};
 
 type TransactionSummaryRow = {
   contract_id: string;
@@ -37,6 +43,18 @@ type PaymentInstallmentAlertRow = {
   updated_at: string | null;
   payment_plans: PaymentPlanForAlertRow | PaymentPlanForAlertRow[] | null;
 };
+
+const INITIAL_PAYMENT_CONTRACT_LIMIT = 50;
+const PAYMENT_CONTRACT_LIMIT_STEP = 50;
+const MAX_PAYMENT_CONTRACT_LIMIT = 800;
+
+function parsePaymentContractLimit(value?: string) {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(parsed) || parsed < INITIAL_PAYMENT_CONTRACT_LIMIT) {
+    return INITIAL_PAYMENT_CONTRACT_LIMIT;
+  }
+  return Math.min(parsed, MAX_PAYMENT_CONTRACT_LIMIT);
+}
 
 function getTodayDateOnly() {
   const now = new Date();
@@ -143,20 +161,29 @@ function getContractPhone(contract: Awaited<ReturnType<typeof getContracts>>[num
   );
 }
 
-export default async function PagosAdminPage() {
+export default async function PagosAdminPage({ searchParams }: PagosAdminPageProps) {
   const admin = await getAdminFromCookies();
   if (!admin) {
     redirect("/admin/login");
   }
 
-  const contracts = await getContracts();
-  const activeContracts = contracts
-    .filter((contract) => contract.status !== "canceled")
-    .sort((a, b) => {
-      const numA = a.contractNumber ? parseInt(a.contractNumber, 10) : -1;
-      const numB = b.contractNumber ? parseInt(b.contractNumber, 10) : -1;
-      return numB - numA;
-    });
+  const contractLimit = parsePaymentContractLimit(searchParams?.limit);
+  const activeContractWhere = {
+    status: { not: "canceled" },
+  } satisfies Prisma.ContractWhereInput;
+  const [activeContracts, totalActiveContracts, supplierRows] = await Promise.all([
+    getContracts({
+      take: contractLimit,
+      where: activeContractWhere,
+      orderBy: [{ contractNumber: "desc" }, { createdAt: "desc" }],
+    }),
+    prisma.contract.count({ where: activeContractWhere }),
+    prisma.contract.findMany({
+      where: activeContractWhere,
+      select: { supplier: true },
+      distinct: ["supplier"],
+    }),
+  ]);
   const activeContractIds = activeContracts.map((contract) => contract.id);
   const activeContractIdSet = new Set(activeContractIds);
   const [transactionSummaryRows, paymentAlertRows] = await Promise.all([
@@ -255,7 +282,7 @@ export default async function PagosAdminPage() {
   }));
   const supplierOptions = Array.from(
     new Set(
-      activeContracts
+      supplierRows
         .map((contract) => contract.supplier?.trim())
         .filter((supplier): supplier is string => Boolean(supplier))
     )
@@ -268,6 +295,12 @@ export default async function PagosAdminPage() {
           contracts={paymentContracts}
           supplierOptions={supplierOptions}
           initialAlerts={paymentAlerts}
+          loadedCount={paymentContracts.length}
+          totalCount={totalActiveContracts}
+          nextLimit={Math.min(
+            contractLimit + PAYMENT_CONTRACT_LIMIT_STEP,
+            totalActiveContracts
+          )}
         />
       </div>
     </ToastProvider>

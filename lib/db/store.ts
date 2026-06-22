@@ -781,10 +781,14 @@ export async function deleteTripsByIds(ids: string[]) {
   return result.count;
 }
 
-export async function getContracts(options?: { take?: number; where?: Prisma.ContractWhereInput }) {
+export async function getContracts(options?: {
+  take?: number;
+  where?: Prisma.ContractWhereInput;
+  orderBy?: Prisma.ContractOrderByWithRelationInput | Prisma.ContractOrderByWithRelationInput[];
+}) {
   const contracts = await prisma.contract.findMany({
     where: options?.where,
-    orderBy: { createdAt: "desc" },
+    orderBy: options?.orderBy ?? { createdAt: "desc" },
     take: options?.take,
   });
   return contracts.map(mapContract);

@@ -402,10 +402,16 @@ export function PaymentsContractsList({
   contracts,
   supplierOptions,
   initialAlerts,
+  loadedCount,
+  totalCount,
+  nextLimit,
 }: {
   contracts: PaymentContract[];
   supplierOptions: string[];
   initialAlerts: InitialPaymentAlert[];
+  loadedCount: number;
+  totalCount: number;
+  nextLimit: number;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -606,6 +612,21 @@ export function PaymentsContractsList({
             No hay contratos que coincidan con los filtros.
           </div>
         )}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-slate-500">
+          Mostrando {filteredContracts.length} de {loadedCount} contratos cargados.
+          {totalCount > loadedCount ? ` ${totalCount - loadedCount} pendientes por cargar.` : ""}
+        </p>
+        {totalCount > loadedCount ? (
+          <Link
+            href={`/admin/pagos?limit=${nextLimit}`}
+            className="rounded-full border border-brand-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 transition hover:border-brand-300 hover:text-brand-900"
+          >
+            Cargar más
+          </Link>
+        ) : null}
       </div>
 
       <PaymentPlanModal
