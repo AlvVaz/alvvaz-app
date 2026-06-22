@@ -772,6 +772,115 @@ export function AnalysisDashboard({
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="font-display text-lg text-brand-950">
+              Contratos por asesor
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Resumen según el filtro actual.
+            </p>
+          </div>
+          <span className="rounded-full border border-brand-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+            {computed.filteredContracts.length} contratos
+          </span>
+        </div>
+
+        {computed.organizerSummary.length === 0 ? (
+          <div className="mt-4 rounded-2xl border border-dashed border-brand-200 bg-brand-50/40 p-4 text-sm text-slate-600">
+            No hay contratos para este filtro.
+          </div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {computed.organizerSummary.map((entry) => {
+              const sortedContracts = [...entry.contracts].sort((a, b) => {
+                const aParts = parseReservationParts(a.reservationDate);
+                const bParts = parseReservationParts(b.reservationDate);
+                const aKey = aParts ? toDateKey(aParts) : Number.POSITIVE_INFINITY;
+                const bKey = bParts ? toDateKey(bParts) : Number.POSITIVE_INFINITY;
+                return aKey - bKey;
+              });
+
+              return (
+                <details
+                  key={entry.name}
+                  className="rounded-2xl border border-slate-200 bg-white"
+                >
+                  <summary className="cursor-pointer list-none px-4 py-3 [&::-webkit-details-marker]:hidden">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-brand-950">{entry.name}</p>
+                        <p className="text-xs uppercase tracking-[0.2em] text-brand-600">
+                          {entry.signedPaid} firmados/pagados · {entry.pending} pendientes
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                        Acumulado: {formatCurrencyDetailed(entry.total)}
+                      </span>
+                      <span className="rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+                        {entry.count} contratos
+                      </span>
+                    </div>
+                  </summary>
+                  <div className="border-t border-slate-200 px-4 py-3">
+                    <div className="grid gap-2 text-xs text-slate-600">
+                      {sortedContracts.map((contract) => (
+                        <div
+                          key={contract.id}
+                          className="grid gap-2 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2 md:grid-cols-[0.8fr_1.2fr_0.8fr_1fr_0.9fr]"
+                        >
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
+                              Contrato
+                            </p>
+                            <p className="text-sm text-brand-950">
+                              {contract.contractNumber ? `#${contract.contractNumber}` : "Sin folio"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
+                              Fechas de viaje
+                            </p>
+                            <p className="text-sm text-slate-700">
+                              {formatTripRange(contract.departureDate, contract.returnDate)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
+                              Costo
+                            </p>
+                            <p className="text-sm text-slate-700">
+                              {formatCurrency(parseMoney(contract.totalPrice))}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
+                              Proveedor
+                            </p>
+                            <p className="text-sm text-slate-700">
+                              {contract.supplier || "Sin proveedor"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
+                              Fecha de reserva
+                            </p>
+                            <p className="text-sm text-slate-700">
+                              {contract.reservationDate || "Sin fecha"}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </details>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h3 className="font-display text-lg text-brand-950">
@@ -909,115 +1018,6 @@ export function AnalysisDashboard({
             );
           })}
         </div>
-      </section>
-
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="font-display text-lg text-brand-950">
-              Contratos por asesor
-            </h3>
-            <p className="mt-1 text-sm text-slate-500">
-              Resumen según el filtro actual.
-            </p>
-          </div>
-          <span className="rounded-full border border-brand-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
-            {computed.filteredContracts.length} contratos
-          </span>
-        </div>
-
-        {computed.organizerSummary.length === 0 ? (
-          <div className="mt-4 rounded-2xl border border-dashed border-brand-200 bg-brand-50/40 p-4 text-sm text-slate-600">
-            No hay contratos para este filtro.
-          </div>
-        ) : (
-          <div className="mt-4 space-y-3">
-            {computed.organizerSummary.map((entry) => {
-              const sortedContracts = [...entry.contracts].sort((a, b) => {
-                const aParts = parseReservationParts(a.reservationDate);
-                const bParts = parseReservationParts(b.reservationDate);
-                const aKey = aParts ? toDateKey(aParts) : Number.POSITIVE_INFINITY;
-                const bKey = bParts ? toDateKey(bParts) : Number.POSITIVE_INFINITY;
-                return aKey - bKey;
-              });
-
-              return (
-                <details
-                  key={entry.name}
-                  className="rounded-2xl border border-slate-200 bg-white"
-                >
-                  <summary className="cursor-pointer list-none px-4 py-3 [&::-webkit-details-marker]:hidden">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-brand-950">{entry.name}</p>
-                        <p className="text-xs uppercase tracking-[0.2em] text-brand-600">
-                          {entry.signedPaid} firmados/pagados · {entry.pending} pendientes
-                        </p>
-                      </div>
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
-                        Acumulado: {formatCurrencyDetailed(entry.total)}
-                      </span>
-                      <span className="rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
-                        {entry.count} contratos
-                      </span>
-                    </div>
-                  </summary>
-                  <div className="border-t border-slate-200 px-4 py-3">
-                    <div className="grid gap-2 text-xs text-slate-600">
-                      {sortedContracts.map((contract) => (
-                        <div
-                          key={contract.id}
-                          className="grid gap-2 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2 md:grid-cols-[0.8fr_1.2fr_0.8fr_1fr_0.9fr]"
-                        >
-                          <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
-                              Contrato
-                            </p>
-                            <p className="text-sm text-brand-950">
-                              {contract.contractNumber ? `#${contract.contractNumber}` : "Sin folio"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
-                              Fechas de viaje
-                            </p>
-                            <p className="text-sm text-slate-700">
-                              {formatTripRange(contract.departureDate, contract.returnDate)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
-                              Costo
-                            </p>
-                            <p className="text-sm text-slate-700">
-                              {formatCurrency(parseMoney(contract.totalPrice))}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
-                              Proveedor
-                            </p>
-                            <p className="text-sm text-slate-700">
-                              {contract.supplier || "Sin proveedor"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
-                              Fecha de reserva
-                            </p>
-                            <p className="text-sm text-slate-700">
-                              {contract.reservationDate || "Sin fecha"}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </details>
-              );
-            })}
-          </div>
-        )}
       </section>
     </div>
   );
