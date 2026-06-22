@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, WheelEvent, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ThemedSelect } from "@/components/ui/themed-select";
@@ -84,6 +84,11 @@ export function AddTransactionModal({
   const [deleting, setDeleting] = useState(false);
   const { confirm, dialog } = useConfirmDialog();
   const toast = useToast();
+
+  const handleAmountWheel = (event: WheelEvent<HTMLInputElement>) => {
+    event.currentTarget.blur();
+    event.preventDefault();
+  };
 
   useEffect(() => {
     if (open) {
@@ -305,6 +310,7 @@ export function AddTransactionModal({
                 type="number"
                 min="0"
                 step="0.01"
+                onWheel={handleAmountWheel}
                 className={`${fieldClass} no-number-spinner`}
               />
             </label>
