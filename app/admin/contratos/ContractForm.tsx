@@ -1093,7 +1093,7 @@ export function ContractForm({
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-          Fecha de salida
+          Fecha de inicio
         </label>
         <input
           type="date"
