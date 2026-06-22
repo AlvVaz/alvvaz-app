@@ -180,6 +180,19 @@ export default function TripsSection({
     }
     return "Sin fechas";
   };
+  const getTripContractNumbers = (trip: Trip) =>
+    Array.from(
+      new Set(
+        trip.travelers
+          .map((traveler) => String(traveler.contract ?? "").trim())
+          .filter(Boolean)
+      )
+    );
+  const formatContractNumbers = (trip: Trip) => {
+    const contracts = getTripContractNumbers(trip);
+    if (contracts.length === 0) return "Sin folio";
+    return contracts.map((contract) => `#${contract.replace(/^#/, "")}`).join(", ");
+  };
 
   const msPerDay = 1000 * 60 * 60 * 24;
   const today = new Date();
@@ -358,6 +371,9 @@ export default function TripsSection({
                                 <p className="text-xs text-slate-500">
                                   {trip.hotel || "Hotel por confirmar"}
                                 </p>
+                                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-brand-600">
+                                  Contrato {formatContractNumbers(trip)}
+                                </p>
                               </div>
                               <div>
                                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
@@ -474,6 +490,12 @@ export default function TripsSection({
                               Proveedor
                             </p>
                             <p className="text-slate-700">{trip.supplier || "Sin proveedor"}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                              Contrato
+                            </p>
+                            <p className="text-slate-700">{formatContractNumbers(trip)}</p>
                           </div>
                           <div className="md:col-span-1">
                             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">

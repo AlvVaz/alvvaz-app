@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { SyntheticEvent } from "react";
 
@@ -71,11 +71,75 @@ export default function ContractsPanel({
   const [legacy2025ResolvedTotal, setLegacy2025ResolvedTotal] = useState(
     legacy2025TotalCount
   );
+  const [serverSearchContracts, setServerSearchContracts] = useState<Contract[]>([]);
+  const [serverSearchLoading, setServerSearchLoading] = useState(false);
+  const [serverSearchError, setServerSearchError] = useState("");
 
   const normalizedId = normalize(filters.id).replace(/^#/, "");
   const normalizedName = normalize(filters.name);
   const normalizedContact = normalize(filters.contact).replace(/\s+/g, "");
   const hasFilters = Boolean(normalizedId || normalizedName || normalizedContact);
+  const shouldSearchServer =
+    normalizedId.length >= 3 || normalizedName.length >= 3 || normalizedContact.length >= 3;
+  const updateFilters = (updates: Partial<typeof filters>) => {
+    const nextFilters = { ...filters, ...updates };
+    const nextNormalizedId = normalize(nextFilters.id).replace(/^#/, "");
+    const nextNormalizedName = normalize(nextFilters.name);
+    const nextNormalizedContact = normalize(nextFilters.contact).replace(/\s+/g, "");
+    const nextShouldSearchServer =
+      nextNormalizedId.length >= 3 ||
+      nextNormalizedName.length >= 3 ||
+      nextNormalizedContact.length >= 3;
+
+    if (!nextShouldSearchServer) {
+      setServerSearchContracts([]);
+      setServerSearchError("");
+      setServerSearchLoading(false);
+    }
+
+    setFilters(nextFilters);
+  };
+
+  useEffect(() => {
+    if (!shouldSearchServer) return;
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams();
+      if (normalizedId.length >= 3) params.set("contractId", normalizedId);
+      if (normalizedName.length >= 3) params.set("name", normalizedName);
+      if (normalizedContact.length >= 3) params.set("contact", normalizedContact);
+
+      setServerSearchLoading(true);
+      setServerSearchError("");
+      fetch(`/api/admin/contracts/search?${params.toString()}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      })
+        .then(async (response) => {
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload?.error || "No se pudo buscar el contrato.");
+          }
+          setServerSearchContracts(payload.contracts ?? []);
+        })
+        .catch((error) => {
+          if ((error as Error).name === "AbortError") return;
+          setServerSearchContracts([]);
+          setServerSearchError((error as Error).message || "No se pudo buscar el contrato.");
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) {
+            setServerSearchLoading(false);
+          }
+        });
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [normalizedContact, normalizedId, normalizedName, shouldSearchServer]);
 
   const getFilteredContracts = useCallback((items: Contract[]) => {
     if (!hasFilters) return items;
@@ -116,8 +180,17 @@ export default function ContractsPanel({
   }, [hasFilters, normalizedContact, normalizedId, normalizedName]);
 
   const filteredContracts = useMemo(
-    () => getFilteredContracts(contracts),
-    [contracts, getFilteredContracts]
+    () => {
+      const mergedContracts = [...contracts];
+      const existingIds = new Set(contracts.map((contract) => contract.id));
+      for (const contract of serverSearchContracts) {
+        if (!existingIds.has(contract.id)) {
+          mergedContracts.push(contract);
+        }
+      }
+      return getFilteredContracts(mergedContracts);
+    },
+    [contracts, getFilteredContracts, serverSearchContracts]
   );
   const filteredLegacy2025Contracts = useMemo(
     () => getFilteredContracts(legacy2025Contracts),
@@ -215,7 +288,12 @@ export default function ContractsPanel({
           {hasFilters ? (
             <button
               type="button"
-              onClick={() => setFilters({ id: "", name: "", contact: "" })}
+              onClick={() => {
+                setFilters({ id: "", name: "", contact: "" });
+                setServerSearchContracts([]);
+                setServerSearchError("");
+                setServerSearchLoading(false);
+              }}
               className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
             >
               Limpiar filtros
@@ -228,9 +306,9 @@ export default function ContractsPanel({
             <input
               type="text"
               value={filters.id}
-              onChange={(event) =>
-                setFilters((current) => ({ ...current, id: event.target.value }))
-              }
+              onChange={(event) => {
+                updateFilters({ id: event.target.value });
+              }}
               placeholder="#2034"
               className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-normal text-slate-900 shadow-sm outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200"
             />
@@ -240,9 +318,7 @@ export default function ContractsPanel({
             <input
               type="text"
               value={filters.name}
-              onChange={(event) =>
-                setFilters((current) => ({ ...current, name: event.target.value }))
-              }
+              onChange={(event) => updateFilters({ name: event.target.value })}
               placeholder="Cliente o ciudad"
               className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-normal text-slate-900 shadow-sm outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200"
             />
@@ -252,17 +328,29 @@ export default function ContractsPanel({
             <input
               type="text"
               value={filters.contact}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  contact: event.target.value,
-                }))
-              }
+              onChange={(event) => updateFilters({ contact: event.target.value })}
               placeholder="Teléfono o email"
               className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-normal text-slate-900 shadow-sm outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200"
             />
           </label>
         </div>
+        {shouldSearchServer ? (
+          <div className="mt-4 text-xs text-slate-500">
+            {serverSearchLoading ? (
+              <span className="text-sm font-semibold text-brand-600">
+                Buscando contratos en la base de datos...
+              </span>
+            ) : null}
+            {!serverSearchLoading && serverSearchError ? (
+              <span className="text-rose-600">{serverSearchError}</span>
+            ) : null}
+            {!serverSearchLoading &&
+            !serverSearchError &&
+            serverSearchContracts.length === 0 ? (
+              "Si hay coincidencias fuera de los contratos cargados, aparecerán aquí al terminar la búsqueda."
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       <ContractsSection
