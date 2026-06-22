@@ -355,20 +355,6 @@ export default function ContractsPanel({
       </section>
 
       <ContractsSection
-        title="Contratos pendientes"
-        badgeLabel={`${pendingContracts.length} pendientes`}
-        emptyMessage="No hay contratos pendientes por revisar."
-        contracts={pendingContracts}
-        updateAction={updateAction}
-        deleteAction={deleteAction}
-        bulkDeleteAction={bulkDeleteAction}
-        organizerOptions={organizerOptions}
-        canEditContractNumber={canEditContractNumber}
-        currentAdminRole={currentAdminRole}
-      />
-      {renderSectionLoadMore("pending", pendingContracts.length, "contratos pendientes")}
-
-      <ContractsSection
         title="Contratos aprobados"
         badgeLabel={`${approvedContracts.length} aprobados`}
         emptyMessage="Aún no hay contratos aprobados."
@@ -382,6 +368,20 @@ export default function ContractsPanel({
         currentAdminRole={currentAdminRole}
       />
       {renderSectionLoadMore("approved", approvedContracts.length, "contratos aprobados")}
+
+      <ContractsSection
+        title="Contratos pendientes"
+        badgeLabel={`${pendingContracts.length} pendientes`}
+        emptyMessage="No hay contratos pendientes por revisar."
+        contracts={pendingContracts}
+        updateAction={updateAction}
+        deleteAction={deleteAction}
+        bulkDeleteAction={bulkDeleteAction}
+        organizerOptions={organizerOptions}
+        canEditContractNumber={canEditContractNumber}
+        currentAdminRole={currentAdminRole}
+      />
+      {renderSectionLoadMore("pending", pendingContracts.length, "contratos pendientes")}
 
       <ContractsSection
         title="Contratos cancelados"
