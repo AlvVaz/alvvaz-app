@@ -1,6 +1,9 @@
+import { unstable_cache } from "next/cache";
+
 import { SectionHeading } from "@/components/section-heading";
 import { Button } from "@/components/ui/button";
 import { ThemedSelect } from "@/components/ui/themed-select";
+import { ADMIN_TRIPS_CACHE_TAG } from "@/lib/admin-cache-tags";
 import { getTrips } from "@/lib/db";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
@@ -21,9 +24,10 @@ type ViajesAdminPageProps = {
   searchParams?: { year?: string; status?: string; limit?: string };
 };
 
-const INITIAL_TRIP_LIMIT = 100;
-const TRIP_LIMIT_STEP = 100;
+const INITIAL_TRIP_LIMIT = 50;
+const TRIP_LIMIT_STEP = 50;
 const MAX_TRIP_LIMIT = 800;
+const ADMIN_TRIPS_CACHE_SECONDS = 30;
 
 function parseTripLimit(value?: string) {
   const parsed = Number.parseInt(String(value ?? ""), 10);
@@ -77,26 +81,43 @@ function combineTripWhere(...filters: Array<Prisma.TripWhereInput | null>) {
   return { AND: activeFilters };
 }
 
+const getCachedTripsPageData = unstable_cache(
+  async (tripLimit: number, selectedYear: string, selectedStatus: string) => {
+    const tripWhere = combineTripWhere(
+      getTripYearWhere(selectedYear),
+      getTripStatusWhere(selectedStatus)
+    );
+
+    const [trips, totalTrips, yearRows] = await Promise.all([
+      getTrips({ take: tripLimit, where: tripWhere }),
+      prisma.trip.count({ where: tripWhere }),
+      prisma.trip.findMany({
+        select: {
+          departureDate: true,
+          returnDate: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    return { trips, totalTrips, yearRows };
+  },
+  ["admin-trips-page-data"],
+  {
+    revalidate: ADMIN_TRIPS_CACHE_SECONDS,
+    tags: [ADMIN_TRIPS_CACHE_TAG],
+  }
+);
+
 export default async function ViajesAdminPage({ searchParams }: ViajesAdminPageProps) {
   const selectedYear = searchParams?.year ?? "all";
   const selectedStatus = searchParams?.status ?? "all";
   const tripLimit = parseTripLimit(searchParams?.limit);
-  const tripWhere = combineTripWhere(
-    getTripYearWhere(selectedYear),
-    getTripStatusWhere(selectedStatus)
+  const { trips, totalTrips, yearRows } = await getCachedTripsPageData(
+    tripLimit,
+    selectedYear,
+    selectedStatus
   );
-
-  const [trips, totalTrips, yearRows] = await Promise.all([
-    getTrips({ take: tripLimit, where: tripWhere }),
-    prisma.trip.count({ where: tripWhere }),
-    prisma.trip.findMany({
-      select: {
-        departureDate: true,
-        returnDate: true,
-        createdAt: true,
-      },
-    }),
-  ]);
 
   const resolveTripYear = (trip: {
     departureDate: string | null;

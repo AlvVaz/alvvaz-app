@@ -1,8 +1,14 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { Prisma } from "@prisma/client";
 
+import {
+  ADMIN_COMMISSIONS_CACHE_TAG,
+  ADMIN_CONTRACTS_CACHE_TAG,
+  ADMIN_PAYMENT_PLANS_CACHE_TAG,
+  ADMIN_TRIPS_CACHE_TAG,
+} from "@/lib/admin-cache-tags";
 import { getAdminFromCookies } from "@/lib/auth/admin";
 import {
   createContract,
@@ -34,6 +40,16 @@ import {
 type ActionState = { submittedAt: number; error?: string; field?: "contractNumber" | "general" };
 
 const MIN_CONTRACT_NUMBER = 2141;
+const EXPIRE_ADMIN_CACHE = { expire: 0 };
+
+function revalidateContractAdminData() {
+  revalidateTag(ADMIN_CONTRACTS_CACHE_TAG, EXPIRE_ADMIN_CACHE);
+  revalidateTag(ADMIN_PAYMENT_PLANS_CACHE_TAG, EXPIRE_ADMIN_CACHE);
+  revalidateTag(ADMIN_TRIPS_CACHE_TAG, EXPIRE_ADMIN_CACHE);
+  revalidateTag(ADMIN_COMMISSIONS_CACHE_TAG, EXPIRE_ADMIN_CACHE);
+  revalidatePath("/admin/contratos");
+  revalidatePath("/admin/viajes");
+}
 
 const normalizeContractNumber = (value: string) => {
   const digits = value.replace(/[^\d]/g, "").trim();
@@ -284,8 +300,7 @@ export async function createContractAction(
   });
 
   // TODO: Generate PDF from template and upload to storage.
-  revalidatePath("/admin/contratos");
-  revalidatePath("/admin/viajes");
+  revalidateContractAdminData();
   revalidatePath("/admin/clients");
   return { submittedAt: Date.now(), error: "" };
 }
@@ -428,8 +443,7 @@ export async function updateContractAction(
     agency,
   });
 
-  revalidatePath("/admin/contratos");
-  revalidatePath("/admin/viajes");
+  revalidateContractAdminData();
   revalidatePath("/admin/clients");
   return { submittedAt: Date.now(), error: "" };
 }
@@ -443,8 +457,7 @@ export async function deleteContractAction(formData: FormData) {
   if (existing?.tripId) {
     await deleteTrip(existing.tripId);
   }
-  revalidatePath("/admin/contratos");
-  revalidatePath("/admin/viajes");
+  revalidateContractAdminData();
   revalidatePath("/admin/clients");
 }
 
@@ -463,8 +476,7 @@ export async function bulkDeleteContractsAction(ids: string[]) {
   if (tripIds.length) {
     await deleteTripsByIds(tripIds);
   }
-  revalidatePath("/admin/contratos");
-  revalidatePath("/admin/viajes");
+  revalidateContractAdminData();
   revalidatePath("/admin/clients");
   return { ok: true };
 }
@@ -493,6 +505,7 @@ export async function syncClientsFromContractsAction(
     }
 
     revalidatePath("/admin/clients");
+    revalidateTag(ADMIN_CONTRACTS_CACHE_TAG, EXPIRE_ADMIN_CACHE);
     revalidatePath("/admin/contratos");
 
     return { updatedAt: Date.now(), ok: true };

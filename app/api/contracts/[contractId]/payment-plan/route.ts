@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
+import {
+  ADMIN_COMMISSIONS_CACHE_TAG,
+  ADMIN_CONTRACTS_CACHE_TAG,
+  ADMIN_PAYMENT_PLANS_CACHE_TAG,
+} from "@/lib/admin-cache-tags";
 import { getAdminFromCookies } from "@/lib/auth/admin";
 import {
   getPaymentPlanByContractId,
@@ -16,6 +21,8 @@ import { prisma } from "@/lib/prisma";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
+
+const EXPIRE_ADMIN_CACHE = { expire: 0 };
 
 type RouteContext = {
   params: Promise<{ contractId: string }>;
@@ -37,6 +44,14 @@ async function contractExists(contractId: string) {
     select: { id: true },
   });
   return Boolean(contract);
+}
+
+function revalidatePaymentPlanAdminData() {
+  revalidateTag(ADMIN_CONTRACTS_CACHE_TAG, EXPIRE_ADMIN_CACHE);
+  revalidateTag(ADMIN_PAYMENT_PLANS_CACHE_TAG, EXPIRE_ADMIN_CACHE);
+  revalidateTag(ADMIN_COMMISSIONS_CACHE_TAG, EXPIRE_ADMIN_CACHE);
+  revalidatePath("/admin/contratos");
+  revalidatePath("/admin/pagos");
 }
 
 export async function GET(_request: Request, context: RouteContext) {
@@ -164,8 +179,7 @@ export async function PUT(request: Request, context: RouteContext) {
       frequency,
       installmentCount,
     });
-    revalidatePath("/admin/contratos");
-    revalidatePath("/admin/pagos");
+    revalidatePaymentPlanAdminData();
     return NextResponse.json({ plan });
   } catch (error) {
     return NextResponse.json(
@@ -199,8 +213,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
   }
 
   await clearContractPaymentPlanSummary(contractId);
-  revalidatePath("/admin/contratos");
-  revalidatePath("/admin/pagos");
+  revalidatePaymentPlanAdminData();
 
   return NextResponse.json({ ok: true });
 }

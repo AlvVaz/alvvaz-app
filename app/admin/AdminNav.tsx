@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useRef } from "react";
 
 type AdminRole = "owner" | "admin" | "tech";
 
@@ -36,9 +37,17 @@ function isActivePath(pathname: string, href: string) {
 
 export function AdminNav({ role }: { role?: AdminRole }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const prefetchedRoutes = useRef(new Set<string>());
   const visibleItems = role
     ? navItems.filter((item) => item.roles.includes(role))
     : navItems;
+  const prefetchRoute = (href: string) => {
+    if (pathname === href) return;
+    if (prefetchedRoutes.current.has(href)) return;
+    prefetchedRoutes.current.add(href);
+    router.prefetch(href);
+  };
 
   return (
     <nav className="hidden items-center gap-4 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 md:flex">
@@ -48,6 +57,9 @@ export function AdminNav({ role }: { role?: AdminRole }) {
           <Link
             key={item.href}
             href={item.href}
+            prefetch={false}
+            onMouseEnter={() => prefetchRoute(item.href)}
+            onFocus={() => prefetchRoute(item.href)}
             className={[
               "rounded-full px-3 py-1 transition-colors hover:text-brand-700",
               isActive ? "text-brand-700 ring-1 ring-brand-500/80" : "",

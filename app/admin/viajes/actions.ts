@@ -1,7 +1,11 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
+import {
+  ADMIN_COMMISSIONS_CACHE_TAG,
+  ADMIN_TRIPS_CACHE_TAG,
+} from "@/lib/admin-cache-tags";
 import {
   createTrip,
   deleteTrip,
@@ -11,6 +15,8 @@ import {
 } from "@/lib/db";
 import type { TripTraveler } from "@/lib/db";
 
+const EXPIRE_ADMIN_CACHE = { expire: 0 };
+
 function parseTravelers(raw: string): TripTraveler[] {
   try {
     const parsed = JSON.parse(raw) as TripTraveler[];
@@ -19,6 +25,12 @@ function parseTravelers(raw: string): TripTraveler[] {
   } catch {
     return [];
   }
+}
+
+function revalidateTripsAdminData() {
+  revalidateTag(ADMIN_TRIPS_CACHE_TAG, EXPIRE_ADMIN_CACHE);
+  revalidateTag(ADMIN_COMMISSIONS_CACHE_TAG, EXPIRE_ADMIN_CACHE);
+  revalidatePath("/admin/viajes");
 }
 
 export async function createTripAction(formData: FormData) {
@@ -65,7 +77,7 @@ export async function createTripAction(formData: FormData) {
   });
 
   // TODO: Trigger WhatsApp reminders + CRM updates for upcoming trips.
-  revalidatePath("/admin/viajes");
+  revalidateTripsAdminData();
   revalidatePath("/admin/clients");
 }
 
@@ -97,7 +109,7 @@ export async function updateTripAction(formData: FormData) {
     travelers,
   });
 
-  revalidatePath("/admin/viajes");
+  revalidateTripsAdminData();
   const travelersForSync =
     travelers.length > 0
       ? travelers
@@ -124,7 +136,7 @@ export async function updateTripStageAction(id: string, stage: number): Promise<
     : 0;
 
   await updateTrip(tripId, { prepStage: safeStage });
-  revalidatePath("/admin/viajes");
+  revalidateTripsAdminData();
 }
 
 export async function deleteTripAction(formData: FormData) {
@@ -132,7 +144,7 @@ export async function deleteTripAction(formData: FormData) {
   if (!id) return;
 
   await deleteTrip(id);
-  revalidatePath("/admin/viajes");
+  revalidateTripsAdminData();
 }
 
 export async function bulkDeleteTripsAction(ids: string[]) {
@@ -140,6 +152,6 @@ export async function bulkDeleteTripsAction(ids: string[]) {
     return { ok: false, error: "Selecciona al menos un viaje." };
   }
   await deleteTripsByIds(ids);
-  revalidatePath("/admin/viajes");
+  revalidateTripsAdminData();
   return { ok: true };
 }

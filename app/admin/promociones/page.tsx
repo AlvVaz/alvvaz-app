@@ -1,9 +1,16 @@
+import nextDynamic from "next/dynamic";
+
 import { SectionHeading } from "@/components/section-heading";
 import { getPromotions } from "@/lib/db";
 
 import { deletePromotionAction, updatePromotionAction } from "./actions";
-import { NewPromotionCard } from "./NewPromotionCard";
-import { PromotionsAdminList } from "./PromotionsAdminList";
+
+const NewPromotionCard = nextDynamic(() =>
+  import("./NewPromotionCard").then((mod) => mod.NewPromotionCard)
+);
+const PromotionsAdminList = nextDynamic(() =>
+  import("./PromotionsAdminList").then((mod) => mod.PromotionsAdminList)
+);
 
 export const dynamic = "force-dynamic";
 

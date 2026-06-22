@@ -1,10 +1,19 @@
+import nextDynamic from "next/dynamic";
+
 import { SectionHeading } from "@/components/section-heading";
 import { getMagazineIssues, getMagazineItems } from "@/lib/db";
 
 import { createIssueActionWithState, deleteIssueAction, updateIssueAction } from "./actions";
-import { MagazineIssuesManager } from "./MagazineIssuesManager";
-import { NewIssueForm } from "./NewIssueForm";
-import { UploadItemForm } from "./UploadItemForm";
+
+const MagazineIssuesManager = nextDynamic(() =>
+  import("./MagazineIssuesManager").then((mod) => mod.MagazineIssuesManager)
+);
+const NewIssueForm = nextDynamic(() =>
+  import("./NewIssueForm").then((mod) => mod.NewIssueForm)
+);
+const UploadItemForm = nextDynamic(() =>
+  import("./UploadItemForm").then((mod) => mod.UploadItemForm)
+);
 
 export const dynamic = "force-dynamic";
 
