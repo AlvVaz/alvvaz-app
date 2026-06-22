@@ -630,8 +630,12 @@ function sortTripsByDeparture(a: Trip, b: Trip) {
   return new Date(a.departureDate).getTime() - new Date(b.departureDate).getTime();
 }
 
-export async function getTrips() {
-  const trips = await prisma.trip.findMany();
+export async function getTrips(options?: { take?: number; where?: Prisma.TripWhereInput }) {
+  const trips = await prisma.trip.findMany({
+    where: options?.where,
+    orderBy: { createdAt: "desc" },
+    take: options?.take,
+  });
   return trips.map(mapTrip).sort(sortTripsByDeparture);
 }
 

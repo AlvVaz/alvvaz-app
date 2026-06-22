@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 import type { Trip } from "@/lib/db";
 
@@ -14,6 +15,9 @@ type TripsPanelProps = {
   updateAction: (formData: FormData) => void | Promise<void>;
   updateStageAction: (id: string, stage: number) => Promise<void>;
   deleteAction: (formData: FormData) => void | Promise<void>;
+  loadedCount: number;
+  totalCount: number;
+  nextLimit: number;
 };
 
 const normalize = (value: string) => value.trim().toLowerCase();
@@ -32,6 +36,9 @@ export default function TripsPanel({
   updateAction,
   updateStageAction,
   deleteAction,
+  loadedCount,
+  totalCount,
+  nextLimit,
 }: TripsPanelProps) {
   const [filters, setFilters] = useState({
     destination: "",
@@ -285,6 +292,11 @@ export default function TripsPanel({
   const showUpcoming = selectedStatus === "all" || selectedStatus === "upcoming";
   const showCompleted = selectedStatus === "all" || selectedStatus === "completed";
   const groupByYear = selectedYear === "all";
+  const nextLimitHref = `/admin/viajes?${new URLSearchParams({
+    year: selectedYear,
+    status: selectedStatus,
+    limit: String(nextLimit),
+  }).toString()}`;
 
   return (
     <>
@@ -352,9 +364,20 @@ export default function TripsPanel({
             />
           </label>
         </div>
-        <p className="mt-3 text-xs text-slate-500">
-          Mostrando {filteredTrips.length} de {tripsByYear.length} viajes.
-        </p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-slate-500">
+            Mostrando {filteredTrips.length} de {loadedCount} viajes cargados.
+            {totalCount > loadedCount ? ` ${totalCount - loadedCount} pendientes por cargar.` : ""}
+          </p>
+          {totalCount > loadedCount ? (
+            <Link
+              href={nextLimitHref}
+              className="rounded-full border border-brand-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 transition hover:border-brand-300 hover:text-brand-900"
+            >
+              Cargar más
+            </Link>
+          ) : null}
+        </div>
       </section>
 
       {groupByYear && showUpcoming && showCompleted ? (
