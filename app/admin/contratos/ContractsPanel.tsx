@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import type { SyntheticEvent } from "react";
 
 import type { Contract } from "@/lib/db";
@@ -21,7 +20,7 @@ type ContractsPanelProps = {
   canEditContractNumber?: boolean;
   currentAdminRole: AdminRoleForContracts;
   sectionCounts: Record<ContractSectionKey, ContractSectionStats>;
-  currentLimits: Record<ContractSectionKey, number>;
+  sectionLimitStep: number;
   legacy2025TotalCount: number;
   legacy2025InitialLimit: number;
   legacy2025LimitStep: number;
@@ -32,7 +31,6 @@ type ContractSectionKey = "approved" | "pending" | "canceled";
 type ContractSectionStats = {
   loaded: number;
   total: number;
-  nextLimit: number;
 };
 
 const normalize = (value: string) => value.trim().toLowerCase();
@@ -52,7 +50,7 @@ export default function ContractsPanel({
   canEditContractNumber = false,
   currentAdminRole,
   sectionCounts,
-  currentLimits,
+  sectionLimitStep,
   legacy2025TotalCount,
   legacy2025InitialLimit,
   legacy2025LimitStep,
@@ -74,6 +72,26 @@ export default function ContractsPanel({
   const [serverSearchContracts, setServerSearchContracts] = useState<Contract[]>([]);
   const [serverSearchLoading, setServerSearchLoading] = useState(false);
   const [serverSearchError, setServerSearchError] = useState("");
+  const [additionalContracts, setAdditionalContracts] = useState<Contract[]>([]);
+  const [resolvedSectionTotals, setResolvedSectionTotals] = useState({
+    approved: sectionCounts.approved.total,
+    pending: sectionCounts.pending.total,
+    canceled: sectionCounts.canceled.total,
+  });
+  const [sectionLoading, setSectionLoading] = useState<
+    Record<ContractSectionKey, boolean>
+  >({
+    approved: false,
+    pending: false,
+    canceled: false,
+  });
+  const [sectionErrors, setSectionErrors] = useState<
+    Record<ContractSectionKey, string>
+  >({
+    approved: "",
+    pending: "",
+    canceled: "",
+  });
 
   const normalizedId = normalize(filters.id).replace(/^#/, "");
   const normalizedName = normalize(filters.name);
@@ -180,10 +198,22 @@ export default function ContractsPanel({
     });
   }, [hasFilters, normalizedContact, normalizedId, normalizedName]);
 
+  const loadedContracts = useMemo(() => {
+    const mergedContracts = [...contracts];
+    const existingIds = new Set(contracts.map((contract) => contract.id));
+    for (const contract of additionalContracts) {
+      if (!existingIds.has(contract.id)) {
+        mergedContracts.push(contract);
+        existingIds.add(contract.id);
+      }
+    }
+    return mergedContracts;
+  }, [additionalContracts, contracts]);
+
   const filteredContracts = useMemo(
     () => {
-      const mergedContracts = [...contracts];
-      const existingIds = new Set(contracts.map((contract) => contract.id));
+      const mergedContracts = [...loadedContracts];
+      const existingIds = new Set(loadedContracts.map((contract) => contract.id));
       for (const contract of serverSearchContracts) {
         if (!existingIds.has(contract.id)) {
           mergedContracts.push(contract);
@@ -191,7 +221,7 @@ export default function ContractsPanel({
       }
       return getFilteredContracts(mergedContracts);
     },
-    [contracts, getFilteredContracts, serverSearchContracts]
+    [getFilteredContracts, loadedContracts, serverSearchContracts]
   );
   const filteredLegacy2025Contracts = useMemo(
     () => getFilteredContracts(legacy2025Contracts),
@@ -208,14 +238,46 @@ export default function ContractsPanel({
     (contract) => contract.status === "canceled"
   );
 
-  const getSectionLimitHref = (section: ContractSectionKey, nextLimit: number) => {
-    const params = new URLSearchParams({
-      approvedLimit: String(currentLimits.approved),
-      pendingLimit: String(currentLimits.pending),
-      canceledLimit: String(currentLimits.canceled),
-    });
-    params.set(`${section}Limit`, String(nextLimit));
-    return `/admin/contratos?${params.toString()}`;
+  const loadedSectionCounts = useMemo(
+    () => ({
+      approved: loadedContracts.filter(
+        (contract) => contract.status === "paid" || contract.status === "signed"
+      ).length,
+      pending: loadedContracts.filter((contract) => contract.status === "pending").length,
+      canceled: loadedContracts.filter((contract) => contract.status === "canceled").length,
+    }),
+    [loadedContracts]
+  );
+
+  const loadMoreSection = async (section: ContractSectionKey) => {
+    setSectionLoading((current) => ({ ...current, [section]: true }));
+    setSectionErrors((current) => ({ ...current, [section]: "" }));
+    try {
+      const params = new URLSearchParams({
+        section,
+        offset: String(loadedSectionCounts[section]),
+      });
+      const response = await fetch(`/api/admin/contracts?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error || "No se pudieron cargar más contratos.");
+      }
+      setAdditionalContracts((current) => [...current, ...(payload.contracts ?? [])]);
+      setResolvedSectionTotals((current) => ({
+        ...current,
+        [section]: payload.totalCount ?? current[section],
+      }));
+    } catch (error) {
+      setSectionErrors((current) => ({
+        ...current,
+        [section]:
+          (error as Error).message || "No se pudieron cargar más contratos.",
+      }));
+    } finally {
+      setSectionLoading((current) => ({ ...current, [section]: false }));
+    }
   };
 
   const renderSectionLoadMore = (
@@ -223,25 +285,32 @@ export default function ContractsPanel({
     visibleCount: number,
     label: string
   ) => {
-    const stats = sectionCounts[section];
-    if (stats.total === 0) return null;
+    const loadedCount = loadedSectionCounts[section];
+    const totalCount = resolvedSectionTotals[section];
+    if (totalCount === 0) return null;
     return (
       <div className="flex flex-col items-center gap-3 text-center">
-        {stats.total > stats.loaded ? (
-          <Link
-            href={getSectionLimitHref(section, stats.nextLimit)}
-            scroll={false}
-            className="rounded-full border border-brand-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 transition hover:border-brand-300 hover:text-brand-900"
+        {totalCount > loadedCount ? (
+          <button
+            type="button"
+            onClick={() => void loadMoreSection(section)}
+            disabled={sectionLoading[section]}
+            className="rounded-full border border-brand-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 transition hover:border-brand-300 hover:text-brand-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Cargar más contratos
-          </Link>
+            {sectionLoading[section]
+              ? "Cargando..."
+              : `Cargar ${Math.min(sectionLimitStep, totalCount - loadedCount)} más`}
+          </button>
         ) : null}
         <p className="text-xs text-slate-500">
-          Mostrando {visibleCount} de {stats.loaded} {label} cargados.
-          {stats.total > stats.loaded
-            ? ` ${stats.total - stats.loaded} pendientes por cargar.`
+          Mostrando {visibleCount} de {loadedCount} {label} cargados.
+          {totalCount > loadedCount
+            ? ` ${totalCount - loadedCount} pendientes por cargar.`
             : ""}
         </p>
+        {sectionErrors[section] ? (
+          <p className="text-xs text-rose-600">{sectionErrors[section]}</p>
+        ) : null}
       </div>
     );
   };

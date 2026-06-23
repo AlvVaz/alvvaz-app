@@ -413,16 +413,14 @@ export function PaymentsContractsList({
   contracts,
   supplierOptions,
   initialAlerts,
-  loadedCount,
   totalCount,
-  nextLimit,
+  loadMoreStep,
 }: {
   contracts: PaymentContract[];
   supplierOptions: string[];
   initialAlerts: InitialPaymentAlert[];
-  loadedCount: number;
   totalCount: number;
-  nextLimit: number;
+  loadMoreStep: number;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -436,6 +434,10 @@ export function PaymentsContractsList({
   const [serverSearchContracts, setServerSearchContracts] = useState<PaymentContract[]>([]);
   const [serverSearchLoading, setServerSearchLoading] = useState(false);
   const [serverSearchError, setServerSearchError] = useState("");
+  const [additionalContracts, setAdditionalContracts] = useState<PaymentContract[]>([]);
+  const [resolvedTotalCount, setResolvedTotalCount] = useState(totalCount);
+  const [loadMoreLoading, setLoadMoreLoading] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState("");
   const paymentDetailsCache = useRef<Record<string, PaymentDetailsPayload>>({});
   const paymentDetailsRequests = useRef<Record<string, Promise<PaymentDetailsPayload>>>({});
   const normalizedQuery = normalizeText(query.trim());
@@ -491,18 +493,55 @@ export function PaymentsContractsList({
     setQuery(value);
   };
 
-  const searchableContracts = useMemo(() => {
-    if (serverSearchContracts.length === 0) return contracts;
-
+  const loadedContracts = useMemo(() => {
     const mergedContracts = [...contracts];
     const existingIds = new Set(contracts.map((contract) => contract.id));
+    for (const contract of additionalContracts) {
+      if (!existingIds.has(contract.id)) {
+        mergedContracts.push(contract);
+        existingIds.add(contract.id);
+      }
+    }
+    return mergedContracts;
+  }, [additionalContracts, contracts]);
+
+  const searchableContracts = useMemo(() => {
+    if (serverSearchContracts.length === 0) return loadedContracts;
+
+    const mergedContracts = [...loadedContracts];
+    const existingIds = new Set(loadedContracts.map((contract) => contract.id));
     for (const contract of serverSearchContracts) {
       if (!existingIds.has(contract.id)) {
         mergedContracts.push(contract);
       }
     }
     return mergedContracts;
-  }, [contracts, serverSearchContracts]);
+  }, [loadedContracts, serverSearchContracts]);
+
+  const loadMoreContracts = async () => {
+    setLoadMoreLoading(true);
+    setLoadMoreError("");
+    try {
+      const params = new URLSearchParams({
+        offset: String(loadedContracts.length),
+      });
+      const response = await fetch(`/api/admin/payments/contracts?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error || "No se pudieron cargar más contratos.");
+      }
+      setAdditionalContracts((current) => [...current, ...(payload.contracts ?? [])]);
+      setResolvedTotalCount(payload.totalCount ?? resolvedTotalCount);
+    } catch (error) {
+      setLoadMoreError(
+        (error as Error).message || "No se pudieron cargar más contratos."
+      );
+    } finally {
+      setLoadMoreLoading(false);
+    }
+  };
 
   const contractsWithPlans = useMemo(
     () =>
@@ -755,19 +794,30 @@ export function PaymentsContractsList({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-slate-500">
-          Mostrando {filteredContracts.length} de {loadedCount} contratos cargados.
-          {totalCount > loadedCount ? ` ${totalCount - loadedCount} pendientes por cargar.` : ""}
+          Mostrando {filteredContracts.length} de {loadedContracts.length} contratos cargados.
+          {resolvedTotalCount > loadedContracts.length
+            ? ` ${resolvedTotalCount - loadedContracts.length} pendientes por cargar.`
+            : ""}
         </p>
-        {totalCount > loadedCount ? (
-          <Link
-            href={`/admin/pagos?limit=${nextLimit}`}
-            scroll={false}
-            className="rounded-full border border-brand-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 transition hover:border-brand-300 hover:text-brand-900"
+        {resolvedTotalCount > loadedContracts.length ? (
+          <button
+            type="button"
+            onClick={() => void loadMoreContracts()}
+            disabled={loadMoreLoading}
+            className="rounded-full border border-brand-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 transition hover:border-brand-300 hover:text-brand-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Cargar más
-          </Link>
+            {loadMoreLoading
+              ? "Cargando..."
+              : `Cargar ${Math.min(
+                  loadMoreStep,
+                  resolvedTotalCount - loadedContracts.length
+                )} más`}
+          </button>
         ) : null}
       </div>
+      {loadMoreError ? (
+        <p className="text-right text-xs text-rose-600">{loadMoreError}</p>
+      ) : null}
 
       <PaymentPlanModal
         open={planModalOpen}
