@@ -414,13 +414,11 @@ export function PaymentsContractsList({
   supplierOptions,
   initialAlerts,
   totalCount,
-  loadMoreStep,
 }: {
   contracts: PaymentContract[];
   supplierOptions: string[];
   initialAlerts: InitialPaymentAlert[];
   totalCount: number;
-  loadMoreStep: number;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -792,7 +790,7 @@ export function PaymentsContractsList({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col items-center gap-3 text-center">
         <p className="text-xs text-slate-500">
           Mostrando {filteredContracts.length} de {loadedContracts.length} contratos cargados.
           {resolvedTotalCount > loadedContracts.length
@@ -806,12 +804,7 @@ export function PaymentsContractsList({
             disabled={loadMoreLoading}
             className="rounded-full border border-brand-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 transition hover:border-brand-300 hover:text-brand-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loadMoreLoading
-              ? "Cargando..."
-              : `Cargar ${Math.min(
-                  loadMoreStep,
-                  resolvedTotalCount - loadedContracts.length
-                )} más`}
+            {loadMoreLoading ? "Cargando..." : "Cargar más"}
           </button>
         ) : null}
       </div>

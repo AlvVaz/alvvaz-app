@@ -30,7 +30,6 @@ import {
 export const dynamic = "force-dynamic";
 
 const INITIAL_CONTRACT_SECTION_LIMIT = 15;
-const CONTRACT_SECTION_LIMIT_STEP = 15;
 const INITIAL_LEGACY_2025_LIMIT = 40;
 const LEGACY_2025_LIMIT_STEP = 40;
 const MIN_CONTRACT_NUMBER = 2141;
@@ -300,7 +299,6 @@ export default async function ContratosAdminPage() {
         canEditContractNumber={canEditContractNumber}
         currentAdminRole={admin.role}
         sectionCounts={sectionCounts}
-        sectionLimitStep={CONTRACT_SECTION_LIMIT_STEP}
         legacy2025TotalCount={totalLegacy2025Contracts}
         legacy2025InitialLimit={INITIAL_LEGACY_2025_LIMIT}
         legacy2025LimitStep={LEGACY_2025_LIMIT_STEP}

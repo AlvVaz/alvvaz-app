@@ -42,7 +42,6 @@ type PaymentInstallmentAlertRow = {
 };
 
 const INITIAL_PAYMENT_CONTRACT_LIMIT = 20;
-const PAYMENT_CONTRACT_LIMIT_STEP = 20;
 
 function getTodayDateOnly() {
   const now = new Date();
@@ -357,7 +356,6 @@ export default async function PagosAdminPage() {
           supplierOptions={supplierOptions}
           initialAlerts={paymentAlerts}
           totalCount={totalActiveContracts}
-          loadMoreStep={PAYMENT_CONTRACT_LIMIT_STEP}
         />
       </div>
     </ToastProvider>

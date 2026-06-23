@@ -20,7 +20,6 @@ type ContractsPanelProps = {
   canEditContractNumber?: boolean;
   currentAdminRole: AdminRoleForContracts;
   sectionCounts: Record<ContractSectionKey, ContractSectionStats>;
-  sectionLimitStep: number;
   legacy2025TotalCount: number;
   legacy2025InitialLimit: number;
   legacy2025LimitStep: number;
@@ -50,7 +49,6 @@ export default function ContractsPanel({
   canEditContractNumber = false,
   currentAdminRole,
   sectionCounts,
-  sectionLimitStep,
   legacy2025TotalCount,
   legacy2025InitialLimit,
   legacy2025LimitStep,
@@ -297,9 +295,7 @@ export default function ContractsPanel({
             disabled={sectionLoading[section]}
             className="rounded-full border border-brand-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 transition hover:border-brand-300 hover:text-brand-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {sectionLoading[section]
-              ? "Cargando..."
-              : `Cargar ${Math.min(sectionLimitStep, totalCount - loadedCount)} más`}
+            {sectionLoading[section] ? "Cargando..." : "Cargar más"}
           </button>
         ) : null}
         <p className="text-xs text-slate-500">
