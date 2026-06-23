@@ -162,6 +162,39 @@ function getContractPhone(contract: Awaited<ReturnType<typeof getContracts>>[num
   );
 }
 
+function buildContractSearchText(contract: Awaited<ReturnType<typeof getContracts>>[number]) {
+  const travelerText = contract.travelers
+    .flatMap((traveler) => [traveler.name, traveler.phone, traveler.contract])
+    .filter(Boolean)
+    .join(" ");
+  const metadataText = [
+    contract.metadata.contact,
+    contract.metadata.phone,
+    contract.metadata.telefono,
+    contract.metadata.whatsapp,
+    contract.metadata.email,
+  ]
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
+
+  return [
+    contract.id,
+    contract.contractNumber,
+    contract.clientName,
+    contract.destination,
+    contract.hotel,
+    contract.supplier,
+    contract.organizer,
+    contract.seller,
+    contract.title,
+    travelerText,
+    metadataText,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export default async function PagosAdminPage({ searchParams }: PagosAdminPageProps) {
   const admin = await getAdminFromCookies();
   if (!admin) {
@@ -299,6 +332,7 @@ export default async function PagosAdminPage({ searchParams }: PagosAdminPagePro
     paymentAlertSummary:
       paymentAlertCountsByContract.get(contract.id) ?? { overdue: 0, upcoming: 0 },
     generalNotes: contract.generalNotes ?? null,
+    searchText: buildContractSearchText(contract),
   }));
   const supplierOptions = Array.from(
     new Set(

@@ -52,6 +52,7 @@ export type PaymentContract = {
     upcoming: number;
   };
   generalNotes: string | null;
+  searchText?: string;
 };
 
 export type InitialPaymentAlert = {
@@ -426,12 +427,80 @@ export function PaymentsContractsList({
   const [selectedPlanContractId, setSelectedPlanContractId] = useState<string | null>(null);
   const [planOverrides, setPlanOverrides] = useState<Record<string, PaymentPlan | null>>({});
   const [loadedPlanIds, setLoadedPlanIds] = useState<Record<string, true>>({});
+  const [serverSearchContracts, setServerSearchContracts] = useState<PaymentContract[]>([]);
+  const [serverSearchLoading, setServerSearchLoading] = useState(false);
+  const [serverSearchError, setServerSearchError] = useState("");
   const paymentDetailsCache = useRef<Record<string, PaymentDetailsPayload>>({});
   const paymentDetailsRequests = useRef<Record<string, Promise<PaymentDetailsPayload>>>({});
+  const normalizedQuery = normalizeText(query.trim());
+  const shouldSearchServer = normalizedQuery.length >= 3;
+
+  useEffect(() => {
+    if (!shouldSearchServer) return;
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams({ q: normalizedQuery });
+
+      setServerSearchLoading(true);
+      setServerSearchError("");
+      fetch(`/api/admin/payments/contracts/search?${params.toString()}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      })
+        .then(async (response) => {
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload?.error || "No se pudieron buscar contratos.");
+          }
+          setServerSearchContracts(payload.contracts ?? []);
+        })
+        .catch((error) => {
+          if ((error as Error).name === "AbortError") return;
+          setServerSearchContracts([]);
+          setServerSearchError(
+            (error as Error).message || "No se pudieron buscar contratos."
+          );
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) {
+            setServerSearchLoading(false);
+          }
+        });
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [normalizedQuery, shouldSearchServer]);
+
+  const handleSearchQueryChange = (value: string) => {
+    const nextNormalizedQuery = normalizeText(value.trim());
+    if (nextNormalizedQuery.length < 3) {
+      setServerSearchContracts([]);
+      setServerSearchError("");
+      setServerSearchLoading(false);
+    }
+    setQuery(value);
+  };
+
+  const searchableContracts = useMemo(() => {
+    if (serverSearchContracts.length === 0) return contracts;
+
+    const mergedContracts = [...contracts];
+    const existingIds = new Set(contracts.map((contract) => contract.id));
+    for (const contract of serverSearchContracts) {
+      if (!existingIds.has(contract.id)) {
+        mergedContracts.push(contract);
+      }
+    }
+    return mergedContracts;
+  }, [contracts, serverSearchContracts]);
 
   const contractsWithPlans = useMemo(
     () =>
-      contracts.map((contract) => {
+      searchableContracts.map((contract) => {
         const hasOverride = Object.prototype.hasOwnProperty.call(planOverrides, contract.id);
         return {
           ...contract,
@@ -440,7 +509,7 @@ export function PaymentsContractsList({
             contract.paymentPlanLoaded || hasOverride || Boolean(loadedPlanIds[contract.id]),
         };
       }),
-    [contracts, loadedPlanIds, planOverrides]
+    [loadedPlanIds, planOverrides, searchableContracts]
   );
 
   const contractsById = useMemo(
@@ -528,21 +597,32 @@ export function PaymentsContractsList({
   };
 
   const filteredContracts = useMemo(() => {
-    const normalizedQuery = normalizeText(query.trim());
-
     return contractsWithPlans.filter((contract) => {
       const paymentState = getPaymentState(contract);
       const matchesStatus = statusFilter === "todos" || paymentState === statusFilter;
       const haystack = normalizeText(
         [
+          contract.id,
           contract.clientName,
           contract.destination,
           contract.contractNumber ?? "",
+          contract.contactPhone ?? "",
+          contract.travelers
+            .flatMap((traveler) => [traveler.name, traveler.phone, traveler.contract])
+            .filter(Boolean)
+            .join(" "),
+          contract.searchText ?? "",
         ].join(" ")
       );
-      return matchesStatus && (!normalizedQuery || haystack.includes(normalizedQuery));
+      const compactHaystack = haystack.replace(/\s+/g, "");
+      const compactQuery = normalizedQuery.replace(/\s+/g, "");
+      const matchesQuery =
+        !normalizedQuery ||
+        haystack.includes(normalizedQuery) ||
+        compactHaystack.includes(compactQuery);
+      return matchesStatus && matchesQuery;
     });
-  }, [contractsWithPlans, query, statusFilter]);
+  }, [contractsWithPlans, normalizedQuery, statusFilter]);
 
   return (
     <section className="space-y-6">
@@ -591,8 +671,8 @@ export function PaymentsContractsList({
             </span>
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Cliente, destino o folio"
+              onChange={(event) => handleSearchQueryChange(event.target.value)}
+              placeholder="Cliente, destino, folio o contacto"
               className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm transition focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-200"
             />
           </label>
@@ -624,6 +704,23 @@ export function PaymentsContractsList({
             Asignar plan de pagos
           </Button>
         </div>
+        {shouldSearchServer ? (
+          <div className="mt-4 text-xs text-slate-500">
+            {serverSearchLoading ? (
+              <span className="text-sm font-semibold text-brand-600">
+                Buscando contratos en la base de datos...
+              </span>
+            ) : null}
+            {!serverSearchLoading && serverSearchError ? (
+              <span className="text-rose-600">{serverSearchError}</span>
+            ) : null}
+            {!serverSearchLoading &&
+            !serverSearchError &&
+            serverSearchContracts.length === 0 ? (
+              "Si hay coincidencias fuera de los contratos cargados, aparecerán aquí al terminar la búsqueda."
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="space-y-4">

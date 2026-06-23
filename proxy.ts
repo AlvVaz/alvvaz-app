@@ -10,7 +10,11 @@ const ADMIN_ALLOWED_ADMIN_ROUTES = [
   "/admin/magazine",
   "/admin/settings",
 ];
-const ADMIN_ALLOWED_ADMIN_APIS = ["/api/admin/contracts", "/api/admin/magazine"];
+const ADMIN_ALLOWED_ADMIN_APIS = [
+  "/api/admin/contracts",
+  "/api/admin/magazine",
+  "/api/admin/payments",
+];
 const ADMIN_CRON_APIS = ["/api/admin/payment-reminders"];
 
 function isAllowedForAdmin(pathname: string) {
