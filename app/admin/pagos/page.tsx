@@ -18,10 +18,6 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type PagosAdminPageProps = {
-  searchParams?: Promise<{ limit?: string }>;
-};
-
 type TransactionSummaryRow = {
   contract_id: string;
   type: TransactionType;
@@ -47,15 +43,6 @@ type PaymentInstallmentAlertRow = {
 
 const INITIAL_PAYMENT_CONTRACT_LIMIT = 20;
 const PAYMENT_CONTRACT_LIMIT_STEP = 20;
-const MAX_PAYMENT_CONTRACT_LIMIT = 800;
-
-function parsePaymentContractLimit(value?: string) {
-  const parsed = Number.parseInt(String(value ?? ""), 10);
-  if (!Number.isFinite(parsed) || parsed < INITIAL_PAYMENT_CONTRACT_LIMIT) {
-    return INITIAL_PAYMENT_CONTRACT_LIMIT;
-  }
-  return Math.min(parsed, MAX_PAYMENT_CONTRACT_LIMIT);
-}
 
 function getTodayDateOnly() {
   const now = new Date();
@@ -195,14 +182,12 @@ function buildContractSearchText(contract: Awaited<ReturnType<typeof getContract
     .join(" ");
 }
 
-export default async function PagosAdminPage({ searchParams }: PagosAdminPageProps) {
+export default async function PagosAdminPage() {
   const admin = await getAdminFromCookies();
   if (!admin) {
     redirect("/admin/login");
   }
 
-  const resolvedSearchParams = await searchParams;
-  const contractLimit = parsePaymentContractLimit(resolvedSearchParams?.limit);
   const activeContractWhere = {
     status: { not: "canceled" },
   } satisfies Prisma.ContractWhereInput;
@@ -225,7 +210,7 @@ export default async function PagosAdminPage({ searchParams }: PagosAdminPagePro
     }),
   ]);
   const activeContractIdsForPage = sortContractsByFolioDesc(contractIndexRows)
-    .slice(0, contractLimit)
+    .slice(0, INITIAL_PAYMENT_CONTRACT_LIMIT)
     .map((contract) => contract.id);
   const contractOrder = new Map(
     activeContractIdsForPage.map((contractId, index) => [contractId, index])
@@ -371,12 +356,8 @@ export default async function PagosAdminPage({ searchParams }: PagosAdminPagePro
           contracts={paymentContracts}
           supplierOptions={supplierOptions}
           initialAlerts={paymentAlerts}
-          loadedCount={paymentContracts.length}
           totalCount={totalActiveContracts}
-          nextLimit={Math.min(
-            contractLimit + PAYMENT_CONTRACT_LIMIT_STEP,
-            totalActiveContracts
-          )}
+          loadMoreStep={PAYMENT_CONTRACT_LIMIT_STEP}
         />
       </div>
     </ToastProvider>

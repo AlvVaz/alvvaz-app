@@ -29,29 +29,12 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type ContratosAdminPageProps = {
-  searchParams?: Promise<{
-    approvedLimit?: string;
-    pendingLimit?: string;
-    canceledLimit?: string;
-  }>;
-};
-
 const INITIAL_CONTRACT_SECTION_LIMIT = 15;
 const CONTRACT_SECTION_LIMIT_STEP = 15;
 const INITIAL_LEGACY_2025_LIMIT = 40;
 const LEGACY_2025_LIMIT_STEP = 40;
-const MAX_CONTRACT_LIMIT = 600;
 const MIN_CONTRACT_NUMBER = 2141;
 const ADMIN_CONTRACTS_CACHE_SECONDS = 30;
-
-function parseContractLimit(value?: string) {
-  const parsed = Number.parseInt(String(value ?? ""), 10);
-  if (!Number.isFinite(parsed) || parsed < INITIAL_CONTRACT_SECTION_LIMIT) {
-    return INITIAL_CONTRACT_SECTION_LIMIT;
-  }
-  return Math.min(parsed, MAX_CONTRACT_LIMIT);
-}
 
 async function getNextContractNumber() {
   const result = await prisma.$queryRaw<{ max: number | null }[]>`
@@ -144,26 +127,14 @@ const getCachedContractsPageData = unstable_cache(
         approved: {
           loaded: Math.min(approvedLimit, approvedRows.length),
           total: approvedRows.length,
-          nextLimit: Math.min(
-            approvedLimit + CONTRACT_SECTION_LIMIT_STEP,
-            approvedRows.length
-          ),
         },
         pending: {
           loaded: Math.min(pendingLimit, pendingRows.length),
           total: pendingRows.length,
-          nextLimit: Math.min(
-            pendingLimit + CONTRACT_SECTION_LIMIT_STEP,
-            pendingRows.length
-          ),
         },
         canceled: {
           loaded: Math.min(canceledLimit, canceledRows.length),
           total: canceledRows.length,
-          nextLimit: Math.min(
-            canceledLimit + CONTRACT_SECTION_LIMIT_STEP,
-            canceledRows.length
-          ),
         },
       },
       totalLegacy2025Contracts: legacy2025Rows.length,
@@ -228,18 +199,12 @@ function applyPaymentPlanSummaryToContract(
   };
 }
 
-export default async function ContratosAdminPage({
-  searchParams,
-}: ContratosAdminPageProps) {
+export default async function ContratosAdminPage() {
   const admin = await getAdminFromCookies();
   if (!admin) {
     redirect("/admin/login");
   }
 
-  const resolvedSearchParams = await searchParams;
-  const approvedLimit = parseContractLimit(resolvedSearchParams?.approvedLimit);
-  const pendingLimit = parseContractLimit(resolvedSearchParams?.pendingLimit);
-  const canceledLimit = parseContractLimit(resolvedSearchParams?.canceledLimit);
   const adminUsers = await getCachedAdminUsers();
   const currentAdminUser = adminUsers.find((user) => user.email === admin.email);
   const organizerOptions = adminUsers.map((user) => ({
@@ -264,9 +229,9 @@ export default async function ContratosAdminPage({
     totalLegacy2025Contracts,
     suggestedContractNumber,
   } = await getCachedContractsPageData(
-    approvedLimit,
-    pendingLimit,
-    canceledLimit,
+    INITIAL_CONTRACT_SECTION_LIMIT,
+    INITIAL_CONTRACT_SECTION_LIMIT,
+    INITIAL_CONTRACT_SECTION_LIMIT,
     admin.role,
     Array.from(normalizedOrganizerKeys),
     currentYear
@@ -335,11 +300,7 @@ export default async function ContratosAdminPage({
         canEditContractNumber={canEditContractNumber}
         currentAdminRole={admin.role}
         sectionCounts={sectionCounts}
-        currentLimits={{
-          approved: approvedLimit,
-          pending: pendingLimit,
-          canceled: canceledLimit,
-        }}
+        sectionLimitStep={CONTRACT_SECTION_LIMIT_STEP}
         legacy2025TotalCount={totalLegacy2025Contracts}
         legacy2025InitialLimit={INITIAL_LEGACY_2025_LIMIT}
         legacy2025LimitStep={LEGACY_2025_LIMIT_STEP}
