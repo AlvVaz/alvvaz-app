@@ -239,11 +239,25 @@ export default async function PagosAdminPage({ searchParams }: PagosAdminPagePro
       (contractOrder.get(b.id) ?? Number.MAX_SAFE_INTEGER)
   );
   const activeContractIds = activeContracts.map((contract) => contract.id);
-  const activeContractIdSet = new Set(activeContractIds);
+  const allActiveContractIdSet = new Set(contractIndexRows.map((contract) => contract.id));
   const [transactionSummaryRows, paymentAlertRows] = await Promise.all([
     getTransactionSummaries(activeContractIds),
     getPaymentAlertRows(),
   ]);
+  const alertContractIds = Array.from(
+    new Set(
+      paymentAlertRows.flatMap((row) => {
+        const contractId = getInstallmentPlan(row)?.contract_id;
+        return contractId && allActiveContractIdSet.has(contractId) ? [contractId] : [];
+      })
+    )
+  );
+  const alertContracts = alertContractIds.length
+    ? await getContracts({ where: { id: { in: alertContractIds } } })
+    : [];
+  const alertContractsById = new Map(
+    alertContracts.map((contract) => [contract.id, contract])
+  );
 
   const transactionSummariesByContract = new Map<
     string,
@@ -272,7 +286,8 @@ export default async function PagosAdminPage({ searchParams }: PagosAdminPagePro
   const paymentAlerts: InitialPaymentAlert[] = paymentAlertRows.flatMap((row) => {
     const plan = getInstallmentPlan(row);
     const contractId = plan?.contract_id;
-    if (!contractId || !activeContractIdSet.has(contractId)) return [];
+    const contract = contractId ? alertContractsById.get(contractId) : null;
+    if (!contractId || !contract) return [];
 
     const counts =
       paymentAlertCountsByContract.get(contractId) ?? { overdue: 0, upcoming: 0 };
@@ -294,7 +309,13 @@ export default async function PagosAdminPage({ searchParams }: PagosAdminPagePro
       {
         key: `${contractId}-${row.id}`,
         category,
-        contractId,
+        contract: {
+          id: contract.id,
+          contractNumber: contract.contractNumber,
+          clientName: contract.clientName,
+          destination: contract.destination,
+          contactPhone: getContractPhone(contract),
+        },
         installment: {
           id: row.id,
           planId: row.plan_id,

@@ -58,7 +58,10 @@ export type PaymentContract = {
 export type InitialPaymentAlert = {
   key: string;
   category: AlertCategory;
-  contractId: string;
+  contract: Pick<
+    PaymentContract,
+    "id" | "contractNumber" | "clientName" | "destination" | "contactPhone"
+  >;
   installment: PaymentInstallment;
   daysOverdue: number;
 };
@@ -179,7 +182,10 @@ function getInstallmentBadgeClass(status: RuntimeInstallmentStatus) {
   return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
-function buildWhatsAppUrl(phone: string | null, contract: PaymentContract) {
+function buildWhatsAppUrl(
+  phone: string | null,
+  contract: Pick<PaymentContract, "contractNumber" | "clientName">
+) {
   if (!phone) return null;
   let digits = phone.replace(/\D/g, "");
   if (digits.startsWith("00")) digits = digits.slice(2);
@@ -194,7 +200,7 @@ function buildWhatsAppUrl(phone: string | null, contract: PaymentContract) {
 type PaymentAlert = {
   key: string;
   category: AlertCategory;
-  contract: PaymentContract;
+  contract: InitialPaymentAlert["contract"];
   installment: PaymentInstallment;
   daysOverdue: number;
   whatsappUrl: string | null;
@@ -512,24 +518,13 @@ export function PaymentsContractsList({
     [loadedPlanIds, planOverrides, searchableContracts]
   );
 
-  const contractsById = useMemo(
-    () => new Map(contractsWithPlans.map((contract) => [contract.id, contract])),
-    [contractsWithPlans]
-  );
   const alerts = useMemo(
     () =>
-      initialAlerts.flatMap((alert) => {
-        const contract = contractsById.get(alert.contractId);
-        if (!contract) return [];
-        return [
-          {
-            ...alert,
-            contract,
-            whatsappUrl: buildWhatsAppUrl(contract.contactPhone, contract),
-          },
-        ];
-      }),
-    [contractsById, initialAlerts]
+      initialAlerts.map((alert) => ({
+        ...alert,
+        whatsappUrl: buildWhatsAppUrl(alert.contract.contactPhone, alert.contract),
+      })),
+    [initialAlerts]
   );
   const alertCounts = useMemo(
     () => ({
