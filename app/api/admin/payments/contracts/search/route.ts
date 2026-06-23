@@ -26,8 +26,6 @@ type PaymentInstallmentAlertRow = {
   payment_plans: PaymentPlanForAlertRow | PaymentPlanForAlertRow[] | null;
 };
 
-const SEARCH_RESULT_LIMIT = 50;
-
 const normalize = (value: string) =>
   value
     .trim()
@@ -259,7 +257,7 @@ export async function GET(request: Request) {
     );
   });
 
-  const contractIds = foundRows.slice(0, SEARCH_RESULT_LIMIT).map((contract) => contract.id);
+  const contractIds = foundRows.map((contract) => contract.id);
   const contractOrder = new Map(
     contractIds.map((contractIdValue, index) => [contractIdValue, index])
   );
