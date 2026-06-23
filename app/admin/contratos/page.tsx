@@ -30,11 +30,11 @@ import {
 export const dynamic = "force-dynamic";
 
 type ContratosAdminPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     approvedLimit?: string;
     pendingLimit?: string;
     canceledLimit?: string;
-  };
+  }>;
 };
 
 const INITIAL_CONTRACT_SECTION_LIMIT = 15;
@@ -236,9 +236,10 @@ export default async function ContratosAdminPage({
     redirect("/admin/login");
   }
 
-  const approvedLimit = parseContractLimit(searchParams?.approvedLimit);
-  const pendingLimit = parseContractLimit(searchParams?.pendingLimit);
-  const canceledLimit = parseContractLimit(searchParams?.canceledLimit);
+  const resolvedSearchParams = await searchParams;
+  const approvedLimit = parseContractLimit(resolvedSearchParams?.approvedLimit);
+  const pendingLimit = parseContractLimit(resolvedSearchParams?.pendingLimit);
+  const canceledLimit = parseContractLimit(resolvedSearchParams?.canceledLimit);
   const adminUsers = await getCachedAdminUsers();
   const currentAdminUser = adminUsers.find((user) => user.email === admin.email);
   const organizerOptions = adminUsers.map((user) => ({

@@ -19,7 +19,7 @@ import {
 export const dynamic = "force-dynamic";
 
 type PagosAdminPageProps = {
-  searchParams?: { limit?: string };
+  searchParams?: Promise<{ limit?: string }>;
 };
 
 type TransactionSummaryRow = {
@@ -45,8 +45,8 @@ type PaymentInstallmentAlertRow = {
   payment_plans: PaymentPlanForAlertRow | PaymentPlanForAlertRow[] | null;
 };
 
-const INITIAL_PAYMENT_CONTRACT_LIMIT = 50;
-const PAYMENT_CONTRACT_LIMIT_STEP = 50;
+const INITIAL_PAYMENT_CONTRACT_LIMIT = 20;
+const PAYMENT_CONTRACT_LIMIT_STEP = 20;
 const MAX_PAYMENT_CONTRACT_LIMIT = 800;
 
 function parsePaymentContractLimit(value?: string) {
@@ -201,7 +201,8 @@ export default async function PagosAdminPage({ searchParams }: PagosAdminPagePro
     redirect("/admin/login");
   }
 
-  const contractLimit = parsePaymentContractLimit(searchParams?.limit);
+  const resolvedSearchParams = await searchParams;
+  const contractLimit = parsePaymentContractLimit(resolvedSearchParams?.limit);
   const activeContractWhere = {
     status: { not: "canceled" },
   } satisfies Prisma.ContractWhereInput;

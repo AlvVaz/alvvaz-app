@@ -230,6 +230,7 @@ export default function ContractsPanel({
         {stats.total > stats.loaded ? (
           <Link
             href={getSectionLimitHref(section, stats.nextLimit)}
+            scroll={false}
             className="rounded-full border border-brand-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700 transition hover:border-brand-300 hover:text-brand-900"
           >
             Cargar más contratos
