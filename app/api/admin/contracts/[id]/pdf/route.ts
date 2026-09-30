@@ -133,6 +133,15 @@ const buildContractPdfBaseName = (
   return rawNumber ? `${normalizedTitle}-#${rawNumber}` : normalizedTitle;
 };
 
+// Supabase Storage rejects non-ASCII keys (e.g. Ñ, accents); display names keep them.
+const toAsciiStorageKeyPart = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^\x20-\x7E]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const normalizeTextLine = (line: string) =>
   line
     .replace(/\u00a0/g, " ")
@@ -1005,7 +1014,7 @@ const pdfBytes = await pdfDoc.save();
   const supabase = getSupabaseAdmin();
   const bucket = process.env.SUPABASE_STORAGE_BUCKET_CONTRACTS || "contracts";
   const pdfBaseName = buildContractPdfBaseName(contract.title, contract.contractNumber, contract.id);
-  const storagePath = `${contract.id}/${pdfBaseName}.pdf`;
+  const storagePath = `${contract.id}/${toAsciiStorageKeyPart(pdfBaseName) || "CONTRATO"}.pdf`;
 
   const { error: uploadError } = await supabase.storage
     .from(bucket)

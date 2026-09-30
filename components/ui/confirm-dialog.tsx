@@ -7,7 +7,10 @@ type ConfirmOptions = {
   confirmLabel?: string;
   cancelLabel?: string;
   note?: string;
+  tone?: ConfirmTone;
 };
+
+type ConfirmTone = "danger" | "success";
 
 type ConfirmState = {
   open: boolean;
@@ -17,6 +20,7 @@ type ConfirmState = {
   title?: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  tone?: ConfirmTone;
 };
 
 export function useConfirmDialog() {
@@ -35,6 +39,7 @@ export function useConfirmDialog() {
         title: options?.title,
         confirmLabel: options?.confirmLabel,
         cancelLabel: options?.cancelLabel,
+        tone: options?.tone,
       });
     },
     []
@@ -75,7 +80,11 @@ export function useConfirmDialog() {
           <button
             type="button"
             onClick={handleConfirm}
-            className="rounded-full border border-rose-300 bg-rose-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-rose-700 transition hover:border-rose-400 hover:text-rose-800"
+            className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition ${
+              state.tone === "success"
+                ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:border-emerald-400 hover:text-emerald-800"
+                : "border-rose-300 bg-rose-50 text-rose-700 hover:border-rose-400 hover:text-rose-800"
+            }`}
           >
             {state.confirmLabel ?? "Si"}
           </button>

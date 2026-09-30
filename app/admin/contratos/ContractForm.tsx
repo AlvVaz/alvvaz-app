@@ -824,6 +824,7 @@ export function ContractForm({
       title: "Generar PDF",
       confirmLabel: "Si",
       cancelLabel: "No",
+      tone: "success",
     });
   };
 
@@ -1442,8 +1443,14 @@ export function ContractForm({
                 type="button"
                 onClick={handleGeneratePdfClick}
                 disabled={isGeneratingPdf}
-                className="rounded-full border border-brand-300 px-4 py-2.5 text-xs font-semibold uppercase leading-none tracking-[0.2em] text-brand-700 transition hover:border-brand-400"
+                className="inline-flex items-center gap-2 rounded-full border border-brand-300 px-4 py-2.5 text-xs font-semibold uppercase leading-none tracking-[0.2em] text-brand-700 transition hover:border-brand-400"
               >
+                {isGeneratingPdf ? (
+                  <span
+                    aria-hidden="true"
+                    className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none"
+                  />
+                ) : null}
                 {isGeneratingPdf ? "Generando..." : "Generar PDF"}
               </button>
             </div>
