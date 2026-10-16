@@ -4,40 +4,54 @@ export type QuoteIncludeItem = {
   title?: string;
   detail?: string;
   note?: string;
+  // Marks a default item whose text is built from other fields (lib/quotes/derived.ts):
+  // "route" = flight route from Origen/Destino, "stay" = Noches + Habitación.
+  auto?: "route" | "stay";
 };
 
-// Every value is typed by hand in the form; nothing is calculated.
+export type QuoteIncludePart = "title" | "detail" | "note";
+
+// The only values that change between a quote's hotel options.
+export type QuoteOption = {
+  hotelName: string;
+  stars: number;
+  totalPrice: string;
+};
+
+export type QuoteOptionField = "hotelName" | "totalPrice";
+
+// Every quote has exactly these options (the agency always quotes three hotels).
+export const QUOTE_OPTION_LETTERS = ["A", "B", "C"] as const;
+
+// Every value is typed by hand in the form. Values that repeat other info are
+// pre-filled while editing (lib/quotes/derived.ts) but can still be changed.
 export type QuoteData = {
   quoteDate: string;
   travelDates: string;
-  totalPrice: string;
+  title: string;
   adults: string;
   depositTotal: string;
   depositPerPerson: string;
   liquidationMonth: string;
   liquidationDay: string;
   liquidationYear: string;
-  hotelName: string;
-  location: string;
-  stars: number;
   nights: string;
   originCode: string;
-  originCity: string;
   destinationCode: string;
   clientName: string;
   vendorName: string;
   roomType: string;
-  seats: string;
   departureDate: string;
   departureTime: string;
   returnDate: string;
   returnTime: string;
+  options: QuoteOption[];
   includes: QuoteIncludeItem[];
   // Dates picked in the travel calendar, so it reopens on them. Not shown on the PDF.
   travelRange: { start: string; end: string } | null;
 };
 
-export type QuoteTextField = Exclude<keyof QuoteData, "stars" | "includes" | "travelRange">;
+export type QuoteTextField = Exclude<keyof QuoteData, "options" | "includes" | "travelRange">;
 
 export type QuoteRecord = {
   id: string;
@@ -62,23 +76,19 @@ const MAX_INCLUDES = 30;
 export const QUOTE_TEXT_FIELDS: QuoteTextField[] = [
   "quoteDate",
   "travelDates",
-  "totalPrice",
+  "title",
   "adults",
   "depositTotal",
   "depositPerPerson",
   "liquidationMonth",
   "liquidationDay",
   "liquidationYear",
-  "hotelName",
-  "location",
   "nights",
   "originCode",
-  "originCity",
   "destinationCode",
   "clientName",
   "vendorName",
   "roomType",
-  "seats",
   "departureDate",
   "departureTime",
   "returnDate",
@@ -86,15 +96,16 @@ export const QUOTE_TEXT_FIELDS: QuoteTextField[] = [
 ];
 
 export const DEFAULT_QUOTE_INCLUDES: QuoteIncludeItem[] = [
-  { title: "Vuelos directos", detail: "SLP / Cancún / SLP" },
-  { title: "Traslados", detail: "Apto / Hotel / Apto en servicio compartido" },
+  // Filled once Origen, Destino, Noches and Habitación are entered.
+  { title: "Vuelos directos", auto: "route" },
+  { title: "Traslados", detail: "Aeropuerto / Hotel / Aeropuerto en servicio compartido" },
   { title: "Plan Todo Incluido" },
   { title: "Alimentos tipo buffet,", detail: "con horarios indicados a su llegada" },
   { title: "Barra libre ilimitada,", detail: "con horarios establecidos" },
   { title: "Snacks", detail: "diurnos" },
   { title: "Impuestos y propinas", note: "no incluye saneamiento" },
-  { detail: "En cortesía 1 maleta de 15 kg documentada + equipaje personal por adulto" },
-  { title: "3 noches", detail: "de hospedaje en habitación estándar" },
+  { title: "En cortesía", detail: "1 maleta de 15 kg documentada + equipaje personal por adulto" },
+  { detail: "de hospedaje", auto: "stay" },
 ];
 
 export function createEmptyQuoteData(): QuoteData {
@@ -104,11 +115,24 @@ export function createEmptyQuoteData(): QuoteData {
   >;
   return {
     ...data,
-    stars: 0,
+    options: QUOTE_OPTION_LETTERS.map(() => ({ hotelName: "", stars: 0, totalPrice: "" })),
     includes: DEFAULT_QUOTE_INCLUDES.map((item) => ({ ...item })),
     travelRange: null,
   };
 }
+
+// Stored in the Quote.hotelName column so the list and search cover every option.
+export function formatQuoteHotels(data: QuoteData) {
+  return data.options
+    .map((option) => option.hotelName.trim())
+    .filter(Boolean)
+    .join(" · ");
+}
+
+const toStars = (value: unknown) => {
+  const stars = Number(value);
+  return Number.isInteger(stars) ? Math.min(Math.max(stars, 0), QUOTE_MAX_STARS) : 0;
+};
 
 // "15 de octubre 2026", in Mexico time so the server render and the browser agree.
 export function formatQuoteDate(date: Date) {
@@ -135,8 +159,18 @@ export function parseQuoteData(input: unknown): QuoteData {
     data[field] = toText(source[field]);
   }
 
-  const stars = Number(source.stars);
-  data.stars = Number.isInteger(stars) ? Math.min(Math.max(stars, 0), QUOTE_MAX_STARS) : 0;
+  // Quotes saved before options existed had one hotel at the top level; it becomes option A.
+  const options = Array.isArray(source.options) ? source.options : [source];
+  data.options = data.options.map((empty, index) => {
+    const raw = options[index];
+    if (!raw || typeof raw !== "object") return empty;
+    const option = raw as Record<string, unknown>;
+    return {
+      hotelName: toText(option.hotelName),
+      stars: toStars(option.stars),
+      totalPrice: toText(option.totalPrice),
+    };
+  });
 
   const range = source.travelRange as { start?: unknown; end?: unknown } | null | undefined;
   if (range && isIsoDate(range.start) && isIsoDate(range.end) && range.start <= range.end) {
@@ -153,6 +187,7 @@ export function parseQuoteData(input: unknown): QuoteData {
       if (title) parsed.title = title;
       if (detail) parsed.detail = detail;
       if (note) parsed.note = note;
+      if (item.auto === "route" || item.auto === "stay") parsed.auto = item.auto;
       return parsed;
     });
   }

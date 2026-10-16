@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
       "./node_modules/react-dom/**",
       "./node_modules/scheduler/**",
       "./public/fonts/Manrope-*.ttf",
+      "./public/fonts/Montserrat-Variable.ttf",
       "./public/fonts/Philosopher-*.ttf",
       "./public/logoalvvaz.png",
     ],

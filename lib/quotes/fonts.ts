@@ -5,20 +5,24 @@
 export type QuoteFonts = {
   body: string;
   display: string;
+  title: string;
 };
 
 export const QUOTE_PREVIEW_FONTS: QuoteFonts = {
   body: "var(--font-body), sans-serif",
   display: "var(--font-display-font), serif",
+  title: "var(--font-quote-title), sans-serif",
 };
 
 export const QUOTE_PDF_FONTS: QuoteFonts = {
   body: "'Manrope', sans-serif",
   display: "'Philosopher', serif",
+  title: "'Montserrat', sans-serif",
 };
 
 export const QUOTE_PDF_FONT_FILES = [
   { family: "Manrope", file: "Manrope-Variable.ttf", weight: "200 800", style: "normal" },
+  { family: "Montserrat", file: "Montserrat-Variable.ttf", weight: "100 900", style: "normal" },
   { family: "Philosopher", file: "Philosopher-Regular.ttf", weight: "400", style: "normal" },
   { family: "Philosopher", file: "Philosopher-Bold.ttf", weight: "700", style: "normal" },
   { family: "Philosopher", file: "Philosopher-Italic.ttf", weight: "400", style: "italic" },

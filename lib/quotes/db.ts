@@ -1,7 +1,13 @@
 import type { Prisma, Quote } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import { parseQuoteData, type QuoteData, type QuoteListItem, type QuoteRecord } from "@/lib/quotes/types";
+import {
+  formatQuoteHotels,
+  parseQuoteData,
+  type QuoteData,
+  type QuoteListItem,
+  type QuoteRecord,
+} from "@/lib/quotes/types";
 
 const QUOTE_LIST_LIMIT = 100;
 
@@ -10,6 +16,34 @@ export type QuoteViewer = { sub: string; role: string };
 // Same rule as contracts: owner and tech see every quote, admins only the ones they created.
 export function canAccessQuote(viewer: QuoteViewer, quote: Pick<QuoteRecord, "createdById">) {
   return viewer.role !== "admin" || quote.createdById === viewer.sub;
+}
+
+// Owner and tech can pick another admin as Vendedor; everyone else always gets their own name.
+export function canChooseQuoteVendor(viewer: QuoteViewer) {
+  return viewer.role === "owner" || viewer.role === "tech";
+}
+
+// Every admin's display name: the choices for Vendedor (same values contracts use for Organizador).
+export async function listQuoteVendorNames() {
+  const users = await prisma.adminUser.findMany({
+    select: { username: true, email: true },
+    orderBy: { username: "asc" },
+  });
+  return users.map((user) => user.username || user.email);
+}
+
+// Vendedor comes from the session. A name sent by the client is only accepted
+// from owner/tech, and only if it belongs to an existing admin.
+export async function resolveQuoteVendor(
+  viewer: QuoteViewer,
+  requested: string,
+  fallback: () => Promise<string>
+) {
+  const name = requested.trim();
+  if (name && canChooseQuoteVendor(viewer) && (await listQuoteVendorNames()).includes(name)) {
+    return name;
+  }
+  return fallback();
 }
 
 // Name shown as "Vendedor": the admin's username, or email when no username is set.
@@ -97,7 +131,7 @@ export async function createQuote(data: QuoteData, createdById: string | null) {
   const quote = await prisma.quote.create({
     data: {
       clientName: data.clientName,
-      hotelName: data.hotelName,
+      hotelName: formatQuoteHotels(data),
       data,
       createdById,
     },
@@ -110,7 +144,7 @@ export async function updateQuote(id: string, data: QuoteData) {
     where: { id },
     data: {
       clientName: data.clientName,
-      hotelName: data.hotelName,
+      hotelName: formatQuoteHotels(data),
       data,
     },
   });

@@ -4,19 +4,21 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 
+import type { QuoteIncludeItem, QuoteIncludePart } from "@/lib/quotes/types";
+
 type InlineFieldProps = {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   label: string;
-  // Optional fields show a neutral dashed underline when empty instead of yellow.
-  optional?: boolean;
 };
 
 // Underline only: follows the text, never overlaps neighbors and doesn't move the layout.
 export const INLINE_FIELD_CSS = `
 .quote-field { outline: none; border-radius: 3px; text-decoration-line: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; text-decoration-skip-ink: none; transition: background-color 150ms ease, text-underline-offset 150ms ease, text-decoration-color 150ms ease; }
 .quote-field:empty::before { content: attr(data-placeholder); color: color-mix(in srgb, currentColor 50%, transparent); font-style: italic; }
+.quote-repeat:empty::before { content: attr(data-placeholder); color: color-mix(in srgb, currentColor 50%, transparent); font-style: italic; }
+.quote-include-hint { color: color-mix(in srgb, currentColor 50%, transparent); font-style: italic; }
 .quote-field[data-state="filled"], .quote-field[data-state="locked"] { text-decoration-color: #22a06b; }
 .quote-field[data-state="missing"] { text-decoration-color: #e2b203; }
 .quote-field[data-state="optional"] { text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: #94a3b8; }
@@ -26,11 +28,15 @@ export const INLINE_FIELD_CSS = `
 .quote-field[data-open="true"], .quote-field[role="button"]:focus-visible { text-decoration-color: #2f6db5; text-decoration-style: solid; text-decoration-thickness: 2px; }
 .quote-stars[data-state="filled"] { box-shadow: 0 3px 0 -1px #22a06b; }
 .quote-stars[data-state="missing"] { box-shadow: 0 3px 0 -1px #e2b203; }
-.quote-include-controls { display: none; position: absolute; top: 4px; right: 0; gap: 2px; }
-.quote-include:hover .quote-include-controls, .quote-include:focus-within .quote-include-controls { display: flex; }
+.quote-include { cursor: grab; transition: opacity 150ms ease; }
+.quote-include-body { border-radius: 4px; transition: background-color 150ms ease, box-shadow 150ms ease; }
+.quote-include .quote-field, .quote-include .quote-field[role="button"]:hover, .quote-include .quote-field[role="button"]:focus-visible, .quote-include .quote-field[data-open="true"] { text-decoration-line: none; background-color: transparent; }
+.quote-include:hover .quote-include-body, .quote-include:has(.quote-field:focus-visible) .quote-include-body, .quote-include:has(.quote-field[data-open="true"]) .quote-include-body { background-color: #e9f6ef; box-shadow: 0 0 0 4px #e9f6ef; }
+.quote-include.is-dragging { opacity: 0.4; }
+.quote-include.is-drop-target { background-color: color-mix(in srgb, #2f6db5 8%, transparent); box-shadow: 0 0 0 2px #2f6db5; }
 .quote-popover { animation: quote-popover-in 140ms ease-out; }
 @keyframes quote-popover-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .quote-field { transition: none; } .quote-popover { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .quote-field, .quote-include, .quote-include-body { transition: none; } .quote-popover { animation: none; } }
 `;
 
 const POPOVER_WIDTH = 300;
@@ -55,16 +61,27 @@ function getPosition(anchor: HTMLElement, popover: HTMLElement | null): Position
 }
 
 // Opens the next (Tab) or previous (Shift+Tab) editable field on the same document.
-function openSiblingField(anchor: HTMLElement, direction: 1 | -1) {
+// The stars have no popover, so they only get focus (the selected star, or the first).
+// Returns false when there is none, so a closed field can let Tab leave the document.
+export function openSiblingField(anchor: HTMLElement, direction: 1 | -1) {
   const root = anchor.closest(".quote-document") ?? document;
-  const fields = Array.from(root.querySelectorAll<HTMLElement>('.quote-field[role="button"]'));
+  const fields = Array.from(
+    root.querySelectorAll<HTMLElement>('.quote-field[role="button"], .quote-stars')
+  );
   const next = fields[fields.indexOf(anchor) + direction];
+  if (next?.classList.contains("quote-stars")) {
+    const star =
+      next.querySelector<HTMLElement>('[aria-checked="true"]') ?? next.querySelector<HTMLElement>("button");
+    star?.focus();
+    return true;
+  }
   if (next) {
     next.focus();
     next.click();
-  } else {
-    anchor.focus();
+    return true;
   }
+  anchor.focus();
+  return false;
 }
 
 type FieldPopoverProps = {
@@ -72,10 +89,12 @@ type FieldPopoverProps = {
   label: string;
   onClose: () => void;
   children: ReactNode;
+  // Tab moves between this popover's inputs first, then on to the next field.
+  tabBetweenInputs?: boolean;
 };
 
 // Floating card anchored to a field. Closes on outside click or Esc; Tab moves to the next field.
-export function FieldPopover({ anchor, label, onClose, children }: FieldPopoverProps) {
+export function FieldPopover({ anchor, label, onClose, children, tabBetweenInputs = false }: FieldPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<Position>(() => getPosition(anchor, null));
 
@@ -113,6 +132,11 @@ export function FieldPopover({ anchor, label, onClose, children }: FieldPopoverP
           onClose();
           anchor.focus();
         } else if (event.key === "Tab") {
+          if (tabBetweenInputs) {
+            const inputs = Array.from(popoverRef.current?.querySelectorAll("input") ?? []);
+            const target = inputs.indexOf(document.activeElement as HTMLInputElement) + (event.shiftKey ? -1 : 1);
+            if (target >= 0 && target < inputs.length) return;
+          }
           event.preventDefault();
           onClose();
           openSiblingField(anchor, event.shiftKey ? -1 : 1);
@@ -157,7 +181,7 @@ function TextPopover({ anchor, value, onChange, placeholder, label, onClose }: T
               onChange(initialValue);
             }
           }}
-          placeholder={`Ej. ${placeholder}`}
+          placeholder={placeholder}
           className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900 outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200"
         />
       </label>
@@ -170,6 +194,8 @@ function TextPopover({ anchor, value, onChange, placeholder, label, onClose }: T
 
 type FieldTriggerProps = {
   value: string;
+  // Shown instead of `value` (e.g. formatted text); leave empty to show the placeholder.
+  children?: ReactNode;
   state: "filled" | "missing" | "optional";
   placeholder: string;
   label: string;
@@ -178,7 +204,9 @@ type FieldTriggerProps = {
 };
 
 // The underlined value on the document; click, Enter or Space opens its popover.
-export function FieldTrigger({ value, state, placeholder, label, isOpen, onOpen }: FieldTriggerProps) {
+// Tab opens the next field's popover, same as Tab inside a popover (e.g. after
+// picking a date, which closes the calendar and leaves focus here).
+export function FieldTrigger({ value, children, state, placeholder, label, isOpen, onOpen }: FieldTriggerProps) {
   return (
     <span
       role="button"
@@ -195,23 +223,166 @@ export function FieldTrigger({ value, state, placeholder, label, isOpen, onOpen 
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           onOpen(event.currentTarget);
+        } else if (event.key === "Tab" && !isOpen) {
+          if (openSiblingField(event.currentTarget, event.shiftKey ? -1 : 1)) event.preventDefault();
         }
       }}
     >
-      {value}
+      {children ?? value}
     </span>
   );
 }
 
-// Shows the value on the document; clicking it opens a small popover to type in.
-export function InlineField({ value, onChange, placeholder, label, optional = false }: InlineFieldProps) {
+const INCLUDE_PARTS: { part: QuoteIncludePart; label: string; placeholder: string }[] = [
+  { part: "title", label: "Título", placeholder: "Texto en negritas" },
+  { part: "detail", label: "Detalle", placeholder: "Texto normal" },
+  { part: "note", label: "Nota", placeholder: "Texto en rojo, entre paréntesis" },
+];
+
+type IncludeFieldProps = {
+  item: QuoteIncludeItem;
+  onChange: (item: QuoteIncludeItem) => void;
+  onRemove: () => void;
+  label: string;
+  // The item as it looks on the PDF.
+  children: ReactNode;
+};
+
+// One "Incluye" item as a single field; its popover edits title, detail and note together.
+export function IncludeField({ item, onChange, onRemove, label, children }: IncludeFieldProps) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  // Esc restores the item as it was when the popover opened.
+  const [initialItem, setInitialItem] = useState(item);
+  const text = INCLUDE_PARTS.map(({ part }) => item[part]?.trim()).filter(Boolean).join(" ");
+
+  const close = () => {
+    anchor?.focus();
+    setAnchor(null);
+  };
+
+  return (
+    <>
+      <FieldTrigger
+        value={text}
+        state={text ? "filled" : "optional"}
+        placeholder="Nuevo item"
+        label={label}
+        isOpen={Boolean(anchor)}
+        onOpen={(element) => {
+          setInitialItem(item);
+          setAnchor(element);
+        }}
+      >
+        {text ? children : null}
+      </FieldTrigger>
+      {anchor ? (
+        <FieldPopover anchor={anchor} label={label} onClose={() => setAnchor(null)} tabBetweenInputs>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">{label}</p>
+          <div className="space-y-2">
+            {INCLUDE_PARTS.map(({ part, label: partLabel, placeholder }, index) => (
+              <label key={part} className="block text-[11px] font-semibold text-slate-600">
+                {partLabel}
+                <input
+                  autoFocus={index === 0}
+                  value={item[part] ?? ""}
+                  maxLength={300}
+                  onChange={(event) => onChange({ ...item, [part]: event.target.value })}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      close();
+                    } else if (event.key === "Escape") {
+                      onChange(initialItem);
+                    }
+                  }}
+                  placeholder={placeholder}
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal text-slate-900 outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200"
+                />
+              </label>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
+            <p className="text-[11px] text-slate-500">
+              <b>Enter</b> listo · <b>Tab</b> siguiente · <b>Esc</b> deshacer
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                // Close first: after removal this field shows the next item.
+                setAnchor(null);
+                onRemove();
+              }}
+              className="shrink-0 text-[11px] font-semibold text-rose-600 hover:text-rose-700"
+            >
+              Quitar item
+            </button>
+          </div>
+        </FieldPopover>
+      ) : null}
+    </>
+  );
+}
+
+type ChoiceFieldProps = {
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+  placeholder: string;
+  label: string;
+};
+
+// Like InlineField, but the popover lists fixed choices instead of a text input.
+export function ChoiceField({ value, options, onChange, placeholder, label }: ChoiceFieldProps) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
   return (
     <>
       <FieldTrigger
         value={value}
-        state={value.trim() ? "filled" : optional ? "optional" : "missing"}
+        state={value.trim() ? "filled" : "missing"}
+        placeholder={placeholder}
+        label={label}
+        isOpen={Boolean(anchor)}
+        onOpen={setAnchor}
+      />
+      {anchor ? (
+        <FieldPopover anchor={anchor} label={label} onClose={() => setAnchor(null)}>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">{label}</p>
+          <div className="flex flex-col gap-1">
+            {options.map((option, index) => (
+              <button
+                key={option}
+                type="button"
+                autoFocus={option === value || (!options.includes(value) && index === 0)}
+                aria-pressed={option === value}
+                onClick={() => {
+                  onChange(option);
+                  anchor.focus();
+                  setAnchor(null);
+                }}
+                className={`rounded-lg px-3 py-2 text-left text-sm transition ${
+                  option === value ? "bg-brand-950 font-semibold text-white" : "text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </FieldPopover>
+      ) : null}
+    </>
+  );
+}
+
+// Shows the value on the document; clicking it opens a small popover to type in.
+export function InlineField({ value, onChange, placeholder, label }: InlineFieldProps) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+
+  return (
+    <>
+      <FieldTrigger
+        value={value}
+        state={value.trim() ? "filled" : "missing"}
         placeholder={placeholder}
         label={label}
         isOpen={Boolean(anchor)}

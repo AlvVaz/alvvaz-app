@@ -1,16 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 
 import { QuoteDocument, QUOTE_DOCUMENT_RESET_CSS, type QuoteDocumentEdit } from "@/components/quotes/QuoteDocument";
 import { QUOTE_PREVIEW_FONTS } from "@/lib/quotes/fonts";
-import type { QuoteData, QuoteIncludeItem, QuoteTextField } from "@/lib/quotes/types";
+import {
+  QUOTE_OPTION_LETTERS,
+  type QuoteData,
+  type QuoteIncludeItem,
+  type QuoteOption,
+  type QuoteOptionField,
+  type QuoteTextField,
+} from "@/lib/quotes/types";
 
 import { FlightDateField, FlightTimeField, LiquidationDateField, TravelDatesField } from "./DateFields";
-import { InlineField, INLINE_FIELD_CSS } from "./InlineField";
+import { ChoiceField, IncludeField, InlineField, INLINE_FIELD_CSS, openSiblingField } from "./InlineField";
 import { StarRating } from "./StarRating";
 
 const PAGE_WIDTH = 816;
+const MAX_SCALE = 1.5;
 const PAGE_HEIGHT = 1056;
 
 type QuotePreviewProps = {
@@ -22,67 +31,112 @@ type QuotePreviewProps = {
   lockedFields?: QuoteTextField[];
   // Auto-filled and shown as plain text, with no box.
   plainFields?: QuoteTextField[];
+  // Owner/tech only: admins that can be picked as Vendedor (otherwise it's locked).
+  vendorOptions?: string[];
 };
 
-// Example values shown inside empty fields. Money is typed without "$".
+// Generic names shown inside empty fields; "#" where the template already says
+// the unit ("# noches"). Money is typed without "$".
 const FIELD_PLACEHOLDERS: Record<QuoteTextField, { placeholder: string; label: string }> = {
-  clientName: { placeholder: "Juan Pérez", label: "Cliente" },
-  vendorName: { placeholder: "Ana López", label: "Vendedor" },
-  quoteDate: { placeholder: "13 de octubre 2026", label: "Fecha de cotización" },
-  travelDates: { placeholder: "7 al 10 de enero 2027", label: "Fechas de viaje" },
-  hotelName: { placeholder: "Hotel Flamingo Cancún", label: "Hotel" },
-  location: { placeholder: "Cancún, Q.R", label: "Destino / ubicación" },
-  roomType: { placeholder: "Estándar", label: "Habitación" },
-  nights: { placeholder: "3", label: "Noches" },
-  originCode: { placeholder: "SLP", label: "Origen (código)" },
-  originCity: { placeholder: "San Luis Potosí", label: "Ciudad de origen" },
-  destinationCode: { placeholder: "Cancún", label: "Destino (vuelos)" },
-  seats: { placeholder: "2", label: "Asientos de avión" },
-  departureDate: { placeholder: "7 ene", label: "Fecha de salida" },
-  departureTime: { placeholder: "7:09 AM", label: "Hora de salida" },
-  returnDate: { placeholder: "10 ene", label: "Fecha de regreso" },
-  returnTime: { placeholder: "11:00 AM", label: "Hora de regreso" },
-  adults: { placeholder: "2", label: "Adultos" },
-  totalPrice: { placeholder: "24,908", label: "Precio total" },
-  depositTotal: { placeholder: "3,000", label: "Reserva con" },
-  depositPerPerson: { placeholder: "1,500", label: "Mínimo por persona" },
-  liquidationDay: { placeholder: "17", label: "Liquidación: día" },
-  liquidationMonth: { placeholder: "DIC", label: "Liquidación: mes" },
-  liquidationYear: { placeholder: "2026", label: "Liquidación: año" },
+  clientName: { placeholder: "Nombre del cliente", label: "Cliente" },
+  vendorName: { placeholder: "Vendedor", label: "Vendedor" },
+  quoteDate: { placeholder: "Fecha", label: "Fecha de cotización" },
+  travelDates: { placeholder: "Fechas de viaje", label: "Fechas de viaje" },
+  title: { placeholder: "Título del viaje", label: "Título" },
+  roomType: { placeholder: "Tipo de habitación", label: "Habitación" },
+  nights: { placeholder: "#", label: "Noches" },
+  originCode: { placeholder: "Origen", label: "Origen (código)" },
+  destinationCode: { placeholder: "Destino", label: "Destino (vuelos)" },
+  departureDate: { placeholder: "Fecha", label: "Fecha de salida" },
+  departureTime: { placeholder: "Hora", label: "Hora de salida" },
+  returnDate: { placeholder: "Fecha", label: "Fecha de regreso" },
+  returnTime: { placeholder: "Hora", label: "Hora de regreso" },
+  adults: { placeholder: "#", label: "Adultos" },
+  depositTotal: { placeholder: "Monto", label: "Reserva con" },
+  depositPerPerson: { placeholder: "Monto", label: "Mínimo por persona" },
+  liquidationDay: { placeholder: "Día", label: "Liquidación: día" },
+  liquidationMonth: { placeholder: "Mes", label: "Liquidación: mes" },
+  liquidationYear: { placeholder: "Año", label: "Liquidación: año" },
 };
 
-const INCLUDE_PLACEHOLDERS: Record<keyof QuoteIncludeItem, string> = {
-  title: "título",
-  detail: "detalle",
-  note: "nota",
+const OPTION_PLACEHOLDERS: Record<QuoteOptionField, { placeholder: string; label: string }> = {
+  hotelName: { placeholder: "Nombre del hotel", label: "hotel" },
+  totalPrice: { placeholder: "Precio", label: "precio total" },
 };
 
-const controlButton =
-  "flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] leading-none text-slate-600 shadow-sm hover:border-brand-400 hover:text-brand-700 disabled:opacity-30";
+// Editor-only grey hints on the auto-filled "Incluye" items while their source
+// fields are still empty, so it's clear they fill themselves. Never on the PDF.
+function withAutoHint(item: QuoteIncludeItem, data: QuoteData, content: ReactNode) {
+  if (item.auto === "route" && !item.detail) {
+    return (
+      <>
+        {content} <span className="quote-include-hint">Origen / Destino / Origen</span>
+      </>
+    );
+  }
+  if (item.auto === "stay") {
+    const nightsHint = !item.title ? <b className="quote-include-hint"># noches </b> : null;
+    const roomHint =
+      !data.roomType.trim() && item.detail === "de hospedaje" ? (
+        <span className="quote-include-hint"> en habitación Tipo de habitación</span>
+      ) : null;
+    if (nightsHint || roomHint) {
+      return (
+        <>
+          {nightsHint}
+          {content}
+          {roomHint}
+        </>
+      );
+    }
+  }
+  return content;
+}
+
+// The "Incluye" item being dragged, and the one it's over.
+type IncludeDrag = { from: number; over: number | null } | null;
 
 function buildEdit(
   data: QuoteData,
   onChange: (data: QuoteData) => void,
   lockedFields: QuoteTextField[],
-  plainFields: QuoteTextField[]
+  plainFields: QuoteTextField[],
+  vendorOptions: string[] | undefined,
+  drag: IncludeDrag,
+  setDrag: (drag: IncludeDrag) => void
 ): QuoteDocumentEdit {
-  const updateInclude = (index: number, part: keyof QuoteIncludeItem, value: string) =>
+  const updateInclude = (index: number, next: QuoteIncludeItem) =>
     onChange({
       ...data,
-      includes: data.includes.map((item, i) => (i === index ? { ...item, [part]: value } : item)),
+      includes: data.includes.map((item, i) => (i === index ? next : item)),
     });
 
-  const moveInclude = (index: number, direction: -1 | 1) => {
-    const target = index + direction;
-    if (target < 0 || target >= data.includes.length) return;
+  const updateOption = (index: number, changes: Partial<QuoteOption>) =>
+    onChange({
+      ...data,
+      options: data.options.map((option, i) => (i === index ? { ...option, ...changes } : option)),
+    });
+
+  // The moved item takes the target's place; the rest shift over.
+  const moveInclude = (from: number, to: number) => {
+    if (from === to || to < 0 || to >= data.includes.length) return;
     const includes = [...data.includes];
-    [includes[index], includes[target]] = [includes[target], includes[index]];
+    const [item] = includes.splice(from, 1);
+    includes.splice(to, 0, item);
     onChange({ ...data, includes });
   };
 
+  const repeat = (value: string, placeholder: string) => (
+    <span className="quote-repeat" data-placeholder={placeholder}>
+      {value}
+    </span>
+  );
+
   return {
-    field: (field) =>
-      field === "travelDates" ? (
+    field: (field, isRepeat) =>
+      isRepeat ? (
+        repeat(data[field], FIELD_PLACEHOLDERS[field].placeholder)
+      ) : field === "travelDates" ? (
         <TravelDatesField data={data} onChange={onChange} {...FIELD_PLACEHOLDERS[field]} />
       ) : field === "departureDate" || field === "returnDate" ? (
         <FlightDateField data={data} onChange={onChange} part={field} {...FIELD_PLACEHOLDERS[field]} />
@@ -90,6 +144,13 @@ function buildEdit(
         <FlightTimeField data={data} onChange={onChange} part={field} {...FIELD_PLACEHOLDERS[field]} />
       ) : field === "liquidationDay" || field === "liquidationMonth" || field === "liquidationYear" ? (
         <LiquidationDateField data={data} onChange={onChange} part={field} {...FIELD_PLACEHOLDERS[field]} />
+      ) : field === "vendorName" && vendorOptions?.length ? (
+        <ChoiceField
+          value={data[field]}
+          options={vendorOptions}
+          onChange={(value) => onChange({ ...data, [field]: value })}
+          {...FIELD_PLACEHOLDERS[field]}
+        />
       ) : plainFields.includes(field) ? (
         data[field]
       ) : lockedFields.includes(field) ? (
@@ -109,87 +170,116 @@ function buildEdit(
           label={FIELD_PLACEHOLDERS[field].label}
         />
       ),
-    stars: (
+    option: (index, field, isRepeat) =>
+      isRepeat ? (
+        repeat(data.options[index][field], OPTION_PLACEHOLDERS[field].placeholder)
+      ) : (
+        <InlineField
+          value={data.options[index][field]}
+          onChange={(value) => updateOption(index, { [field]: value })}
+          placeholder={OPTION_PLACEHOLDERS[field].placeholder}
+          label={`Opción ${QUOTE_OPTION_LETTERS[index]}: ${OPTION_PLACEHOLDERS[field].label}`}
+        />
+      ),
+    optionStars: (index) => (
       <span
         className="quote-stars"
-        data-state={data.stars ? "filled" : "missing"}
+        data-state={data.options[index].stars ? "filled" : "missing"}
         style={{ display: "inline-flex" }}
+        // Tab leaves the stars for the next field instead of walking through all five.
+        onKeyDown={(event) => {
+          if (event.key !== "Tab") return;
+          if (openSiblingField(event.currentTarget, event.shiftKey ? -1 : 1)) event.preventDefault();
+        }}
       >
         <StarRating
-          value={data.stars}
-          onChange={(stars) => onChange({ ...data, stars })}
+          value={data.options[index].stars}
+          onChange={(stars) => updateOption(index, { stars })}
           size={13}
           showLabel={false}
         />
       </span>
     ),
-    includePart: (index, part) => (
-      <InlineField
-        value={data.includes[index]?.[part] ?? ""}
-        onChange={(value) => updateInclude(index, part, value)}
-        placeholder={INCLUDE_PLACEHOLDERS[part]}
-        label={`Incluye ${index + 1}: ${INCLUDE_PLACEHOLDERS[part]}`}
-        optional
-      />
+    include: (index, content) => (
+      <IncludeField
+        item={data.includes[index]}
+        onChange={(item) => updateInclude(index, item)}
+        onRemove={() => onChange({ ...data, includes: data.includes.filter((_, i) => i !== index) })}
+        label={`Incluye ${index + 1}`}
+      >
+        {withAutoHint(data.includes[index], data, content)}
+      </IncludeField>
     ),
-    includeControls: (index) => (
-      <span className="quote-include-controls">
-        <button
-          type="button"
-          onClick={() => moveInclude(index, -1)}
-          disabled={index === 0}
-          aria-label="Subir item"
-          className={controlButton}
-        >
-          ↑
-        </button>
-        <button
-          type="button"
-          onClick={() => moveInclude(index, 1)}
-          disabled={index === data.includes.length - 1}
-          aria-label="Bajar item"
-          className={controlButton}
-        >
-          ↓
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange({ ...data, includes: data.includes.filter((_, i) => i !== index) })}
-          aria-label="Quitar item"
-          className={`${controlButton} hover:border-rose-400 hover:text-rose-600`}
-        >
-          ✕
-        </button>
-      </span>
-    ),
+    includeProps: (index) => ({
+      className: [
+        "quote-include",
+        drag?.from === index ? "is-dragging" : "",
+        drag && drag.over === index && drag.from !== index ? "is-drop-target" : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
+      draggable: true,
+      title: "Arrastra para mover · Alt+↑/↓",
+      onDragStart: (event) => {
+        event.dataTransfer.effectAllowed = "move";
+        // Firefox only starts a drag when some data is set.
+        event.dataTransfer.setData("text/plain", "");
+        setDrag({ from: index, over: null });
+      },
+      onDragOver: (event) => {
+        if (!drag) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        if (drag.over !== index) setDrag({ ...drag, over: index });
+      },
+      onDrop: (event) => {
+        event.preventDefault();
+        if (drag) moveInclude(drag.from, index);
+        setDrag(null);
+      },
+      onDragEnd: () => setDrag(null),
+      // Keyboard alternative to dragging; focus follows the moved item.
+      onKeyDown: (event) => {
+        if (!event.altKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
+        const target = index + (event.key === "ArrowUp" ? -1 : 1);
+        if (target < 0 || target >= data.includes.length) return;
+        event.preventDefault();
+        const list = event.currentTarget.parentElement;
+        moveInclude(index, target);
+        requestAnimationFrame(() => list?.children[target]?.querySelector<HTMLElement>(".quote-field")?.focus());
+      },
+    }),
     addInclude: (
       <button
         type="button"
         onClick={() => onChange({ ...data, includes: [...data.includes, {}] })}
         className="mt-2 self-start rounded-full border border-dashed border-brand-300 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700 hover:border-brand-500"
       >
-        + Agregar item
+        + Agregar nota
       </button>
     ),
   };
 }
 
-// Renders the quote at its real 816x1056 size and scales it down to fit.
+// Renders the quote at its real 816x1056 size and scales it to the available
+// width, up to MAX_SCALE so it's easier to read and fill in.
 export function QuotePreview({
   data,
   folio,
   onChange,
   lockedFields = [],
   plainFields = [],
+  vendorOptions,
 }: QuotePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [drag, setDrag] = useState<IncludeDrag>(null);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     const observer = new ResizeObserver(([entry]) => {
-      setScale(Math.min(1, entry.contentRect.width / PAGE_WIDTH));
+      setScale(Math.min(MAX_SCALE, entry.contentRect.width / PAGE_WIDTH));
     });
     observer.observe(container);
     return () => observer.disconnect();
@@ -209,7 +299,11 @@ export function QuotePreview({
             folio={folio}
             logoSrc="/logoalvvaz.png"
             fonts={QUOTE_PREVIEW_FONTS}
-            edit={onChange ? buildEdit(data, onChange, lockedFields, plainFields) : undefined}
+            edit={
+              onChange
+                ? buildEdit(data, onChange, lockedFields, plainFields, vendorOptions, drag, setDrag)
+                : undefined
+            }
           />
         </div>
       </div>
