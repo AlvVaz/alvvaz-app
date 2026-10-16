@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { getAdminFromCookies } from "@/lib/auth/admin";
-import { createQuote, getAdminDisplayName, listQuotes } from "@/lib/quotes/db";
+import { createQuote, getAdminDisplayName, listQuotes, resolveQuoteVendor } from "@/lib/quotes/db";
 import { generateQuotePdf } from "@/lib/quotes/storage";
-import { parseQuoteData } from "@/lib/quotes/types";
+import { formatQuoteHotels, parseQuoteData } from "@/lib/quotes/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -27,15 +27,19 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   const data = parseQuoteData(body?.data);
-  if (!data.clientName.trim() || !data.hotelName.trim()) {
+  if (!data.clientName.trim() || !formatQuoteHotels(data)) {
     return NextResponse.json(
-      { error: "El cliente y el hotel son obligatorios." },
+      { error: "El cliente y al menos un hotel son obligatorios." },
       { status: 400 }
     );
   }
 
-  // Vendedor always comes from the session, never from the request body.
-  data.vendorName = (await getAdminDisplayName(admin.sub)) ?? admin.email;
+  // Vendedor is the creator from the session; only owner/tech may pick another admin.
+  data.vendorName = await resolveQuoteVendor(
+    admin,
+    data.vendorName,
+    async () => (await getAdminDisplayName(admin.sub)) ?? admin.email
+  );
 
   const quote = await createQuote(data, admin.sub);
 

@@ -1,7 +1,12 @@
 import { redirect } from "next/navigation";
 
 import { getAdminFromCookies } from "@/lib/auth/admin";
-import { getAdminDisplayName, getNextQuoteFolio } from "@/lib/quotes/db";
+import {
+  canChooseQuoteVendor,
+  getAdminDisplayName,
+  getNextQuoteFolio,
+  listQuoteVendorNames,
+} from "@/lib/quotes/db";
 
 import { QuoteEditor } from "../QuoteEditor";
 
@@ -13,12 +18,18 @@ export default async function NuevaCotizacionPage() {
     redirect("/admin/login");
   }
 
-  const [adminName, nextFolio] = await Promise.all([
+  const [adminName, nextFolio, vendorOptions] = await Promise.all([
     getAdminDisplayName(admin.sub),
     getNextQuoteFolio(),
+    canChooseQuoteVendor(admin) ? listQuoteVendorNames() : undefined,
   ]);
 
   return (
-    <QuoteEditor initialQuote={null} currentAdminName={adminName ?? admin.email} nextFolio={nextFolio} />
+    <QuoteEditor
+      initialQuote={null}
+      currentAdminName={adminName ?? admin.email}
+      nextFolio={nextFolio}
+      vendorOptions={vendorOptions}
+    />
   );
 }

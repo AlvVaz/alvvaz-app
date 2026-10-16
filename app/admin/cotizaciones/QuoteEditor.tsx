@@ -7,9 +7,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import { applyDerivedFields } from "@/lib/quotes/derived";
 import {
   createEmptyQuoteData,
   formatQuoteDate,
+  formatQuoteHotels,
   QUOTE_TEXT_FIELDS,
   type QuoteData,
   type QuoteRecord,
@@ -24,6 +26,8 @@ type QuoteEditorProps = {
   currentAdminName?: string;
   // Expected folio for a new quote, shown until the DB assigns the real one.
   nextFolio?: number | null;
+  // Only passed for owner/tech: lets them pick another admin as Vendedor.
+  vendorOptions?: string[];
   // Embedded in the list page: no page header, and the parent handles save/delete instead of navigation.
   embedded?: boolean;
   onSaved?: (quote: QuoteRecord, isNew: boolean) => void;
@@ -43,6 +47,7 @@ export function QuoteEditor({
   initialQuote,
   currentAdminName = "",
   nextFolio = null,
+  vendorOptions,
   embedded = false,
   onSaved,
   onDeleted,
@@ -65,21 +70,27 @@ export function QuoteEditor({
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
 
+  // Each option counts its hotel, price and stars.
   const missingCount =
-    QUOTE_TEXT_FIELDS.filter((field) => !data[field].trim()).length + (data.stars ? 0 : 1);
-  const totalCount = QUOTE_TEXT_FIELDS.length + 1;
+    QUOTE_TEXT_FIELDS.filter((field) => !data[field].trim()).length +
+    data.options.reduce(
+      (count, option) =>
+        count + (option.hotelName.trim() ? 0 : 1) + (option.totalPrice.trim() ? 0 : 1) + (option.stars ? 0 : 1),
+      0
+    );
+  const totalCount = QUOTE_TEXT_FIELDS.length + data.options.length * 3;
 
   const fileName = quote ? `COTIZACION-#${quote.folio}.pdf` : "COTIZACION.pdf";
   const pdfUrl = quote ? `/api/admin/quotes/${quote.id}/pdf` : null;
 
   const handleChange = (next: QuoteData) => {
-    setData(next);
+    setData((previous) => applyDerivedFields(previous, next));
     setIsDirty(true);
   };
 
   const handleSave = async () => {
-    if (!data.clientName.trim() || !data.hotelName.trim()) {
-      setError("El cliente y el hotel son obligatorios.");
+    if (!data.clientName.trim() || !formatQuoteHotels(data)) {
+      setError("El cliente y al menos un hotel son obligatorios.");
       return;
     }
     setBusy("save");
@@ -183,7 +194,7 @@ export function QuoteEditor({
       link.remove();
       window.URL.revokeObjectURL(url);
 
-      const message = `Adjunto cotización #${quote.folio} (${quote.hotelName}).`;
+      const message = `Adjunto cotización #${quote.folio} (${quote.data.title || quote.hotelName}).`;
       window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
       toast.push("PDF descargado. Adjunta el archivo en WhatsApp.");
     } catch {
@@ -296,7 +307,7 @@ export function QuoteEditor({
         <p className="text-xs text-slate-500">Aún no se genera PDF.</p>
       ) : null}
 
-      <div className="mx-auto max-w-[816px] space-y-4">
+      <div className="mx-auto max-w-[1224px] space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="inline-flex rounded-full border border-brand-200 bg-white p-1" role="tablist">
             {(["edit", "preview"] as const).map((value) => (
@@ -336,6 +347,7 @@ export function QuoteEditor({
           onChange={mode === "edit" ? handleChange : undefined}
           lockedFields={LOCKED_FIELDS}
           plainFields={PLAIN_FIELDS}
+          vendorOptions={vendorOptions}
         />
       </div>
     </div>

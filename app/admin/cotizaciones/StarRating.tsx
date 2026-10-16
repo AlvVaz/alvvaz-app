@@ -23,6 +23,14 @@ export function StarRating({ value, onChange, size = 26, showLabel = true }: Sta
         role="radiogroup"
         aria-label="Categoría del hotel"
         onMouseLeave={() => setHovered(null)}
+        // Arrow keys move between stars; Enter or Space picks the focused one.
+        onKeyDown={(event) => {
+          const step = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[event.key];
+          if (!step) return;
+          event.preventDefault();
+          const stars = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("button"));
+          stars[stars.indexOf(document.activeElement as HTMLElement) + step]?.focus();
+        }}
       >
         {Array.from({ length: QUOTE_MAX_STARS }, (_, index) => {
           const star = index + 1;

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Manrope, Philosopher } from "next/font/google";
+import { Manrope, Montserrat, Philosopher } from "next/font/google";
 
 import { SiteChrome } from "@/components/layout/site-chrome";
 
@@ -18,6 +18,15 @@ const philosopher = Philosopher({
   display: "swap",
   weight: ["400", "700"],
   style: ["normal", "italic"],
+});
+
+// Quote title only; not preloaded so public pages don't download it.
+const montserrat = Montserrat({
+  variable: "--font-quote-title",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["800"],
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -38,7 +47,7 @@ export default function RootLayout({
   return (
     <html lang="es" className="scroll-smooth">
       <body
-        className={`${manrope.variable} ${philosopher.variable} bg-sand text-slate-900 antialiased`}
+        className={`${manrope.variable} ${philosopher.variable} ${montserrat.variable} bg-sand text-slate-900 antialiased`}
       >
         <SiteChrome>{children}</SiteChrome>
       </body>

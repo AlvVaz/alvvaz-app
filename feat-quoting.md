@@ -35,7 +35,7 @@ Working notes for the quoting tool (cotizaciones). Branch: `feat/quoting`.
 
 - **Pages:** `/admin/cotizaciones`, same layout as Contratos: a "Nueva cotización" card that expands inline, a search card, and quote cards that expand into the editor. `/admin/cotizaciones/[id]` still works full-page. `/admin/cotizaciones/nueva` still exists but nothing links to it anymore.
 - **Access:** owner, tech and admin roles. Owner/tech see every quote; admins only their own (`createdById` = their `AdminUser.id`). Enforced in the list query and in every `[id]` route (GET/PUT/DELETE, PDF GET/POST) plus the `[id]` page; a quote that isn't yours returns 404.
-- **Editing (2026-10-15):** no side form. Fields live on the template (`InlineField`, passed into `QuoteDocument` through its optional `edit` prop). Clicking a field opens a small popover with a normal input that updates the document live: Enter or click outside to finish, Tab/Shift+Tab to move to the next/previous field, Esc to undo. Hovering a field fades in a light highlight and drops the underline a little; both animations respect reduced motion. Empty = yellow underline, filled = green underline (text-decoration only, so nothing overlaps or moves); a counter shows how many are missing. Values shown twice on the template stay in sync. "Incluye" items are edited in place, with ↑ ↓ ✕ on hover and "+ Agregar item"; their parts are optional (gray dashed when empty). "Editar / Vista previa" toggle shows the clean PDF look. Every value is typed by hand, with no calculations; money without `$`. Client and hotel are required to save.
+- **Editing (2026-10-15):** no side form. Fields live on the template (`InlineField`, passed into `QuoteDocument` through its optional `edit` prop). Clicking a field opens a small popover with a normal input that updates the document live: Enter or click outside to finish, Tab/Shift+Tab to move to the next/previous field, Esc to undo. Hovering a field fades in a light highlight and drops the underline a little; both animations respect reduced motion. Empty = yellow underline, filled = green underline (text-decoration only, so nothing overlaps or moves); a counter shows how many are missing. A value shown in several places is an input only once (the first spot, e.g. "COSTOS POR # ADULTOS", each card's price, Origen in the subtitle, Habitación on card A); the other places mirror it as plain text with no underline and are skipped by Tab (`repeat` flag on `edit.field` / `edit.option`). "Incluye" items (2026-10-16) are one field each, shown exactly as on the PDF (bold title, detail, red note) with no underline; a light green box shows on hover and while it's open. Clicking one opens a single popover with Título, Detalle and Nota (`IncludeField`). Tab moves through the three boxes, then to the next item; Esc undoes. Reorder by dragging an item onto another (native HTML drag and drop, no library) or Alt+↑/↓ on a focused item; "Quitar item" is in the popover. "+ Agregar nota" adds one (an empty item shows "Nuevo item"). "Editar / Vista previa" toggle shows the clean PDF look. The page scales to the available width, up to 1.5× its real size, so it's easier to fill in. Values are typed by hand (a few are pre-filled, see below); money without `$`. Client and at least one hotel are required to save.
 - **Calendars (2026-10-15):**
   - **Fechas de viaje** opens a hotel-style range calendar: click the arrival, then the return (hover previews the range). It writes the text as "7 al 10 de enero 2027", "28 de febrero al 3 de marzo 2027" or "28 de diciembre 2026 al 3 de enero 2027".
   - The picked dates are also stored as `data.travelRange` (ISO, validated in `parseQuoteData`; not shown on the PDF) so the calendar reopens on them.
@@ -44,10 +44,24 @@ Working notes for the quoting tool (cotizaciones). Branch: `feat/quoting`.
   - **Salida / Regreso dates:** single-date calendar, written as "7 ene". When empty, it opens on the month of the travel dates (arrival for Salida, return for Regreso).
   - The code is in `DateFields.tsx` and `lib/quotes/dates.ts`. It's custom, with no new dependency, because the app only used native date inputs.
 - **Auto-filled (2026-10-15):**
-  - **Vendedor** is locked. The server sets it on every save from the session: the creator's username, or email if there's no username. Edits keep the original creator. Any value sent from the client is ignored.
+  - **Vendedor** comes from the session: the creator's username, or email if there's no username. Edits keep the saved value.
+    - Admins see it locked; any value they send is ignored by the server.
+    - Owner and tech (2026-10-16) can click it and pick another admin from a list. The server only accepts names of existing admin users (`resolveQuoteVendor` in `lib/quotes/db.ts`).
   - **Fecha de cotización** is set to today ("15 de octubre 2026", Mexico City time) when the quote is created, and shown as plain text with no box. It isn't editable on the template.
   - **Folio:** an unsaved quote shows the expected next folio, read from `Quote_folio_seq` without consuming it. The real folio is still assigned by the DB on save.
-- **Stars:** clickable 1–5 selector right next to the subtitle on the template; click the current value to clear it.
+- **Filled from other fields (2026-10-16):** so the same info is entered once (`lib/quotes/derived.ts`, applied in `QuoteEditor`). Each value is refilled only when its source changes, so it can still be edited by hand.
+  - Picking **Fechas de viaje** fills Salida / Regreso dates and Noches. The other way works too: once both Salida and Regreso are set, editing either fills Fechas de viaje and Noches (Regreso uses the first matching date on or after Salida, so trips across New Year work). Whichever was edited last wins.
+  - **Liquidación** = Salida date − 21 days, refilled whenever Salida changes (directly or through Fechas de viaje). Salida has no year ("7 ene"), so the year closest to the trip start is used, or the next upcoming one when there are no trip dates.
+  - **Reserva con** = Mínimo por persona × Adultos.
+  - **Incluye**: the default "Vuelos directos" item gets its route from Origen / Destino ("CDMX / HMO / CDMX"), and the hospedaje item from Noches + Habitación ("5 noches de hospedaje en habitación junior suite"). Only those two default items are linked (`auto` marker on the item); added or other items are never changed. Quotes saved before this keep their fixed text. While their fields are empty, the editor shows grey hints in those two items ("Origen / Destino / Origen", "# noches … Tipo de habitación"); the PDF never shows them.
+  - Money fields (each option's price, Reserva con, Mínimo por persona) get thousands commas as you type ("24908" → "24,908").
+  - Existing quotes don't change until one of those sources is edited.
+- **Hotel options (2026-10-16):** every quote has exactly 3 options (A, B, C); only hotel name, stars and price change between them. Everything else (title, dates, flights, room type, includes, deposit) is shared and entered once.
+  - Layout: free-text trip title ("Viaje a Cancún"), client + vendor row, flights, "Opciones de hotel" with one card per option (badge, hotel, stars, "Habitación X · Plan Todo Incluido", price), then "Incluye · en todas las opciones" (rows with separator lines, as in the original template). The sidebar summary lists each option's total. With the 9 default includes it fits one page with up to two hotel names that wrap to 2 lines; three very long names push the footer off the page.
+  - Stored as `data.options` in the JSON column, so no migration. The `hotelName` column holds the three names joined with " · " for the list and search.
+  - Removed from the template: Destino/ubicación, Ciudad de origen, Asientos de avión, the chips row and the "Plan Todo Incluido" pill (the plan text is now on each card).
+  - Quotes saved before this load their single hotel as option A.
+- **Stars:** clickable 1–5 selector next to each option's hotel name; click the current value to clear it.
 - **Folio:** assigned by the DB on first save, starting at 1000, unique and never reused.
 - **PDF:**
   - Every save regenerates it with headless Chrome from the same React component as the preview.
@@ -55,7 +69,7 @@ Working notes for the quoting tool (cotizaciones). Branch: `feat/quoting`.
   - If generation fails, the quote is still saved and **Generar PDF** retries.
   - Ver PDF and Enviar work like contracts.
   - PDFs are only served through the authenticated `/api/admin/quotes/[id]/pdf` route.
-- **Fonts:** Manrope (body) and Philosopher (display). To change them later, edit `lib/quotes/fonts.ts` and swap the files in `public/fonts/`.
+- **Fonts:** Manrope (body), Philosopher (display) and Montserrat ExtraBold, uppercase (trip title only; differs from the template). To change them later, edit `lib/quotes/fonts.ts` and swap the files in `public/fonts/`.
 - **Logo:** reuses `public/logoalvvaz.png`, which is byte-identical to `docs/cotizaciones/logo-alvvaz.png`.
 
 ## Decisions
@@ -68,7 +82,7 @@ Working notes for the quoting tool (cotizaciones). Branch: `feat/quoting`.
 | PDF engine | `puppeteer-core@25.11.0` + `@sparticuz/chromium@153.0.0` (exact pins, about a month old) | Only option that matches the HTML 1:1 and supports the contract-style Generar/Ver/Enviar flow; redrawing with `pdf-lib` would drift |
 | PDF on edit | Regenerated automatically on every save | Never stale |
 | Storage | New private bucket `quotes` (override with `SUPABASE_STORAGE_BUCKET_QUOTES`) | Keeps quotes separate from contracts |
-| DB | Prisma `Quote` model; all template fields stored in a `data` JSON column; `folio`, `clientName`, `hotelName` as columns for search | Template fields can change without new migrations |
+| DB | Prisma `Quote` model; all template fields stored in a `data` JSON column; `folio`, `clientName`, `hotelName` (the three option hotels joined) as columns for search | Template fields can change without new migrations |
 | Stars in reference | The reference example renders no stars (bug in the sample); the template intends them | Stars are rendered; the selector controls them |
 
 ## Files
@@ -86,7 +100,7 @@ Working notes for the quoting tool (cotizaciones). Branch: `feat/quoting`.
 - `app/api/admin/quotes/[id]/pdf/route.ts`: GET stream, POST regenerate
 - `app/admin/cotizaciones/`: `layout.tsx`, `page.tsx`, `nueva/page.tsx`, `[id]/page.tsx`, `QuotesList.tsx`, `QuoteEditor.tsx`, `QuotePreview.tsx` (builds the edit slots), `InlineField.tsx` (text fields + shared popover), `DateFields.tsx` (calendars), `StarRating.tsx`
 - `prisma/migrations/20261014120000_add_quotes/migration.sql`: **already applied; do not edit** (its checksum is recorded)
-- `public/fonts/Manrope-Variable.ttf`, `Philosopher-Regular.ttf`, `Philosopher-Bold.ttf`, `Philosopher-Italic.ttf` (SIL Open Font License)
+- `public/fonts/Manrope-Variable.ttf`, `Montserrat-Variable.ttf`, `Philosopher-Regular.ttf`, `Philosopher-Bold.ttf`, `Philosopher-Italic.ttf` (SIL Open Font License)
 
 **Modified**
 - `prisma/schema.prisma`: `Quote` model

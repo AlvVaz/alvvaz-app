@@ -11,6 +11,8 @@ type QuotesListProps = {
   initialQuotes: QuoteListItem[];
   currentAdminName: string;
   initialNextFolio: number | null;
+  // Only set for owner/tech: admins they can pick as Vendedor.
+  vendorOptions?: string[];
 };
 
 const dateFormatter = new Intl.DateTimeFormat("es-MX", {
@@ -31,7 +33,12 @@ const getCreatorInitials = (value?: string | null) => {
   return `${tokens[0][0]}${tokens[1][0]}`.toUpperCase();
 };
 
-export function QuotesList({ initialQuotes, currentAdminName, initialNextFolio }: QuotesListProps) {
+export function QuotesList({
+  initialQuotes,
+  currentAdminName,
+  initialNextFolio,
+  vendorOptions,
+}: QuotesListProps) {
   const [quotes, setQuotes] = useState(initialQuotes);
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -132,6 +139,7 @@ export function QuotesList({ initialQuotes, currentAdminName, initialNextFolio }
                 initialQuote={null}
                 currentAdminName={currentAdminName}
                 nextFolio={nextFolio}
+                vendorOptions={vendorOptions}
                 embedded
                 onSaved={handleCreated}
               />
@@ -214,9 +222,11 @@ export function QuotesList({ initialQuotes, currentAdminName, initialNextFolio }
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                          Hotel
+                          Hoteles
                         </p>
-                        <p className="truncate text-sm text-brand-900">{quote.hotelName}</p>
+                        <p className="truncate text-sm text-brand-900" title={quote.hotelName}>
+                          {quote.hotelName}
+                        </p>
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
@@ -233,6 +243,7 @@ export function QuotesList({ initialQuotes, currentAdminName, initialNextFolio }
                     <QuoteEditor
                       initialQuote={quote}
                       currentAdminName={currentAdminName}
+                      vendorOptions={vendorOptions}
                       embedded
                       onSaved={handleUpdated}
                       onDeleted={handleDeleted}

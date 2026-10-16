@@ -36,6 +36,16 @@ export function parseIsoDate(value: string) {
   return new Date(Number(year), Number(month) - 1, Number(day));
 }
 
+export function addDays(iso: string, days: number) {
+  const date = parseIsoDate(iso);
+  return toIsoDate(new Date(date.getFullYear(), date.getMonth(), date.getDate() + days));
+}
+
+// Rounded so a DST change between the two dates doesn't shift the count.
+export function daysBetween(start: string, end: string) {
+  return Math.round((parseIsoDate(end).getTime() - parseIsoDate(start).getTime()) / 86_400_000);
+}
+
 // "7 al 10 de enero 2027", "28 de febrero al 3 de marzo 2027",
 // "28 de diciembre 2026 al 3 de enero 2027", or "7 de enero 2027" for one day.
 export function formatTravelRange(start: string, end: string) {

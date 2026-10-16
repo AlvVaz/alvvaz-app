@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import { getAdminFromCookies } from "@/lib/auth/admin";
-import { canAccessQuote, getQuote } from "@/lib/quotes/db";
+import { canAccessQuote, canChooseQuoteVendor, getQuote, listQuoteVendorNames } from "@/lib/quotes/db";
 
 import { QuoteEditor } from "../QuoteEditor";
 
@@ -19,5 +19,7 @@ export default async function EditarCotizacionPage({ params }: { params: Promise
     notFound();
   }
 
-  return <QuoteEditor key={quote.id} initialQuote={quote} />;
+  const vendorOptions = canChooseQuoteVendor(admin) ? await listQuoteVendorNames() : undefined;
+
+  return <QuoteEditor key={quote.id} initialQuote={quote} vendorOptions={vendorOptions} />;
 }

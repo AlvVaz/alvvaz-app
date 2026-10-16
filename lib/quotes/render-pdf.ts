@@ -6,7 +6,7 @@ import puppeteer from "puppeteer-core";
 
 import { QuoteDocument, QUOTE_DOCUMENT_RESET_CSS } from "@/components/quotes/QuoteDocument";
 import { QUOTE_PDF_FONT_FILES, QUOTE_PDF_FONTS } from "@/lib/quotes/fonts";
-import type { QuoteData } from "@/lib/quotes/types";
+import { formatQuoteHotels, type QuoteData } from "@/lib/quotes/types";
 
 const PUBLIC_DIR = path.join(process.cwd(), "public");
 const LOGO_FILE = "logoalvvaz.png";
@@ -60,7 +60,7 @@ export async function buildQuoteHtml(data: QuoteData, folio: string) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cotización #${escapeHtml(folio)} · ${escapeHtml(data.hotelName)}</title>
+<title>Cotización #${escapeHtml(folio)} · ${escapeHtml(data.title || formatQuoteHotels(data))}</title>
 <style>
 ${fontFaceCss}
 @page { size: letter; margin: 0; }
