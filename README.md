@@ -29,6 +29,18 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 - If a linked customer transaction is deleted, changed away from `pagado`, or changed to a different amount, the related cuota is returned to `pendiente`.
 - Vercel Cron calls `/api/admin/payment-reminders/daily` daily at 8 AM Mexico City time to send the admin Telegram summary. Required env vars: `CRON_SECRET`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
 
+## Admin Cotizaciones
+
+- `/admin/cotizaciones` works like Contratos: "Nueva cotización" expands inline, and saved quotes are listed below as cards that expand into the editor. Search by folio, client or hotel. `/admin/cotizaciones/[id]` still opens a single quote full-page.
+- Editing happens on the template itself: every value is underlined (yellow while empty, green once filled) and opens a small popover to type in when clicked ("Incluye" parts are optional and show a gray dashed box). "Vista previa" hides the boxes and shows the document exactly as the PDF renders it. The PDF never gets the edit slots (`QuoteDocument`'s `edit` prop).
+- Visibility matches contracts: owner and tech see every quote; admins only see, edit and delete the quotes they created (`createdById`). Other admins' quotes return 404 from the API.
+- The design is a 1:1 port of `docs/cotizaciones/cotizacion-template.html` in `components/quotes/QuoteDocument.tsx`. Keep its inline styles as written; the live preview and the PDF both render this component.
+- Every field is typed by hand (no calculations). Money values are entered without `$`. The "Incluye" list starts with the 9 default items and can be edited freely. The hotel category uses a 0-5 star selector.
+- Folios are assigned by the database on first save, starting at 1000, and are never reused.
+- Every save regenerates the PDF with headless Chrome (`puppeteer-core` + `@sparticuz/chromium`) and uploads it to the private Supabase Storage bucket `quotes` (override with `SUPABASE_STORAGE_BUCKET_QUOTES`). If the PDF fails, the quote is still saved and "Generar PDF" retries. PDFs are only served through the authenticated `/api/admin/quotes/[id]/pdf` route.
+- Local PDF generation needs `CHROME_EXECUTABLE_PATH` in `.env.local` pointing at an installed Chrome, e.g. `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`. On Vercel the bundled Chromium is used.
+- Fonts: change the stacks and font files in `lib/quotes/fonts.ts` (PDF fonts are read from `public/fonts`).
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

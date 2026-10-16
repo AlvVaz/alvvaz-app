@@ -196,3 +196,18 @@ model PromotionImage {
 
   @@index([promotionId, sortOrder])
 }
+
+model Quote {
+  id            String   @id @default(cuid())
+  folio         Int      @unique @default(autoincrement())
+  clientName    String
+  hotelName     String
+  data          Json
+  storageBucket String?
+  storagePath   String?
+  createdById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([createdAt])
+}

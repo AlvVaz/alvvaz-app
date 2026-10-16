@@ -1,0 +1,186 @@
+<!doctype html>
+<!--
+  COTIZACIÓN ALVVAZ — TEMPLATE (1 hotel por cotización)
+  Sintaxis: Mustache  {{campo}}  ·  listas/condicionales {{#lista}}…{{/lista}}
+  Todos los valores se escriben a mano en la herramienta (no hay cálculos en el template).
+
+  CAMPOS
+  ─────────────────────────────────────────────────────────────────────
+  logoUrl              URL del logo (ej. "/logo-alvvaz.png")
+  folio                "3182"                     → se muestra "#3182"
+  quoteDate            "13 de octubre 2026"       Fecha de cotización
+  travelDates          "7 al 10 de enero 2027"    Fechas de viaje
+  totalPrice           "24,908"                   Sin "$". Se muestra "$24,908" y "$24,908.00"
+  adults               "2"                        Número de adultos
+  depositTotal         "3,000"                    "Reserva con" (sin "$")
+  depositPerPerson     "1,500"                    Mínimo por persona (sin "$")
+  liquidationMonth     "DIC"                      Calendario de liquidación
+  liquidationDay       "17"
+  liquidationYear      "2026"
+  hotelName            "Hotel Flamingo Cancún"
+  location             "Cancún, Q.R"              Ubicación / destino
+  stars                [{}, {}, {}, {}]           Un objeto vacío por estrella (4 = ⭐⭐⭐⭐)
+  nights               "3"
+  originCode           "SLP"                      Código de origen (vuelos)
+  originCity           "San Luis Potosí"          Ciudad de origen (línea del paquete)
+  destinationCode      "Cancún"                   Destino en tarjetas de vuelo y "Vuelos directos"
+  clientName           "Juan Pérez"
+  vendorName           "Ana López"
+  roomType             "Estándar"
+  seats                "2"                        Asientos de avión
+  departureDate        "7 ene"
+  departureTime        "7:09 AM"
+  returnDate           "10 ene"
+  returnTime           "11:00 AM"
+  includes             Lista "Incluye". Viene precargada con los items por defecto;
+                       el usuario puede agregar/quitar items en texto libre.
+                       Cada item: { title, detail, note }
+                         title  → texto en negritas (opcional)
+                         detail → texto normal (opcional)
+                         note   → texto en rojo entre paréntesis (opcional)
+                       Ver lista por defecto en cotizacion-ejemplo.html / README.
+
+  TEXTO FIJO (no cambia): etiquetas, "Costo en pesos", "Plan Todo Incluido" (badge),
+  disclaimer, "Más de 10 años nos respaldan", direcciones, "Gracias por tu confianza".
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cotización #{{folio}} · {{hotelName}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Philosopher:ital,wght@0,400;0,700;1,400&amp;display=swap">
+<style>
+@page { size: letter; margin: 0; }
+html, body { margin: 0; padding: 0; background: #e9edf3; }
+* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.page { width: 816px; height: 1056px; margin: 24px auto; box-shadow: 0 4px 24px rgba(28,41,66,0.12); }
+@media print {
+  html, body { background: #ffffff; }
+  .page { margin: 0; box-shadow: none; }
+}
+</style>
+</head>
+<body>
+<div class="page" style="width: 816px; height: 1056px; display: flex; font-family: 'Manrope', sans-serif; color: #1c2942; background: #ffffff; overflow: hidden">
+
+<aside style="width: 236px; flex-shrink: 0; box-sizing: border-box; padding: 40px 28px 32px; background: linear-gradient(180deg, #1d2a45 0%, #2b4d78 100%); color: #ffffff; display: flex; flex-direction: column">
+<div style="width: 140px; height: 140px; border-radius: 50%; background: #ffffff; display: flex; align-items: center; justify-content: center; padding: 18px; box-sizing: border-box"><img src="{{logoUrl}}" alt="AlvVaz Agencia de Viajes" style="width: 100%; height: 100%; object-fit: contain"></div>
+
+<div style="margin-top: 34px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.18em; color: #aab8d0">COTIZACIÓN</div>
+<div style="margin-top: 4px; font-size: 30px; font-weight: 800; letter-spacing: 0.02em">#{{folio}}</div>
+
+<div style="margin-top: 16px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.18em; color: #aab8d0">FECHA DE COTIZACIÓN</div>
+<div style="margin-top: 4px; font-size: 13.5px; font-weight: 700">{{quoteDate}}</div>
+
+<div style="margin-top: 14px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.18em; color: #aab8d0">FECHAS DE VIAJE</div>
+<div style="margin-top: 4px; font-size: 13.5px; font-weight: 700">{{travelDates}}</div>
+
+<div style="margin-top: 20px; height: 1px; background: rgba(255,255,255,0.18)"></div>
+
+<div style="margin-top: 20px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.18em; color: #aab8d0">RESUMEN DE COSTO (MXN)</div>
+<div style="margin-top: 12px; display: flex; justify-content: space-between; font-size: 12.5px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.14)">
+<span style="color: #dbe3f0">Total {{adults}} adultos</span><span style="font-weight: 700">${{totalPrice}}.00</span>
+</div>
+
+<div style="margin-top: 18px; background: #ffffff; border-radius: 16px; padding: 18px 18px 16px; color: #1c2942">
+<div style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.18em; color: #5d6b84">RESERVA CON</div>
+<div style="margin-top: 6px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px">
+<span style="font-size: 28px; font-weight: 800; white-space: nowrap">${{depositTotal}}</span><span style="font-size: 10px; font-weight: 700; color: #5d6b84">MXN</span>
+</div>
+<div style="margin-top: 4px; font-size: 11px; color: #5d6b84">${{depositPerPerson}} mínimo por persona</div>
+</div>
+
+<div style="margin-top: 16px; display: flex; gap: 12px; align-items: flex-start">
+<div style="width: 48px; flex-shrink: 0; border-radius: 6px; overflow: hidden; background: #ffffff; text-align: center">
+<div style="background: #3f8ec9; color: #ffffff; font-size: 9px; font-weight: 800; letter-spacing: 0.12em; padding: 3px 0">{{liquidationMonth}}</div>
+<div style="color: #1c2942; font-size: 20px; font-weight: 800; line-height: 1.1; padding-top: 2px">{{liquidationDay}}</div>
+<div style="color: #5d6b84; font-size: 8.5px; font-weight: 700; padding-bottom: 4px">{{liquidationYear}}</div>
+</div>
+<div>
+<div style="font-size: 12.5px; font-weight: 700">Liquidación del viaje</div>
+<div style="margin-top: 2px; font-size: 11px; line-height: 1.4; color: #dbe3f0">21 días antes de la salida. Abona semanal, quincenal o mensual.</div>
+</div>
+</div>
+
+<div style="flex-grow: 1"></div>
+<div style="font-family: 'Philosopher', serif; font-style: italic; font-size: 17px; line-height: 1.35">Más de 10 años nos respaldan</div>
+<div style="margin-top: 12px; font-size: 9.5px; line-height: 1.55; color: #aab8d0">Agencia de Viajes Alvvaz<br>Hernán Cortés #508-A, Col. Industrial Aviación<br>Calle 30 #689, Villas del Sol</div>
+</aside>
+
+<main style="flex-grow: 1; box-sizing: border-box; padding: 40px 40px 28px; display: flex; flex-direction: column">
+<div style="font-size: 10px; font-weight: 800; letter-spacing: 0.2em; color: #2f6db5">COTIZACIÓN DE VIAJE</div>
+<h1 style="margin: 6px 0 0; font-family: 'Philosopher', serif; font-weight: 700; font-size: 40px; line-height: 1.05; color: #1c2942">{{hotelName}}</h1>
+<div style="margin-top: 6px; display: flex; align-items: center; gap: 10px">
+<span style="font-family: 'Philosopher', serif; font-style: italic; font-size: 15px; color: #5d6b84">{{location}} · {{nights}} noches con salida desde {{originCode}}</span>
+<span style="display: flex; gap: 2px" role="img" aria-label="Categoría del hotel">
+{{#stars}}<svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 6.6 7 .7-5.3 4.8 1.6 7L12 17.5 5.7 21.1l1.6-7L2 9.3l7-.7z" fill="#e3a325"></path></svg>{{/stars}}
+</span>
+</div>
+
+<div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 12px; border-bottom: 1px solid #d9e1ec">
+<div>
+<div style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.18em; color: #5d6b84">PREPARADA PARA</div>
+<div style="margin-top: 4px; font-family: 'Philosopher', serif; font-weight: 700; font-size: 20px">{{clientName}}</div>
+</div>
+<span style="background: #e7eff9; color: #2f6db5; font-size: 10px; font-weight: 800; letter-spacing: 0.12em; padding: 7px 14px; border-radius: 999px">PLAN TODO INCLUIDO</span>
+</div>
+
+<div style="margin-top: 12px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+<div><div style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.18em; color: #5d6b84">VENDEDOR</div><div style="margin-top: 4px; font-size: 13.5px; font-weight: 600">{{vendorName}}</div></div>
+<div><div style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.18em; color: #5d6b84">DESTINO</div><div style="margin-top: 4px; font-size: 13.5px; font-weight: 600">{{location}}</div></div>
+<div><div style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.18em; color: #5d6b84">HABITACIÓN</div><div style="margin-top: 4px; font-size: 13.5px; font-weight: 600">{{roomType}}</div></div>
+</div>
+
+<div style="margin-top: 16px; border-left: 3px solid #2f6db5; padding: 4px 0 4px 18px">
+<div style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.18em; color: #5d6b84">COSTOS POR {{adults}} ADULTOS · MXN</div>
+<div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px">
+<div style="font-size: 14.5px; font-weight: 700; line-height: 1.35"><span style="color: #2f6db5">1×</span> Paquete {{hotelName}}, {{nights}} noches con vuelo directo desde {{originCity}}</div>
+<div style="text-align: right"><div style="font-size: 19px; font-weight: 800; white-space: nowrap">${{totalPrice}}</div><div style="font-size: 10px; color: #5d6b84; white-space: nowrap">por los {{adults}} pasajeros</div></div>
+</div>
+<div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px">
+<span style="background: #eef2f7; font-size: 10.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px">{{adults}} adultos</span>
+<span style="background: #eef2f7; font-size: 10.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px">Habitación {{roomType}}</span>
+<span style="background: #eef2f7; font-size: 10.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px">{{seats}} Asientos de Avión</span>
+<span style="background: #eef2f7; font-size: 10.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px">Costo en pesos</span>
+</div>
+</div>
+
+<div style="margin-top: 16px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<div style="background: #f4f7fb; border-radius: 12px; padding: 11px 14px; display: flex; gap: 12px; align-items: center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2f6db5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 16l20-6-2-3-7 2-6-5-2 1 4 6-5 1.5-2-2-1.5.5z"></path><path d="M3 20h18"></path></svg>
+<div><div style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.16em; color: #5d6b84">SALIDA · {{originCode}} → {{destinationCode}}</div><div style="margin-top: 2px; font-size: 14px; font-weight: 700">{{departureDate}} · {{departureTime}}</div></div>
+</div>
+<div style="background: #f4f7fb; border-radius: 12px; padding: 11px 14px; display: flex; gap: 12px; align-items: center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2f6db5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16L2 10l2-3 7 2 6-5 2 1-4 6 5 1.5 2-2 1.5.5z"></path><path d="M3 20h18"></path></svg>
+<div><div style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.16em; color: #5d6b84">REGRESO · {{destinationCode}} → {{originCode}}</div><div style="margin-top: 2px; font-size: 14px; font-weight: 700">{{returnDate}} · {{returnTime}}</div></div>
+</div>
+</div>
+
+<div style="margin-top: 18px; padding-bottom: 8px; border-bottom: 2px solid #1c2942">
+<h2 style="margin: 0; font-family: 'Philosopher', serif; font-weight: 700; font-size: 19px">Incluye</h2>
+</div>
+<div style="margin-top: 2px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px">
+{{#includes}}
+<div style="display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid #e3e9f1; font-size: 12px; line-height: 1.4"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1f9a6b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 1px"><path d="M5 12l5 5 9-10"></path></svg><span>{{#title}}<b>{{.}}</b> {{/title}}{{detail}}{{#note}} <span style="color: #c0174f; font-weight: 600">({{.}})</span>{{/note}}</span></div>
+{{/includes}}
+</div>
+
+<div style="margin-top: 16px; display: flex; gap: 14px; padding: 10px 0; border-top: 1px solid #e3e9f1; border-bottom: 1px solid #e3e9f1; font-size: 12px; line-height: 1.5">
+<span style="font-family: 'Philosopher', serif; font-size: 16px; color: #3f8ec9; width: 12px">1</span>
+<span>Con <b>${{depositPerPerson}} como mínimo por persona</b> podemos reservar, y estar dando el resto poco a poco, <b>semanal, quincenal o mensual</b>. Teniendo que estar <b>liquidado 21 días antes del viaje</b>.</span>
+</div>
+
+<div style="flex-grow: 1; min-height: 12px"></div>
+<div style="background: #fdecf1; border-radius: 12px; padding: 12px 16px; font-size: 11.5px; line-height: 1.45; color: #8f1239">
+<b>Recuerden: esto solo es una cotización.</b> Precios garantizados hasta obtener un pago en firme. Paquetes sujetos a disponibilidad.
+</div>
+<div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center">
+<span style="font-family: 'Philosopher', serif; font-style: italic; font-size: 14px; color: #2f6db5">Gracias por tu confianza.</span>
+<span style="font-size: 10px; font-weight: 700; letter-spacing: 0.14em; color: #5d6b84">AGENCIA ALVVAZ</span>
+</div>
+</main>
+</div>
+</body>
+</html>

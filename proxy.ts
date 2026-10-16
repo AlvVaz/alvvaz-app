@@ -7,6 +7,7 @@ const ADMIN_LOGIN_PATH = "/admin/login";
 const ADMIN_ALLOWED_ADMIN_ROUTES = [
   "/admin/contratos",
   "/admin/pagos",
+  "/admin/cotizaciones",
   "/admin/magazine",
   "/admin/settings",
 ];
@@ -14,6 +15,7 @@ const ADMIN_ALLOWED_ADMIN_APIS = [
   "/api/admin/contracts",
   "/api/admin/magazine",
   "/api/admin/payments",
+  "/api/admin/quotes",
 ];
 const ADMIN_CRON_APIS = ["/api/admin/payment-reminders"];
 
