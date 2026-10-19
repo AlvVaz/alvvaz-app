@@ -7,10 +7,6 @@ export function getQuotesBucket() {
   return process.env.SUPABASE_STORAGE_BUCKET_QUOTES || "quotes";
 }
 
-export function buildQuotePdfFileName(folio: number) {
-  return `COTIZACION-#${folio}.pdf`;
-}
-
 // Renders the quote, uploads it (overwriting the previous file) and stores the path.
 export async function generateQuotePdf(quote: QuoteRecord) {
   const pdfBytes = await renderQuotePdf(quote.data, String(quote.folio));

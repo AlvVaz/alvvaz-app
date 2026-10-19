@@ -5,6 +5,7 @@ import {
   QUOTE_OPTION_LETTERS,
   type QuoteData,
   type QuoteIncludeItem,
+  type QuoteKind,
   type QuoteOptionField,
   type QuoteTextField,
 } from "@/lib/quotes/types";
@@ -103,6 +104,43 @@ function IncludeText({ item }: { item: QuoteIncludeItem }) {
   );
 }
 
+// SALIDA / REGRESO card icon: a plane (taking off / landing) for aéreo, a bus for terrestre.
+function TransportIcon({ kind, direction }: { kind: QuoteKind; direction: "out" | "back" }) {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#2f6db5"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {kind === "terrestre" ? (
+        <>
+          <rect x="4" y="3" width="16" height="14" rx="2" />
+          <path d="M4 11h16M8 21v-4M16 21v-4" />
+          <circle cx="8" cy="14" r="0.5" />
+          <circle cx="16" cy="14" r="0.5" />
+        </>
+      ) : (
+        <>
+          <path
+            d={
+              direction === "out"
+                ? "M2 16l20-6-2-3-7 2-6-5-2 1 4 6-5 1.5-2-2-1.5.5z"
+                : "M22 16L2 10l2-3 7 2 6-5 2 1-4 6 5 1.5 2-2 1.5.5z"
+            }
+          />
+          <path d="M3 20h18" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 // Option A, B, C badges: navy, blue, light blue.
 const OPTION_COLORS = ["#1c2942", "#2f6db5", "#5b9bd5"];
 
@@ -129,12 +167,33 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
   const opt = (index: number, field: QuoteOptionField, repeat = false) =>
     edit ? edit.option(index, field, repeat) : data.options[index][field];
 
+  // "2 ADULTOS Y 1 MENOR". Menores only shows when there are any, except at the
+  // header input while editing, so it can be filled in.
+  const minors = Number.parseInt(data.minors, 10) || 0;
+  const adults = Number.parseInt(data.adults, 10);
+  const plural = (value: string, one: string, many: string) => (value.trim() === "1" ? one : many);
+  const party = (isInput: boolean) => (
+    <>
+      {f("adults", !isInput)} {plural(data.adults, "ADULTO", "ADULTOS")}
+      {(edit && isInput) || minors > 0 ? (
+        <>
+          {" "}
+          Y {f("minors", !isInput)} {plural(data.minors, "MENOR", "MENORES")}
+        </>
+      ) : null}
+    </>
+  );
+  // Adultos + menores; until Adultos is a number, falls back to mirroring it.
+  const passengers = Number.isNaN(adults) ? "" : String(adults + minors);
+
   return (
     <div
       className={["quote-document", className].filter(Boolean).join(" ")}
       style={{
         width: "816px",
-        height: "1056px",
+        // Editing adds things the PDF doesn't have (hints, "+ Agregar nota", Tel.),
+        // so the editor page grows instead of cutting off the bottom.
+        ...(edit ? { minHeight: "1056px" } : { height: "1056px" }),
         display: "flex",
         fontFamily: fonts.body,
         color: "#1c2942",
@@ -163,15 +222,18 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: "18px",
+            overflow: "hidden",
             boxSizing: "border-box",
           }}
         >
+          {/* The PNG has wide empty margins, so it's drawn wider than the circle (which clips
+              the blank edges) to make the logo fill ~86% of it; marginTop re-centers the art,
+              which sits slightly high in the file. */}
           {/* eslint-disable-next-line @next/next/no-img-element -- must render identically in the server-side PDF */}
           <img
             src={logoSrc}
             alt="AlvVaz Agencia de Viajes"
-            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+            style={{ width: "165px", height: "auto", flexShrink: 0, marginTop: "8px" }}
           />
         </div>
 
@@ -188,7 +250,7 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
 
         <div style={{ marginTop: "20px", height: "1px", background: "rgba(255,255,255,0.18)" }} />
 
-        <div style={{ ...asideLabel, marginTop: "20px" }}>RESUMEN · {f("adults", true)} ADULTOS (MXN)</div>
+        <div style={{ ...asideLabel, marginTop: "20px" }}>RESUMEN · {party(false)} (MXN)</div>
         <div style={{ marginTop: "4px" }}>
           {data.options.map((_, index) => (
             <div
@@ -305,9 +367,6 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
           flexDirection: "column",
         }}
       >
-        <div style={{ fontSize: "10px", fontWeight: 800, letterSpacing: "0.2em", color: "#2f6db5" }}>
-          COTIZACIÓN DE VIAJE · {data.options.length} OPCIONES
-        </div>
         <h1
           style={{
             margin: "6px 0 0",
@@ -341,6 +400,10 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
             <div style={{ marginTop: "4px", fontFamily: display, fontWeight: 700, fontSize: "20px" }}>
               {f("clientName")}
             </div>
+            {/* The client's phone is for the agency only: shown while editing, never on the PDF. */}
+            {edit ? (
+              <div style={{ marginTop: "4px", fontSize: "12px", color: "#5d6b84" }}>Tel. {f("clientPhone")}</div>
+            ) : null}
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={label}>VENDEDOR</div>
@@ -357,20 +420,7 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
           }}
         >
           <div style={flightCard}>
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#2f6db5"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M2 16l20-6-2-3-7 2-6-5-2 1 4 6-5 1.5-2-2-1.5.5z" />
-              <path d="M3 20h18" />
-            </svg>
+            <TransportIcon kind={data.kind} direction="out" />
             <div>
               <div style={flightLabel}>
                 SALIDA · {f("originCode", true)} → {f("destinationCode")}
@@ -378,23 +428,16 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
               <div style={{ marginTop: "2px", fontSize: "14px", fontWeight: 700 }}>
                 {f("departureDate")} · {f("departureTime")}
               </div>
+              {/* Terrestre only; hidden on the PDF when empty, always editable in the editor. */}
+              {data.kind === "terrestre" && (edit || data.meetingPoint.trim()) ? (
+                <div style={{ marginTop: "3px", fontSize: "11px", lineHeight: 1.35, color: "#5d6b84" }}>
+                  Punto de salida: <span style={{ color: "#1c2942", fontWeight: 600 }}>{f("meetingPoint")}</span>
+                </div>
+              ) : null}
             </div>
           </div>
           <div style={flightCard}>
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#2f6db5"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M22 16L2 10l2-3 7 2 6-5 2 1-4 6 5 1.5 2-2 1.5.5z" />
-              <path d="M3 20h18" />
-            </svg>
+            <TransportIcon kind={data.kind} direction="back" />
             <div>
               <div style={flightLabel}>
                 REGRESO · {f("destinationCode", true)} → {f("originCode", true)}
@@ -408,7 +451,7 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
 
         <div style={sectionHeader}>
           <h2 style={{ margin: 0, fontFamily: display, fontWeight: 700, fontSize: "19px" }}>Opciones de hotel</h2>
-          <span style={label}>COSTOS POR {f("adults")} ADULTOS · MXN</span>
+          <span style={label}>COSTOS POR {party(true)} · MXN</span>
         </div>
         <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "6px" }}>
           {data.options.map((option, index) => (
@@ -450,7 +493,7 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
                   ${opt(index, "totalPrice")}
                 </div>
                 <div style={{ fontSize: "10px", color: "#5d6b84", whiteSpace: "nowrap" }}>
-                  por los {f("adults", true)} pasajeros
+                  {passengers === "1" ? "por 1 pasajero" : <>por los {passengers || f("adults", true)} pasajeros</>}
                 </div>
               </div>
             </div>
@@ -539,7 +582,7 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
         </div>
         <div
           style={{
-            marginTop: "10px",
+            marginTop: "8px",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -551,6 +594,9 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
           <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.14em", color: "#5d6b84" }}>
             AGENCIA ALVVAZ
           </span>
+        </div>
+        <div style={{ marginTop: "6px", fontSize: "10px", color: "#5d6b84" }}>
+          Consulta las políticas generales con tu ejecutivo AlvVaz.
         </div>
       </main>
     </div>

@@ -2,12 +2,30 @@ import { NextResponse } from "next/server";
 
 import { getAdminFromCookies } from "@/lib/auth/admin";
 import { canAccessQuote, getQuote } from "@/lib/quotes/db";
-import { buildQuotePdfFileName, downloadQuotePdf, generateQuotePdf } from "@/lib/quotes/storage";
+import { downloadQuotePdf, generateQuotePdf } from "@/lib/quotes/storage";
+import { buildQuotePdfFileName } from "@/lib/quotes/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+// Headers only allow ASCII: browsers use the UTF-8 `filename*` (accents kept),
+// older ones fall back to the plain `filename` ("Perez", and "AÑO" as "ANIO", not "ANO").
+function contentDisposition(fileName: string) {
+  const ascii = fileName
+    .replace(/ñ/g, "ni")
+    .replace(/Ñ/g, "NI")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\x20-\x7E]/g, "")
+    .replace(/["\\]/g, "");
+  const encoded = encodeURIComponent(fileName).replace(
+    /['()*]/g,
+    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`
+  );
+  return `inline; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+}
 
 // Streams the stored PDF. Only reachable with an admin session.
 export async function GET(_request: Request, { params }: RouteContext) {
@@ -33,12 +51,12 @@ export async function GET(_request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "PDF no generado aún." }, { status: 404 });
   }
 
-  const fileName = buildQuotePdfFileName(quote.folio);
+  const fileName = buildQuotePdfFileName(quote.folio, quote.data);
   return new NextResponse(bytes, {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="${fileName}"`,
+      "Content-Disposition": contentDisposition(fileName),
       "Cache-Control": "private, no-store",
     },
   });

@@ -9,11 +9,14 @@ import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { applyDerivedFields } from "@/lib/quotes/derived";
 import {
+  buildQuotePdfFileName,
   createEmptyQuoteData,
   formatQuoteDate,
   formatQuoteHotels,
+  QUOTE_OPTIONAL_FIELDS,
   QUOTE_TEXT_FIELDS,
   type QuoteData,
+  type QuoteKind,
   type QuoteRecord,
   type QuoteTextField,
 } from "@/lib/quotes/types";
@@ -28,6 +31,8 @@ type QuoteEditorProps = {
   nextFolio?: number | null;
   // Only passed for owner/tech: lets them pick another admin as Vendedor.
   vendorOptions?: string[];
+  // Type picked for a new quote (ignored when editing a saved one).
+  kind?: QuoteKind;
   // Embedded in the list page: no page header, and the parent handles save/delete instead of navigation.
   embedded?: boolean;
   onSaved?: (quote: QuoteRecord, isNew: boolean) => void;
@@ -37,6 +42,9 @@ type QuoteEditorProps = {
 const LOCKED_FIELDS: QuoteTextField[] = ["vendorName"];
 // Filled with today's date on a new quote; no box needed.
 const PLAIN_FIELDS: QuoteTextField[] = ["quoteDate"];
+
+// Fields counted in "Faltan X de Y"; optional ones (client phone) don't count.
+const REQUIRED_FIELDS = QUOTE_TEXT_FIELDS.filter((field) => !QUOTE_OPTIONAL_FIELDS.includes(field));
 
 type SaveResponse = { quote?: QuoteRecord; pdfError?: string; error?: string };
 
@@ -48,6 +56,7 @@ export function QuoteEditor({
   currentAdminName = "",
   nextFolio = null,
   vendorOptions,
+  kind = "aereo",
   embedded = false,
   onSaved,
   onDeleted,
@@ -60,7 +69,7 @@ export function QuoteEditor({
   const [data, setData] = useState<QuoteData>(
     () =>
       initialQuote?.data ?? {
-        ...createEmptyQuoteData(),
+        ...createEmptyQuoteData(kind),
         vendorName: currentAdminName,
         quoteDate: formatQuoteDate(new Date()),
       }
@@ -72,15 +81,15 @@ export function QuoteEditor({
 
   // Each option counts its hotel, price and stars.
   const missingCount =
-    QUOTE_TEXT_FIELDS.filter((field) => !data[field].trim()).length +
+    REQUIRED_FIELDS.filter((field) => !data[field].trim()).length +
     data.options.reduce(
       (count, option) =>
         count + (option.hotelName.trim() ? 0 : 1) + (option.totalPrice.trim() ? 0 : 1) + (option.stars ? 0 : 1),
       0
     );
-  const totalCount = QUOTE_TEXT_FIELDS.length + data.options.length * 3;
+  const totalCount = REQUIRED_FIELDS.length + data.options.length * 3;
 
-  const fileName = quote ? `COTIZACION-#${quote.folio}.pdf` : "COTIZACION.pdf";
+  const fileName = quote ? buildQuotePdfFileName(quote.folio, quote.data) : "COTIZACION.pdf";
   const pdfUrl = quote ? `/api/admin/quotes/${quote.id}/pdf` : null;
 
   const handleChange = (next: QuoteData) => {

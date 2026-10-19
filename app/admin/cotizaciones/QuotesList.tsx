@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { SyntheticEvent } from "react";
 
-import type { QuoteListItem, QuoteRecord } from "@/lib/quotes/types";
+import { QUOTE_KIND_LABELS, type QuoteKind, type QuoteListItem, type QuoteRecord } from "@/lib/quotes/types";
 
 import { QuoteEditor } from "./QuoteEditor";
 
@@ -44,6 +44,8 @@ export function QuotesList({
   const [isLoading, setIsLoading] = useState(false);
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [newEditorKey, setNewEditorKey] = useState(0);
+  // "Nueva cotización" first asks for the type; null = the chooser is showing.
+  const [newKind, setNewKind] = useState<QuoteKind | null>(null);
   const [nextFolio, setNextFolio] = useState(initialNextFolio);
   // Editors mount only while their card is open, so closed cards don't render a preview.
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
@@ -78,6 +80,7 @@ export function QuotesList({
   const handleCreated = (quote: QuoteRecord) => {
     setQuotes((current) => [{ ...quote, createdByName: currentAdminName }, ...current]);
     setIsNewOpen(false);
+    setNewKind(null);
     setNewEditorKey((key) => key + 1);
     setNextFolio(quote.folio + 1);
   };
@@ -117,7 +120,12 @@ export function QuotesList({
         <details
           className="group"
           open={isNewOpen}
-          onToggle={(event) => setIsNewOpen(event.currentTarget.open)}
+          onToggle={(event) => {
+            const isOpen = event.currentTarget.open;
+            setIsNewOpen(isOpen);
+            // Closing the panel starts over at the type chooser next time.
+            if (!isOpen) setNewKind(null);
+          }}
         >
           <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -132,7 +140,64 @@ export function QuotesList({
               </span>
             </div>
           </summary>
-          {isNewOpen ? (
+          {isNewOpen && !newKind ? (
+            <div className="border-t border-slate-200 px-6 py-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                Tipo de cotización
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setNewKind("aereo")}
+                  className="flex items-center gap-4 rounded-2xl border border-brand-200 bg-white p-5 text-left shadow-sm transition hover:border-brand-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-950 text-white">
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M2 16l20-6-2-3-7 2-6-5-2 1 4 6-5 1.5-2-2-1.5.5z" />
+                      <path d="M3 20h18" />
+                    </svg>
+                  </span>
+                  <span className="font-display text-lg text-brand-950">Aéreo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewKind("terrestre")}
+                  className="flex items-center gap-4 rounded-2xl border border-brand-200 bg-white p-5 text-left shadow-sm transition hover:border-brand-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-950 text-white">
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <rect x="4" y="3" width="16" height="14" rx="2" />
+                      <path d="M4 11h16M8 21v-4M16 21v-4" />
+                      <circle cx="8" cy="14" r="0.5" />
+                      <circle cx="16" cy="14" r="0.5" />
+                    </svg>
+                  </span>
+                  <span className="font-display text-lg text-brand-950">Terrestre</span>
+                </button>
+              </div>
+            </div>
+          ) : null}
+          {isNewOpen && newKind ? (
             <div className="border-t border-slate-200 px-6 py-4">
               <QuoteEditor
                 key={newEditorKey}
@@ -140,6 +205,7 @@ export function QuotesList({
                 currentAdminName={currentAdminName}
                 nextFolio={nextFolio}
                 vendorOptions={vendorOptions}
+                kind={newKind}
                 embedded
                 onSaved={handleCreated}
               />
@@ -189,7 +255,12 @@ export function QuotesList({
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
                           Cotización
                         </p>
-                        <p className="font-display text-lg text-brand-950">#{quote.folio}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-display text-lg text-brand-950">#{quote.folio}</p>
+                          <span className="rounded-full border border-brand-200 bg-white/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-brand-700">
+                            {QUOTE_KIND_LABELS[quote.data.kind]}
+                          </span>
+                        </div>
                         <p className="text-xs text-brand-700/80">
                           {dateFormatter.format(new Date(quote.createdAt))}
                         </p>
