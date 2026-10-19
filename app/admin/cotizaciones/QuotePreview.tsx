@@ -7,6 +7,7 @@ import { QuoteDocument, QUOTE_DOCUMENT_RESET_CSS, type QuoteDocumentEdit } from 
 import { QUOTE_PREVIEW_FONTS } from "@/lib/quotes/fonts";
 import {
   QUOTE_OPTION_LETTERS,
+  QUOTE_OPTIONAL_FIELDS,
   type QuoteData,
   type QuoteIncludeItem,
   type QuoteOption,
@@ -39,6 +40,7 @@ type QuotePreviewProps = {
 // the unit ("# noches"). Money is typed without "$".
 const FIELD_PLACEHOLDERS: Record<QuoteTextField, { placeholder: string; label: string }> = {
   clientName: { placeholder: "Nombre del cliente", label: "Cliente" },
+  clientPhone: { placeholder: "Teléfono del cliente", label: "Teléfono del cliente" },
   vendorName: { placeholder: "Vendedor", label: "Vendedor" },
   quoteDate: { placeholder: "Fecha", label: "Fecha de cotización" },
   travelDates: { placeholder: "Fechas de viaje", label: "Fechas de viaje" },
@@ -46,12 +48,14 @@ const FIELD_PLACEHOLDERS: Record<QuoteTextField, { placeholder: string; label: s
   roomType: { placeholder: "Tipo de habitación", label: "Habitación" },
   nights: { placeholder: "#", label: "Noches" },
   originCode: { placeholder: "Origen", label: "Origen (código)" },
-  destinationCode: { placeholder: "Destino", label: "Destino (vuelos)" },
+  destinationCode: { placeholder: "Destino", label: "Destino" },
   departureDate: { placeholder: "Fecha", label: "Fecha de salida" },
   departureTime: { placeholder: "Hora", label: "Hora de salida" },
+  meetingPoint: { placeholder: "Lugar de reunión", label: "Punto de salida" },
   returnDate: { placeholder: "Fecha", label: "Fecha de regreso" },
   returnTime: { placeholder: "Hora", label: "Hora de regreso" },
   adults: { placeholder: "#", label: "Adultos" },
+  minors: { placeholder: "#", label: "Menores" },
   depositTotal: { placeholder: "Monto", label: "Reserva con" },
   depositPerPerson: { placeholder: "Monto", label: "Mínimo por persona" },
   liquidationDay: { placeholder: "Día", label: "Liquidación: día" },
@@ -168,6 +172,7 @@ function buildEdit(
           onChange={(value) => onChange({ ...data, [field]: value })}
           placeholder={FIELD_PLACEHOLDERS[field].placeholder}
           label={FIELD_PLACEHOLDERS[field].label}
+          optional={QUOTE_OPTIONAL_FIELDS.includes(field)}
         />
       ),
     option: (index, field, isRepeat) =>
@@ -272,7 +277,10 @@ export function QuotePreview({
   vendorOptions,
 }: QuotePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  // Taller than the real page while editing; see QuoteDocument.
+  const [pageHeight, setPageHeight] = useState(PAGE_HEIGHT);
   const [drag, setDrag] = useState<IncludeDrag>(null);
 
   useEffect(() => {
@@ -285,15 +293,23 @@ export function QuotePreview({
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    const observer = new ResizeObserver(([entry]) => setPageHeight(entry.contentRect.height));
+    observer.observe(page);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div ref={containerRef} className="w-full">
       <style>{QUOTE_DOCUMENT_RESET_CSS}</style>
       {onChange ? <style>{INLINE_FIELD_CSS}</style> : null}
       <div
         className="overflow-hidden rounded-xl shadow-[0_4px_24px_rgba(28,41,66,0.12)]"
-        style={{ width: PAGE_WIDTH * scale, height: PAGE_HEIGHT * scale }}
+        style={{ width: PAGE_WIDTH * scale, height: pageHeight * scale }}
       >
-        <div style={{ width: PAGE_WIDTH, transform: `scale(${scale})`, transformOrigin: "top left" }}>
+        <div ref={pageRef} style={{ width: PAGE_WIDTH, transform: `scale(${scale})`, transformOrigin: "top left" }}>
           <QuoteDocument
             data={data}
             folio={folio}

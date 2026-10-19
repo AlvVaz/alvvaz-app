@@ -34,14 +34,17 @@
 
 ## Cotizaciones (quoting tool)
 
-Code is done on `feat/quoting`. Saving and PDF generation can't be tested until these steps are done:
+Merged to master (PRs #12, #13). Setup is done: `quotes` bucket, migration, `CHROME_EXECUTABLE_PATH`, and local save + PDF all work (5 quotes saved, all with PDFs).
 
-- [ ] Create a **private** Supabase Storage bucket named `quotes`.
-- [ ] Apply the migration `prisma/migrations/20261014120000_add_quotes` with `npx prisma migrate deploy`. It creates the `Quote` table and starts folios at 1000.
-- [ ] Add `CHROME_EXECUTABLE_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"` to `.env.local`, then restart the dev server.
-- [ ] Test end to end: create, edit, Ver PDF, Enviar, delete.
+- [x] Create the private `quotes` bucket.
+- [x] Apply the `20261014120000_add_quotes` migration.
+- [x] Add `CHROME_EXECUTABLE_PATH` to `.env.local`.
+- [x] Test saving and PDF generation locally.
+- [ ] Commit the 2026-10-18 round on `feat/quoting` (quote types, terrestre list, Punto de salida, Menores, phone, file name, footer line, logo), merge master in, open the PR.
 - [ ] On a Vercel preview deploy, check PDF generation (Chromium bundle size, cold start, the 60s `maxDuration`).
-- [ ] Optional later: change the quote fonts in `lib/quotes/fonts.ts` plus the files in `public/fonts`.
+- [ ] Ask the agency: on terrestre, keep the room type in "# noches de hospedaje", or drop it?
+- [ ] Ask the agency for the final aéreo baggage ("1 maleta de 15 kg…") and Traslados wording.
+- [ ] Later (deferred): WhatsApp "Enviar" straight to the client's number (`clientPhone`). A wa.me link can't attach the PDF; pick between open chat + download, an expiring PDF link, or the WhatsApp Business API.
 
 ## Code health
 
@@ -50,7 +53,8 @@ Code is done on `feat/quoting`. Saving and PDF generation can't be tested until 
   - `PromotionFields.tsx`, `AddAdminCard.tsx`, `app/page.tsx`
   - `ClientsDashboard.tsx`, `MagazineIssuesManager.tsx`, `MagazineItemsManager.tsx`, `NewIssueForm.tsx`
   - `PromocionesGrid.tsx`, `navbar.tsx`, `themed-select.tsx`
-- [ ] **Existing type error.** `npx tsc --noEmit` fails on the Clients page: `ClientsPageProps.searchParams` must be a `Promise` (Next 15+ page props).
+- [ ] **Existing type errors.** `npx tsc --noEmit` fails on the Clients and Settings pages: `searchParams` must be a `Promise` (Next 15+ page props).
+- [ ] **Broken font files.** `public/fonts/Montserrat-Bold.ttf`, `Montserrat-Regular.ttf` and both `Rubik-*.ttf` are saved GitHub HTML pages, not fonts. The contracts PDF loads the Montserrat ones, so it likely falls back to a default font. Replace them with the real files from google/fonts.
 
 ## Dependencies
 

@@ -11,6 +11,8 @@ type InlineFieldProps = {
   onChange: (value: string) => void;
   placeholder: string;
   label: string;
+  // Optional fields show a neutral dashed underline when empty instead of yellow.
+  optional?: boolean;
 };
 
 // Underline only: follows the text, never overlaps neighbors and doesn't move the layout.
@@ -375,14 +377,14 @@ export function ChoiceField({ value, options, onChange, placeholder, label }: Ch
 }
 
 // Shows the value on the document; clicking it opens a small popover to type in.
-export function InlineField({ value, onChange, placeholder, label }: InlineFieldProps) {
+export function InlineField({ value, onChange, placeholder, label, optional = false }: InlineFieldProps) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
   return (
     <>
       <FieldTrigger
         value={value}
-        state={value.trim() ? "filled" : "missing"}
+        state={value.trim() ? "filled" : optional ? "optional" : "missing"}
         placeholder={placeholder}
         label={label}
         isOpen={Boolean(anchor)}

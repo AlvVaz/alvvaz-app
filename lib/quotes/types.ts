@@ -25,11 +25,21 @@ export const QUOTE_OPTION_LETTERS = ["A", "B", "C"] as const;
 
 // Every value is typed by hand in the form. Values that repeat other info are
 // pre-filled while editing (lib/quotes/derived.ts) but can still be changed.
+// Picked when creating a quote; can't be changed afterwards. Both use the same
+// template: only the transport icon and the default "Incluye" list differ.
+export type QuoteKind = "aereo" | "terrestre";
+
+export const QUOTE_KIND_LABELS: Record<QuoteKind, string> = { aereo: "Aéreo", terrestre: "Terrestre" };
+
+
 export type QuoteData = {
+  kind: QuoteKind;
   quoteDate: string;
   travelDates: string;
   title: string;
   adults: string;
+  // Optional: hidden on the PDF when empty or 0.
+  minors: string;
   depositTotal: string;
   depositPerPerson: string;
   liquidationMonth: string;
@@ -39,10 +49,14 @@ export type QuoteData = {
   originCode: string;
   destinationCode: string;
   clientName: string;
+  // Editor only (never printed on the PDF); optional.
+  clientPhone: string;
   vendorName: string;
   roomType: string;
   departureDate: string;
   departureTime: string;
+  // Terrestre only, optional: where the group meets the bus (shown in the SALIDA card).
+  meetingPoint: string;
   returnDate: string;
   returnTime: string;
   options: QuoteOption[];
@@ -51,7 +65,7 @@ export type QuoteData = {
   travelRange: { start: string; end: string } | null;
 };
 
-export type QuoteTextField = Exclude<keyof QuoteData, "options" | "includes" | "travelRange">;
+export type QuoteTextField = Exclude<keyof QuoteData, "kind" | "options" | "includes" | "travelRange">;
 
 export type QuoteRecord = {
   id: string;
@@ -78,6 +92,7 @@ export const QUOTE_TEXT_FIELDS: QuoteTextField[] = [
   "travelDates",
   "title",
   "adults",
+  "minors",
   "depositTotal",
   "depositPerPerson",
   "liquidationMonth",
@@ -87,38 +102,69 @@ export const QUOTE_TEXT_FIELDS: QuoteTextField[] = [
   "originCode",
   "destinationCode",
   "clientName",
+  "clientPhone",
   "vendorName",
   "roomType",
   "departureDate",
   "departureTime",
+  "meetingPoint",
   "returnDate",
   "returnTime",
 ];
 
-export const DEFAULT_QUOTE_INCLUDES: QuoteIncludeItem[] = [
-  // Filled once Origen, Destino, Noches and Habitación are entered.
-  { title: "Vuelos directos", auto: "route" },
-  { title: "Traslados", detail: "Aeropuerto / Hotel / Aeropuerto en servicio compartido" },
-  { title: "Plan Todo Incluido" },
-  { title: "Alimentos tipo buffet,", detail: "con horarios indicados a su llegada" },
-  { title: "Barra libre ilimitada,", detail: "con horarios establecidos" },
-  { title: "Snacks", detail: "diurnos" },
-  { title: "Impuestos y propinas", note: "no incluye saneamiento" },
-  { title: "En cortesía", detail: "1 maleta de 15 kg documentada + equipaje personal por adulto" },
-  { detail: "de hospedaje", auto: "stay" },
-];
+// Can be left empty: not required and not counted as missing in the editor.
+export const QUOTE_OPTIONAL_FIELDS: QuoteTextField[] = ["clientPhone", "minors", "meetingPoint"];
 
-export function createEmptyQuoteData(): QuoteData {
+// Starting "Incluye" list for each type; every item can be edited, moved or removed.
+// `auto` items fill themselves: "route" from Origen / Destino, "stay" from Noches + Habitación.
+export const DEFAULT_QUOTE_INCLUDES: Record<QuoteKind, QuoteIncludeItem[]> = {
+  aereo: [
+    { title: "Vuelos directos", auto: "route" },
+    { title: "Traslados", detail: "Aeropuerto / Hotel / Aeropuerto en servicio compartido" },
+    { title: "Plan Todo Incluido" },
+    { title: "Alimentos tipo buffet,", detail: "con horarios indicados a su llegada" },
+    { title: "Barra libre ilimitada,", detail: "con horarios establecidos" },
+    { title: "Snacks", detail: "diurnos" },
+    { title: "Impuestos y propinas", note: "no incluye saneamiento" },
+    { title: "En cortesía", detail: "1 maleta de 15 kg documentada + equipaje personal por adulto" },
+    { detail: "de hospedaje", auto: "stay" },
+  ],
+  terrestre: [
+    { title: "Transporte primera clase", detail: "con seguro de viajero dentro de la unidad" },
+    { title: "Plan Todo Incluido", detail: "en hotel" },
+    { title: "Alimentos tipo buffet" },
+    { title: "Barra libre" },
+    { title: "A pie de playa" },
+    { title: "Impuestos y propinas", detail: "ya incluidos" },
+    { title: "Deportes acuáticos", detail: "no motorizados" },
+    { detail: "de hospedaje", auto: "stay" },
+  ],
+};
+
+export function createEmptyQuoteData(kind: QuoteKind = "aereo"): QuoteData {
   const data = Object.fromEntries(QUOTE_TEXT_FIELDS.map((field) => [field, ""])) as Record<
     QuoteTextField,
     string
   >;
   return {
     ...data,
+    kind,
     options: QUOTE_OPTION_LETTERS.map(() => ({ hotelName: "", stars: 0, totalPrice: "" })),
-    includes: DEFAULT_QUOTE_INCLUDES.map((item) => ({ ...item })),
+    includes: DEFAULT_QUOTE_INCLUDES[kind].map((item) => ({ ...item })),
     travelRange: null,
   };
+}
+
+// Name the PDF is saved/downloaded as: "1002-Juan Pérez-Viaje a Cancún.pdf".
+// Empty parts are skipped; characters not allowed in file names are dropped.
+export function buildQuotePdfFileName(folio: number | string, data: Pick<QuoteData, "clientName" | "title">) {
+  const clean = (value: string) =>
+    value
+      .replace(/[\\/:*?"<>|\u0000-\u001f]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 80);
+  return `${[String(folio), clean(data.clientName), clean(data.title)].filter(Boolean).join("-")}.pdf`;
 }
 
 // Stored in the Quote.hotelName column so the list and search cover every option.
@@ -171,6 +217,9 @@ export function parseQuoteData(input: unknown): QuoteData {
       totalPrice: toText(option.totalPrice),
     };
   });
+
+  // Quotes saved before types existed are all aéreo.
+  data.kind = source.kind === "terrestre" ? "terrestre" : "aereo";
 
   const range = source.travelRange as { start?: unknown; end?: unknown } | null | undefined;
   if (range && isIsoDate(range.start) && isIsoDate(range.end) && range.start <= range.end) {

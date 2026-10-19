@@ -1,4 +1,4 @@
-# feat/quoting: session notes (2026-10-14, updated 2026-10-15)
+# feat/quoting: session notes (2026-10-14, updated 2026-10-18)
 
 Working notes for the quoting tool (cotizaciones). Branch: `feat/quoting`.
 
@@ -6,30 +6,24 @@ Working notes for the quoting tool (cotizaciones). Branch: `feat/quoting`.
 
 | Area | State |
 |---|---|
-| Code | Done, not committed |
-| Production build (`next build`) | Passes |
-| Lint (new files) | Clean. The full repo has 23 errors / 26 warnings, all in files not touched on this branch |
-| Types (`npx tsc --noEmit`) | 1 error, in the existing Clients page (generated `.next/dev/types/app/admin/clients/page.ts`); none from this branch |
-| Visual match vs `docs/cotizaciones/cotizacion-ejemplo.html` | Verified (see below) |
-| DB migration | Applied and recorded (`migrate status` reports up to date) |
-| Supabase bucket `quotes` | Being created (private, 10 MB, `application/pdf`); confirm it exists |
-| `CHROME_EXECUTABLE_PATH` in `.env.local` | Pending |
-| End-to-end test in the app | Pending |
+| Quoting tool (3 options, inline editing, auto-fills) | Merged to master: PR #12 (2026-10-15) and PR #13 (2026-10-16, commit `6d479ce`) |
+| 2026-10-18 round on `feat/quoting` | Done, **not committed**: quote type (Aéreo / Terrestre), terrestre "Incluye" list and Punto de salida, Menores, client phone, PDF file name, footer line, bigger logo, title label removed, editor page grows to fit |
+| Branch vs master | Same code; `feat/quoting` lacks master's 2 merge commits, so merge master in before the next PR |
+| DB migration | Applied and recorded. Every later change lives in the `data` JSON column: no new migrations |
+| Supabase bucket `quotes`, `CHROME_EXECUTABLE_PATH`, local save + PDF | Working: 5 quotes saved (#1000–#1004), all with PDFs |
+| Lint (quote files) | Clean |
+| Types (`npx tsc --noEmit`) | Only the existing `searchParams` errors in the Clients and Settings pages (generated `.next/dev/types`); none from the quote code |
+| Vercel preview | Not checked yet |
 
 ## Next steps (resume here)
 
-1. Confirm the `quotes` bucket exists in Supabase Storage (private).
-2. Add to `.env.local`:
-   ```
-   CHROME_EXECUTABLE_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-   ```
-3. Restart the dev server (`npm run dev`), since `next.config.ts` and the env changed.
-4. Test `/admin/cotizaciones`:
-   - New quote → Guardar. The first folio should be **#1000**, and the PDF is generated on save.
-   - Ver PDF, Enviar (share sheet, or download + WhatsApp), edit + save (PDF regenerates), Eliminar.
-   - Check that the preview and the PDF look identical.
-5. On a Vercel preview deploy, check PDF generation: Chromium bundle size, cold start, the 60s `maxDuration`. The `quotes` bucket and the migration must exist on whichever DB/project production uses.
-6. Commit when ready.
+1. Review the 2026-10-18 changes in the editor (both types), then commit them on `feat/quoting`.
+2. Merge master into `feat/quoting` (only the 2 merge commits), push, and open the PR.
+3. On a Vercel preview deploy, check PDF generation: Chromium bundle size, cold start, the 60s `maxDuration`.
+4. Waiting on the agency:
+   - Terrestre: should "# noches de hospedaje" also show the room type ("…en habitación estándar"), or stop at "4 noches de hospedaje"?
+   - Aéreo baggage line ("1 maleta de 15 kg…") and Traslados wording are unchanged and still pending the final text.
+5. Later (deferred on purpose): WhatsApp "Enviar" straight to the client's number using `clientPhone`. A wa.me link can open the chat but can't attach the PDF; options are open chat + download, an expiring PDF link in the message, or the WhatsApp Business API.
 
 ## What was built
 
@@ -56,8 +50,11 @@ Working notes for the quoting tool (cotizaciones). Branch: `feat/quoting`.
   - **Incluye**: the default "Vuelos directos" item gets its route from Origen / Destino ("CDMX / HMO / CDMX"), and the hospedaje item from Noches + Habitación ("5 noches de hospedaje en habitación junior suite"). Only those two default items are linked (`auto` marker on the item); added or other items are never changed. Quotes saved before this keep their fixed text. While their fields are empty, the editor shows grey hints in those two items ("Origen / Destino / Origen", "# noches … Tipo de habitación"); the PDF never shows them.
   - Money fields (each option's price, Reserva con, Mínimo por persona) get thousands commas as you type ("24908" → "24,908").
   - Existing quotes don't change until one of those sources is edited.
+- **Quote type (2026-10-18):** "Agregar" on the list first asks for the type: **Aéreo** or **Terrestre**. Closing the panel goes back to the chooser. Saved as `data.kind` (`"aereo"` | `"terrestre"`), fixed once created; quotes saved before this load as aéreo. Same folio series and same template for both; terrestre only changes the SALIDA / REGRESO icon (bus instead of planes) and the default "Incluye" list (`DEFAULT_QUOTE_INCLUDES.terrestre`, from the agency: transporte primera clase con seguro de viajero, plan todo incluido, alimentos, barra libre, a pie de playa, impuestos y propinas, deportes acuáticos no motorizados, and the auto "# noches de hospedaje" line). No route line on terrestre. Items stay fully editable like on aéreo. Terrestre also has an optional **Punto de salida** (`data.meetingPoint`) inside the SALIDA card ("Punto de salida: Central de Autobuses SLP, andén 5"); hidden on the PDF when empty, never shown on aéreo, not counted in "Faltan". The list shows an Aéreo / Terrestre badge next to each folio. No migration.
 - **Hotel options (2026-10-16):** every quote has exactly 3 options (A, B, C); only hotel name, stars and price change between them. Everything else (title, dates, flights, room type, includes, deposit) is shared and entered once.
-  - Layout: free-text trip title ("Viaje a Cancún"), client + vendor row, flights, "Opciones de hotel" with one card per option (badge, hotel, stars, "Habitación X · Plan Todo Incluido", price), then "Incluye · en todas las opciones" (rows with separator lines, as in the original template). The sidebar summary lists each option's total. With the 9 default includes it fits one page with up to two hotel names that wrap to 2 lines; three very long names push the footer off the page.
+  - **Menores (2026-10-18):** optional input next to Adultos in "COSTOS POR # ADULTOS Y # MENORES". On the PDF it only shows when it's above 0 ("2 ADULTOS Y 1 MENOR"; singular/plural handled), in that header and the sidebar summary. "por los N pasajeros" = adultos + menores ("por 1 pasajero" for one). Reserva con still uses adultos only. Not counted in "Faltan X de Y" (`QUOTE_OPTIONAL_FIELDS`).
+  - **Client phone (2026-10-18):** optional "Tel." field under the client name. Editor only: never printed on the PDF or shown in Vista previa, not required to save, and not counted in "Faltan X de Y" (`QUOTE_OPTIONAL_FIELDS`). Stored in `data.clientPhone`; no migration.
+  - Layout: free-text trip title ("Viaje a Cancún", no small label above it since 2026-10-18), client + vendor row, flights, "Opciones de hotel" with one card per option (badge, hotel, stars, "Habitación X · Plan Todo Incluido", price), then "Incluye · en todas las opciones" (rows with separator lines, as in the original template). The sidebar summary lists each option's total. With the 9 default includes it fits one page with up to two hotel names that wrap to 2 lines; three very long names push the footer off the page. The page ends with the line "Consulta las políticas generales con tu ejecutivo AlvVaz." (2026-10-18).
   - Stored as `data.options` in the JSON column, so no migration. The `hotelName` column holds the three names joined with " · " for the list and search.
   - Removed from the template: Destino/ubicación, Ciudad de origen, Asientos de avión, the chips row and the "Plan Todo Incluido" pill (the plan text is now on each card).
   - Quotes saved before this load their single hotel as option A.
@@ -68,6 +65,7 @@ Working notes for the quoting tool (cotizaciones). Branch: `feat/quoting`.
   - It's uploaded to the private `quotes` bucket.
   - If generation fails, the quote is still saved and **Generar PDF** retries.
   - Ver PDF and Enviar work like contracts.
+  - File name (2026-10-18): `folio-cliente-título.pdf`, e.g. "1004-ALBERTO-FIN DE AÑO CANCUN.pdf" (`buildQuotePdfFileName`); empty parts are skipped and characters not allowed in file names are dropped. The download header sends the UTF-8 name (accents kept) plus an ASCII fallback. The stored copy in the bucket keeps its internal ASCII path.
   - PDFs are only served through the authenticated `/api/admin/quotes/[id]/pdf` route.
 - **Fonts:** Manrope (body), Philosopher (display) and Montserrat ExtraBold, uppercase (trip title only; differs from the template). To change them later, edit `lib/quotes/fonts.ts` and swap the files in `public/fonts/`.
 - **Logo:** reuses `public/logoalvvaz.png`, which is byte-identical to `docs/cotizaciones/logo-alvvaz.png`.
@@ -91,13 +89,14 @@ Working notes for the quoting tool (cotizaciones). Branch: `feat/quoting`.
 - `components/quotes/QuoteDocument.tsx`: the template as a React component
 - `lib/quotes/types.ts`: types, default "Incluye" items, input validation (`parseQuoteData`)
 - `lib/quotes/dates.ts`: calendar date helpers (travel range text, liquidation parts)
+- `lib/quotes/derived.ts`: fills values that repeat other info (dates, noches, liquidación, reserva, auto "Incluye" lines, money commas)
 - `lib/quotes/fonts.ts`: font stacks for preview and PDF, plus PDF font files
 - `lib/quotes/render-pdf.ts`: HTML builder (fonts and logo embedded) + headless Chrome render
 - `lib/quotes/db.ts`: Prisma list/get/create/update/delete
 - `lib/quotes/storage.ts`: PDF generate/upload/download/remove
 - `app/api/admin/quotes/route.ts`: GET list, POST create
 - `app/api/admin/quotes/[id]/route.ts`: GET, PUT, DELETE
-- `app/api/admin/quotes/[id]/pdf/route.ts`: GET stream, POST regenerate
+- `app/api/admin/quotes/[id]/pdf/route.ts`: GET stream (download name `folio-cliente-título.pdf`), POST regenerate
 - `app/admin/cotizaciones/`: `layout.tsx`, `page.tsx`, `nueva/page.tsx`, `[id]/page.tsx`, `QuotesList.tsx`, `QuoteEditor.tsx`, `QuotePreview.tsx` (builds the edit slots), `InlineField.tsx` (text fields + shared popover), `DateFields.tsx` (calendars), `StarRating.tsx`
 - `prisma/migrations/20261014120000_add_quotes/migration.sql`: **already applied; do not edit** (its checksum is recorded)
 - `public/fonts/Manrope-Variable.ttf`, `Montserrat-Variable.ttf`, `Philosopher-Regular.ttf`, `Philosopher-Bold.ttf`, `Philosopher-Italic.ttf` (SIL Open Font License)
@@ -144,6 +143,12 @@ If production uses a different Supabase project, check `migrate status` there fi
 
 ## Verification done
 
+- **2026-10-16 to 2026-10-18:** every change was checked in the live editor and on the generated PDF with headless Chrome:
+  - Page fit: one page with the default includes and up to two hotel names that wrap to 2 lines.
+  - Single input per value: an automated pass found no value clickable in two places, for both types.
+  - Download name: a real Chrome download keeps accents and ñ ("1004-ALBERTO-FIN DE AÑO CANCUN.pdf").
+- **Before the 3-option redesign (2026-10-14/15), against the original one-hotel template:**
+
 - **Pixel diff vs the reference** (headless Chrome screenshots at 2x):
   - Server PDF HTML: 0.012% of pixels differ.
   - In-app preview, rendered with the app's compiled CSS and `next/font`: 0.021% differ.
@@ -160,6 +165,10 @@ If production uses a different Supabase project, check `migrate status` there fi
 - **Never run `prisma migrate dev` or `supabase db reset --linked` against the remote DB.**
 
 ## Found along the way (tracked in todo.md)
+
+- `public/fonts/Montserrat-Bold.ttf`, `Montserrat-Regular.ttf` and both `Rubik-*.ttf` are saved GitHub HTML pages, not fonts. The contracts PDF loads the Montserrat ones. (The quotes use `Montserrat-Variable.ttf`, a real font.)
+- The Clients and Settings pages type `searchParams` as a plain object; Next 16 expects a `Promise`, so `tsc` fails on them.
+- The repo isn't Prettier-formatted; don't run `prettier --write` on existing files.
 
 - `app/contratos/[id]/pdf/route.ts` has no auth check; anyone with a contract id can download that contract's PDF.
 - The contracts bucket may be public (`getPublicUrl` is used).
