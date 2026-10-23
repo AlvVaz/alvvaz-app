@@ -2,12 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { X } from "lucide-react";
 
 import { QuoteDocument, QUOTE_DOCUMENT_RESET_CSS, type QuoteDocumentEdit } from "@/components/quotes/QuoteDocument";
 import { QUOTE_PREVIEW_FONTS } from "@/lib/quotes/fonts";
 import {
-  QUOTE_OPTION_LETTERS,
+  QUOTE_CURRENCIES,
+  QUOTE_MAX_OPTIONS,
   QUOTE_OPTIONAL_FIELDS,
+  createEmptyQuoteOption,
+  quoteOptionLetter,
   type QuoteData,
   type QuoteIncludeItem,
   type QuoteOption,
@@ -16,7 +20,15 @@ import {
 } from "@/lib/quotes/types";
 
 import { FlightDateField, FlightTimeField, LiquidationDateField, TravelDatesField } from "./DateFields";
-import { ChoiceField, IncludeField, InlineField, INLINE_FIELD_CSS, openSiblingField } from "./InlineField";
+import {
+  ChoiceField,
+  IncludeField,
+  InlineField,
+  INLINE_FIELD_CSS,
+  MinorAgesField,
+  MinorsField,
+  openSiblingField,
+} from "./InlineField";
 import { StarRating } from "./StarRating";
 
 const PAGE_WIDTH = 816;
@@ -61,12 +73,21 @@ const FIELD_PLACEHOLDERS: Record<QuoteTextField, { placeholder: string; label: s
   liquidationDay: { placeholder: "Día", label: "Liquidación: día" },
   liquidationMonth: { placeholder: "Mes", label: "Liquidación: mes" },
   liquidationYear: { placeholder: "Año", label: "Liquidación: año" },
+  liquidationDays: { placeholder: "#", label: "Días antes de la salida" },
 };
 
 const OPTION_PLACEHOLDERS: Record<QuoteOptionField, { placeholder: string; label: string }> = {
   hotelName: { placeholder: "Nombre del hotel", label: "hotel" },
   totalPrice: { placeholder: "Precio", label: "precio total" },
+  plan: { placeholder: "Plan", label: "plan" },
 };
+
+// Internacional options are whole trips, so their name field asks for the trip instead of the hotel.
+function optionPlaceholder(kind: QuoteData["kind"], field: QuoteOptionField) {
+  return kind === "internacional" && field === "hotelName"
+    ? { placeholder: "Nombre del viaje", label: "viaje" }
+    : OPTION_PLACEHOLDERS[field];
+}
 
 // Editor-only grey hints on the auto-filled "Incluye" items while their source
 // fields are still empty, so it's clear they fill themselves. Never on the PDF.
@@ -148,6 +169,8 @@ function buildEdit(
         <FlightTimeField data={data} onChange={onChange} part={field} {...FIELD_PLACEHOLDERS[field]} />
       ) : field === "liquidationDay" || field === "liquidationMonth" || field === "liquidationYear" ? (
         <LiquidationDateField data={data} onChange={onChange} part={field} {...FIELD_PLACEHOLDERS[field]} />
+      ) : field === "minors" ? (
+        <MinorsField data={data} onChange={onChange} {...FIELD_PLACEHOLDERS[field]} />
       ) : field === "vendorName" && vendorOptions?.length ? (
         <ChoiceField
           value={data[field]}
@@ -177,13 +200,15 @@ function buildEdit(
       ),
     option: (index, field, isRepeat) =>
       isRepeat ? (
-        repeat(data.options[index][field], OPTION_PLACEHOLDERS[field].placeholder)
+        repeat(data.options[index][field], optionPlaceholder(data.kind, field).placeholder)
       ) : (
         <InlineField
           value={data.options[index][field]}
           onChange={(value) => updateOption(index, { [field]: value })}
-          placeholder={OPTION_PLACEHOLDERS[field].placeholder}
-          label={`Opción ${QUOTE_OPTION_LETTERS[index]}: ${OPTION_PLACEHOLDERS[field].label}`}
+          placeholder={optionPlaceholder(data.kind, field).placeholder}
+          label={`Opción ${quoteOptionLetter(index)}: ${optionPlaceholder(data.kind, field).label}`}
+          // The plan is pre-filled and can be left empty; it isn't counted in "Faltan".
+          optional={field === "plan"}
         />
       ),
     optionStars: (index) => (
@@ -204,6 +229,42 @@ function buildEdit(
           showLabel={false}
         />
       </span>
+    ),
+    // Any option can be removed while there's more than one; the letters after it move up.
+    removeOption: (index) =>
+      data.options.length > 1 ? (
+        <button
+          type="button"
+          onClick={() => onChange({ ...data, options: data.options.filter((_, i) => i !== index) })}
+          aria-label={`Quitar opción ${quoteOptionLetter(index)}`}
+          title={`Quitar opción ${quoteOptionLetter(index)}`}
+          className="-mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+        >
+          <X aria-hidden="true" className="h-4 w-4" />
+        </button>
+      ) : null,
+    addOption:
+      data.options.length < QUOTE_MAX_OPTIONS ? (
+        <button
+          type="button"
+          onClick={() => onChange({ ...data, options: [...data.options, createEmptyQuoteOption()] })}
+          aria-label={`Agregar opción ${quoteOptionLetter(data.options.length)}`}
+          title={`Agregar opción ${quoteOptionLetter(data.options.length)}`}
+          className="mt-3 self-center rounded-full bg-emerald-600 px-5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white shadow-sm transition-colors hover:bg-emerald-700"
+        >
+          Agregar +
+        </button>
+      ) : null,
+    minorAges: <MinorAgesField data={data} onChange={onChange} />,
+    currency: (
+      <ChoiceField
+        value={data.currency}
+        options={QUOTE_CURRENCIES}
+        onChange={(value) => onChange({ ...data, currency: value === "USD" ? "USD" : "MXN" })}
+        placeholder="Moneda"
+        label="Moneda"
+        showArrow
+      />
     ),
     include: (index, content) => (
       <IncludeField
@@ -301,6 +362,13 @@ export function QuotePreview({
     return () => observer.disconnect();
   }, []);
 
+  // Where the PDF moves to the next page. Approximate: the PDF never splits a card or
+  // an "Incluye" row, and the editor shows a few things the PDF doesn't.
+  const pageBreaks = Array.from(
+    { length: Math.floor((pageHeight - 1) / PAGE_HEIGHT) },
+    (_, index) => (index + 1) * PAGE_HEIGHT
+  );
+
   return (
     <div ref={containerRef} className="w-full">
       <style>{QUOTE_DOCUMENT_RESET_CSS}</style>
@@ -309,7 +377,10 @@ export function QuotePreview({
         className="overflow-hidden rounded-xl shadow-[0_4px_24px_rgba(28,41,66,0.12)]"
         style={{ width: PAGE_WIDTH * scale, height: pageHeight * scale }}
       >
-        <div ref={pageRef} style={{ width: PAGE_WIDTH, transform: `scale(${scale})`, transformOrigin: "top left" }}>
+        <div
+          ref={pageRef}
+          style={{ position: "relative", width: PAGE_WIDTH, transform: `scale(${scale})`, transformOrigin: "top left" }}
+        >
           <QuoteDocument
             data={data}
             folio={folio}
@@ -321,6 +392,18 @@ export function QuotePreview({
                 : undefined
             }
           />
+          {pageBreaks.map((top, index) => (
+            <div
+              key={top}
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 border-t-2 border-dashed border-brand-400"
+              style={{ top }}
+            >
+              <span className="absolute right-3 top-1.5 rounded-full bg-brand-400 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white">
+                Página {index + 2}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </div>

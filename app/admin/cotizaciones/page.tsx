@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { SectionHeading } from "@/components/section-heading";
 import { getAdminFromCookies } from "@/lib/auth/admin";
 import { prisma } from "@/lib/prisma";
-import { canChooseQuoteVendor, getNextQuoteFolio, listQuoteVendorNames, listQuotes } from "@/lib/quotes/db";
+import { canChooseQuoteVendor, getNextQuoteFolio, listQuoteVendorChoices, listQuotes } from "@/lib/quotes/db";
 
 import { QuotesList } from "./QuotesList";
 
@@ -22,7 +22,7 @@ export default async function CotizacionesAdminPage() {
       select: { username: true, email: true },
     }),
     getNextQuoteFolio(),
-    canChooseQuoteVendor(admin) ? listQuoteVendorNames() : undefined,
+    canChooseQuoteVendor(admin) ? listQuoteVendorChoices() : undefined,
   ]);
 
   return (

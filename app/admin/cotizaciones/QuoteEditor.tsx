@@ -13,6 +13,8 @@ import {
   createEmptyQuoteData,
   formatQuoteDate,
   formatQuoteHotels,
+  getMinorAges,
+  QUOTE_HIDDEN_FIELDS,
   QUOTE_OPTIONAL_FIELDS,
   QUOTE_TEXT_FIELDS,
   type QuoteData,
@@ -43,8 +45,11 @@ const LOCKED_FIELDS: QuoteTextField[] = ["vendorName"];
 // Filled with today's date on a new quote; no box needed.
 const PLAIN_FIELDS: QuoteTextField[] = ["quoteDate"];
 
-// Fields counted in "Faltan X de Y"; optional ones (client phone) don't count.
-const REQUIRED_FIELDS = QUOTE_TEXT_FIELDS.filter((field) => !QUOTE_OPTIONAL_FIELDS.includes(field));
+// Fields counted in "Faltan X de Y"; optional ones (client phone) don't count, and
+// neither does Reserva con, which is calculated from Mínimo por persona and can't be typed.
+const REQUIRED_FIELDS = QUOTE_TEXT_FIELDS.filter(
+  (field) => !QUOTE_OPTIONAL_FIELDS.includes(field) && field !== "depositTotal"
+);
 
 type SaveResponse = { quote?: QuoteRecord; pdfError?: string; error?: string };
 
@@ -79,15 +84,19 @@ export function QuoteEditor({
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
 
-  // Each option counts its hotel, price and stars.
+  // Each option counts its hotel, price and stars; each menor counts its age. Fields this
+  // type doesn't show (e.g. internacional's flight times) don't count.
+  const requiredFields = REQUIRED_FIELDS.filter((field) => !QUOTE_HIDDEN_FIELDS[data.kind].includes(field));
+  const minorAges = getMinorAges(data);
   const missingCount =
-    REQUIRED_FIELDS.filter((field) => !data[field].trim()).length +
+    requiredFields.filter((field) => !data[field].trim()).length +
     data.options.reduce(
       (count, option) =>
         count + (option.hotelName.trim() ? 0 : 1) + (option.totalPrice.trim() ? 0 : 1) + (option.stars ? 0 : 1),
       0
-    );
-  const totalCount = REQUIRED_FIELDS.length + data.options.length * 3;
+    ) +
+    minorAges.filter((age) => !age.trim()).length;
+  const totalCount = requiredFields.length + data.options.length * 3 + minorAges.length;
 
   const fileName = quote ? buildQuotePdfFileName(quote.folio, quote.data) : "COTIZACION.pdf";
   const pdfUrl = quote ? `/api/admin/quotes/${quote.id}/pdf` : null;

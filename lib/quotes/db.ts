@@ -32,6 +32,16 @@ export async function listQuoteVendorNames() {
   return users.map((user) => user.username || user.email);
 }
 
+// Admins left out of the Vendedor picker. They can still be the Vendedor of quotes they
+// already have (saving those keeps the name: resolveQuoteVendor checks the full list).
+const HIDDEN_QUOTE_VENDORS = ["annelise neufeld"];
+
+// Choices shown in the Vendedor picker.
+export async function listQuoteVendorChoices() {
+  const hidden = new Set(HIDDEN_QUOTE_VENDORS.map((name) => name.toLowerCase()));
+  return (await listQuoteVendorNames()).filter((name) => !hidden.has(name.toLowerCase()));
+}
+
 // Vendedor comes from the session. A name sent by the client is only accepted
 // from owner/tech, and only if it belongs to an existing admin.
 export async function resolveQuoteVendor(

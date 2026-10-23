@@ -10,9 +10,6 @@ import {
 } from "@/lib/quotes/dates";
 import type { QuoteData, QuoteIncludeItem } from "@/lib/quotes/types";
 
-// Matches the "21 días antes de la salida" text on the template.
-export const LIQUIDATION_DAYS_BEFORE = 21;
-
 // Money is typed without "$" ("1,500"); returns null when it isn't a number.
 function parseAmount(value: string) {
   const digits = value.replace(/[^\d.]/g, "");
@@ -115,23 +112,30 @@ export function applyDerivedFields(previous: QuoteData, next: QuoteData): QuoteD
     }
   }
 
-  // Liquidación follows the Salida date (also when the trip dates fill it above).
+  // Liquidación = Salida − "N días antes de la salida" (21 by default). Follows the Salida
+  // date (also when the trip dates fill it above) and the day count; a blank count leaves it.
   if (
     result.departureDate !== previous.departureDate ||
-    result.travelRange?.start !== previous.travelRange?.start
+    result.travelRange?.start !== previous.travelRange?.start ||
+    result.liquidationDays !== previous.liquidationDays
   ) {
     const departure = departureToIso(result);
-    if (departure) {
-      Object.assign(result, toLiquidationParts(addDays(departure, -LIQUIDATION_DAYS_BEFORE)));
+    const daysBefore = Number.parseInt(result.liquidationDays, 10);
+    if (departure && Number.isInteger(daysBefore) && daysBefore >= 0) {
+      Object.assign(result, toLiquidationParts(addDays(departure, -daysBefore)));
     }
   }
 
-  if (next.adults !== previous.adults || next.depositPerPerson !== previous.depositPerPerson) {
-    const adults = parseAmount(next.adults);
+  // Reserva con = Mínimo por persona × everyone going (adultos + menores; ages don't
+  // matter). It can't be typed, so it's cleared until the amount and head count are both there.
+  if (
+    next.adults !== previous.adults ||
+    next.minors !== previous.minors ||
+    next.depositPerPerson !== previous.depositPerPerson
+  ) {
+    const people = (parseAmount(next.adults) ?? 0) + (parseAmount(next.minors) ?? 0);
     const perPerson = parseAmount(result.depositPerPerson);
-    if (adults !== null && perPerson !== null) {
-      result.depositTotal = formatAmount(adults * perPerson);
-    }
+    result.depositTotal = perPerson !== null && people > 0 ? formatAmount(people * perPerson) : "";
   }
 
   // Uses `result` so nights filled from the travel dates above count as a change too.

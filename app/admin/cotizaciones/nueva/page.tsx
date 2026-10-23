@@ -5,7 +5,7 @@ import {
   canChooseQuoteVendor,
   getAdminDisplayName,
   getNextQuoteFolio,
-  listQuoteVendorNames,
+  listQuoteVendorChoices,
 } from "@/lib/quotes/db";
 
 import { QuoteEditor } from "../QuoteEditor";
@@ -21,7 +21,7 @@ export default async function NuevaCotizacionPage() {
   const [adminName, nextFolio, vendorOptions] = await Promise.all([
     getAdminDisplayName(admin.sub),
     getNextQuoteFolio(),
-    canChooseQuoteVendor(admin) ? listQuoteVendorNames() : undefined,
+    canChooseQuoteVendor(admin) ? listQuoteVendorChoices() : undefined,
   ]);
 
   return (
