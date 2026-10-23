@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 
 import { QuoteDocument, QUOTE_DOCUMENT_RESET_CSS, type QuoteDocumentEdit } from "@/components/quotes/QuoteDocument";
 import { QUOTE_PREVIEW_FONTS } from "@/lib/quotes/fonts";
@@ -250,9 +250,9 @@ function buildEdit(
           onClick={() => onChange({ ...data, options: [...data.options, createEmptyQuoteOption()] })}
           aria-label={`Agregar opción ${quoteOptionLetter(data.options.length)}`}
           title={`Agregar opción ${quoteOptionLetter(data.options.length)}`}
-          className="mt-3 self-center rounded-full bg-emerald-600 px-5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white shadow-sm transition-colors hover:bg-emerald-700"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm transition-colors hover:bg-emerald-700"
         >
-          Agregar +
+          <Plus aria-hidden="true" strokeWidth={2.25} className="h-3.5 w-3.5" />
         </button>
       ) : null,
     minorAges: <MinorAgesField data={data} onChange={onChange} />,
@@ -319,9 +319,11 @@ function buildEdit(
       <button
         type="button"
         onClick={() => onChange({ ...data, includes: [...data.includes, {}] })}
-        className="mt-2 self-start rounded-full border border-dashed border-brand-300 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700 hover:border-brand-500"
+        aria-label="Agregar nota"
+        title="Agregar nota"
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-dashed border-brand-400 text-brand-700 transition-colors hover:border-brand-500 hover:bg-brand-200/40"
       >
-        + Agregar nota
+        <Plus aria-hidden="true" strokeWidth={2.25} className="h-3.5 w-3.5" />
       </button>
     ),
   };

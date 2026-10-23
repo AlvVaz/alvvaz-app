@@ -11,6 +11,7 @@ import { applyDerivedFields } from "@/lib/quotes/derived";
 import {
   buildQuotePdfFileName,
   createEmptyQuoteData,
+  createQuoteDataFrom,
   formatQuoteDate,
   formatQuoteHotels,
   getMinorAges,
@@ -35,6 +36,8 @@ type QuoteEditorProps = {
   vendorOptions?: string[];
   // Type picked for a new quote (ignored when editing a saved one).
   kind?: QuoteKind;
+  // Earlier quote of the same type a new quote starts from (see createQuoteDataFrom).
+  draftData?: QuoteData | null;
   // Embedded in the list page: no page header, and the parent handles save/delete instead of navigation.
   embedded?: boolean;
   onSaved?: (quote: QuoteRecord, isNew: boolean) => void;
@@ -62,6 +65,7 @@ export function QuoteEditor({
   nextFolio = null,
   vendorOptions,
   kind = "aereo",
+  draftData = null,
   embedded = false,
   onSaved,
   onDeleted,
@@ -74,7 +78,7 @@ export function QuoteEditor({
   const [data, setData] = useState<QuoteData>(
     () =>
       initialQuote?.data ?? {
-        ...createEmptyQuoteData(kind),
+        ...(draftData ? createQuoteDataFrom(draftData) : createEmptyQuoteData(kind)),
         vendorName: currentAdminName,
         quoteDate: formatQuoteDate(new Date()),
       }

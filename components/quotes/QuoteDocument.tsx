@@ -24,7 +24,7 @@ export type QuoteDocumentEdit = {
   field: (field: QuoteTextField, repeat?: boolean) => ReactNode;
   option: (index: number, field: QuoteOptionField, repeat?: boolean) => ReactNode;
   optionStars: (index: number) => ReactNode;
-  // Button on an option's card that removes it, and the "Agregar +" button below the cards.
+  // Button on an option's card that removes it, and the green "+" next to the "Elige tu favorita" heading.
   removeOption: (index: number) => ReactNode;
   addOption: ReactNode;
   // The menores' ages in the sidebar's RESUMEN line (only rendered when there are menores).
@@ -241,7 +241,7 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
         width: "816px",
         // At least one letter page. More hotel options than fit make it taller and the
         // PDF continues on a second page (QUOTE_DOCUMENT_PRINT_CSS). Editing also adds
-        // things the PDF doesn't have (hints, "+ Agregar nota", Tel.).
+        // things the PDF doesn't have (hints, the "+" add buttons, Tel.).
         minHeight: "1056px",
         display: "flex",
         fontFamily: fonts.body,
@@ -445,7 +445,7 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
         style={{
           flexGrow: 1,
           boxSizing: "border-box",
-          padding: "40px 40px 28px",
+          padding: "28px 40px 28px",
           display: "flex",
           flexDirection: "column",
           // Repeats the top and bottom padding on every PDF page.
@@ -455,7 +455,7 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
       >
         <h1
           style={{
-            margin: "6px 0 0",
+            margin: 0,
             fontFamily: fonts.title,
             fontWeight: 800,
             fontSize: "40px",
@@ -538,7 +538,11 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
         </div>
 
         <div style={sectionHeader}>
-          <h2 style={{ margin: 0, fontFamily: display, fontWeight: 700, fontSize: "19px" }}>Elige tu favorita</h2>
+          {/* The editor's green "+" (add option) sits right after the title. */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <h2 style={{ margin: 0, fontFamily: display, fontWeight: 700, fontSize: "19px" }}>Elige tu favorita</h2>
+            {edit ? edit.addOption : null}
+          </div>
           <span style={{ ...label, marginLeft: "auto" }}>
             COSTOS POR {party(true)} · {edit ? edit.currency : data.currency}
           </span>
@@ -593,10 +597,13 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
             </div>
           ))}
         </div>
-        {edit ? edit.addOption : null}
 
         <div style={sectionHeader}>
-          <h2 style={{ margin: 0, fontFamily: display, fontWeight: 700, fontSize: "19px" }}>Incluye</h2>
+          {/* The editor's "+" (add item) sits right after the title. */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <h2 style={{ margin: 0, fontFamily: display, fontWeight: 700, fontSize: "19px" }}>Incluye</h2>
+            {edit ? edit.addInclude : null}
+          </div>
           <span style={{ ...label, marginLeft: "auto" }}>CONSULTA CON TU EJECUTIVO PARA MÁS DETALLES</span>
         </div>
         <div
@@ -639,7 +646,6 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
             </div>
           ))}
         </div>
-        {edit ? edit.addInclude : null}
 
         <div
           style={{

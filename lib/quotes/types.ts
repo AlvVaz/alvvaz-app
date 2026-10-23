@@ -27,7 +27,7 @@ export const DEFAULT_QUOTE_PLAN = "Plan Todo Incluido";
 
 export const DEFAULT_LIQUIDATION_DAYS = "21";
 
-// A quote starts with option A; the editor's "Agregar +" button adds the next letter.
+// A quote starts with option A; the editor's green "+" next to "Elige tu favorita" adds the next letter.
 export const QUOTE_MAX_OPTIONS = 26;
 
 export function quoteOptionLetter(index: number) {
@@ -206,6 +206,25 @@ export function createEmptyQuoteData(kind: QuoteKind = "aereo"): QuoteData {
     options: [createEmptyQuoteOption()],
     includes: DEFAULT_QUOTE_INCLUDES[kind].map((item) => ({ ...item })),
     travelRange: null,
+  };
+}
+
+// A new quote pre-filled from an earlier one (the latest of the same type, like new
+// contracts start from the latest contract). The trip, flights, options, prices and
+// Incluye carry over; the client and the people start empty, and so does Reserva con,
+// which is calculated from the people. The editor sets today's date and the Vendedor.
+export function createQuoteDataFrom(source: QuoteData): QuoteData {
+  return {
+    ...source,
+    clientName: "",
+    clientPhone: "",
+    adults: "",
+    minors: "",
+    minorAges: [],
+    depositTotal: "",
+    options: source.options.map((option) => ({ ...option })),
+    includes: source.includes.map((item) => ({ ...item })),
+    travelRange: source.travelRange ? { ...source.travelRange } : null,
   };
 }
 
