@@ -40,6 +40,9 @@ export function QuotesList({
   vendorOptions,
 }: QuotesListProps) {
   const [quotes, setQuotes] = useState(initialQuotes);
+  // Same list without the search filter (newest folio first), so a new quote can start
+  // from the latest one of its type whatever is being searched.
+  const [allQuotes, setAllQuotes] = useState(initialQuotes);
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isNewOpen, setIsNewOpen] = useState(false);
@@ -77,8 +80,22 @@ export function QuotesList({
     };
   }, [search]);
 
+  // Applies a change to both the shown list and the unfiltered one.
+  const updateLists = (change: (current: QuoteListItem[]) => QuoteListItem[]) => {
+    setQuotes(change);
+    setAllQuotes(change);
+  };
+
+  // A new quote starts from the latest one of the chosen type, like new contracts do.
+  // Picked once, when the type is chosen, so it doesn't change while the new quote is open.
+  const [draftQuote, setDraftQuote] = useState<QuoteListItem | null>(null);
+  const startNewQuote = (kind: QuoteKind) => {
+    setDraftQuote(allQuotes.find((item) => item.data.kind === kind) ?? null);
+    setNewKind(kind);
+  };
+
   const handleCreated = (quote: QuoteRecord) => {
-    setQuotes((current) => [{ ...quote, createdByName: currentAdminName }, ...current]);
+    updateLists((current) => [{ ...quote, createdByName: currentAdminName }, ...current]);
     setIsNewOpen(false);
     setNewKind(null);
     setNewEditorKey((key) => key + 1);
@@ -86,13 +103,13 @@ export function QuotesList({
   };
 
   const handleUpdated = (quote: QuoteRecord) => {
-    setQuotes((current) =>
+    updateLists((current) =>
       current.map((item) => (item.id === quote.id ? { ...item, ...quote } : item))
     );
   };
 
   const handleDeleted = (id: string) => {
-    setQuotes((current) => current.filter((item) => item.id !== id));
+    updateLists((current) => current.filter((item) => item.id !== id));
     setOpenIds((current) => {
       const next = new Set(current);
       next.delete(id);
@@ -148,7 +165,7 @@ export function QuotesList({
               <div className="mt-3 grid gap-3 sm:grid-cols-3">
                 <button
                   type="button"
-                  onClick={() => setNewKind("aereo")}
+                  onClick={() => startNewQuote("aereo")}
                   className="flex items-center gap-4 rounded-2xl border border-brand-200 bg-white p-5 text-left shadow-sm transition hover:border-brand-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
                 >
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-950 text-white">
@@ -171,7 +188,7 @@ export function QuotesList({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setNewKind("terrestre")}
+                  onClick={() => startNewQuote("terrestre")}
                   className="flex items-center gap-4 rounded-2xl border border-brand-200 bg-white p-5 text-left shadow-sm transition hover:border-brand-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
                 >
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-950 text-white">
@@ -196,7 +213,7 @@ export function QuotesList({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setNewKind("internacional")}
+                  onClick={() => startNewQuote("internacional")}
                   className="flex items-center gap-4 rounded-2xl border border-brand-200 bg-white p-5 text-left shadow-sm transition hover:border-brand-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
                 >
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-950 text-white">
@@ -224,6 +241,11 @@ export function QuotesList({
           ) : null}
           {isNewOpen && newKind ? (
             <div className="border-t border-slate-200 px-6 py-4">
+              {draftQuote ? (
+                <p className="mb-3 text-xs text-slate-500">
+                  Copiada de la cotización #{draftQuote.folio}. El cliente y los pasajeros empiezan vacíos.
+                </p>
+              ) : null}
               <QuoteEditor
                 key={newEditorKey}
                 initialQuote={null}
@@ -231,6 +253,7 @@ export function QuotesList({
                 nextFolio={nextFolio}
                 vendorOptions={vendorOptions}
                 kind={newKind}
+                draftData={draftQuote?.data}
                 embedded
                 onSaved={handleCreated}
               />
