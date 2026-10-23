@@ -56,6 +56,13 @@ function shortDateOnOrAfter(text: string, fromIso: string) {
     .find((iso): iso is string => iso !== null && iso >= fromIso) ?? null;
 }
 
+// The room every option shares (lowercase), or "" when they differ or none is typed:
+// the "Incluye" stay line only names the room when it's true for every option.
+export function sharedRoomType(data: Pick<QuoteData, "options">) {
+  const rooms = new Set(data.options.map((option) => option.roomType.trim().toLowerCase()));
+  return rooms.size === 1 ? [...rooms][0] : "";
+}
+
 // "Incluye" text for the default items marked `auto`. Empty sources leave the
 // text short instead of showing a wrong route or night count.
 function fillAutoInclude(item: QuoteIncludeItem, data: QuoteData): QuoteIncludeItem {
@@ -66,7 +73,7 @@ function fillAutoInclude(item: QuoteIncludeItem, data: QuoteData): QuoteIncludeI
   }
   if (item.auto === "stay") {
     const nights = data.nights.trim();
-    const room = data.roomType.trim().toLowerCase();
+    const room = sharedRoomType(data);
     return {
       ...item,
       title: nights ? `${nights} ${nights === "1" ? "noche" : "noches"}` : "",
@@ -93,6 +100,8 @@ export function applyDerivedFields(previous: QuoteData, next: QuoteData): QuoteD
       : option
   );
 
+  // Noches is never taken from the dates: travel days (e.g. an overnight bus) can make
+  // the nights of hospedaje differ from the date span, so it's always typed by hand.
   const range = next.travelRange;
   const rangeChanged =
     range &&
@@ -100,15 +109,13 @@ export function applyDerivedFields(previous: QuoteData, next: QuoteData): QuoteD
   if (range && rangeChanged) {
     result.departureDate = toShortDate(range.start);
     result.returnDate = toShortDate(range.end);
-    result.nights = String(daysBetween(range.start, range.end));
   } else if (next.departureDate !== previous.departureDate || next.returnDate !== previous.returnDate) {
-    // The other way around: Salida + Regreso fill Fechas de viaje and Noches.
+    // The other way around: Salida + Regreso fill Fechas de viaje.
     const start = departureToIso(result);
     const end = start ? shortDateOnOrAfter(result.returnDate, start) : null;
     if (start && end) {
       result.travelRange = { start, end };
       result.travelDates = formatTravelRange(start, end);
-      result.nights = String(daysBetween(start, end));
     }
   }
 
@@ -138,10 +145,11 @@ export function applyDerivedFields(previous: QuoteData, next: QuoteData): QuoteD
     result.depositTotal = perPerson !== null && people > 0 ? formatAmount(people * perPerson) : "";
   }
 
-  // Uses `result` so nights filled from the travel dates above count as a change too.
+  // The stay line follows Noches and the room all options share (sharedRoomType).
   const routeChanged =
     result.originCode !== previous.originCode || result.destinationCode !== previous.destinationCode;
-  const stayChanged = result.nights !== previous.nights || result.roomType !== previous.roomType;
+  const stayChanged =
+    result.nights !== previous.nights || sharedRoomType(result) !== sharedRoomType(previous);
   if (routeChanged || stayChanged) {
     result.includes = result.includes.map((item) =>
       (item.auto === "route" && routeChanged) || (item.auto === "stay" && stayChanged)

@@ -57,13 +57,13 @@ const FIELD_PLACEHOLDERS: Record<QuoteTextField, { placeholder: string; label: s
   quoteDate: { placeholder: "Fecha", label: "Fecha de cotización" },
   travelDates: { placeholder: "Fechas de viaje", label: "Fechas de viaje" },
   title: { placeholder: "Título del viaje", label: "Título" },
-  roomType: { placeholder: "Tipo de habitación", label: "Habitación" },
   nights: { placeholder: "#", label: "Noches" },
   originCode: { placeholder: "Origen", label: "Origen (código)" },
   destinationCode: { placeholder: "Destino", label: "Destino" },
   departureDate: { placeholder: "Fecha", label: "Fecha de salida" },
   departureTime: { placeholder: "Hora", label: "Hora de salida" },
   meetingPoint: { placeholder: "Lugar de reunión", label: "Punto de salida" },
+  returnPoint: { placeholder: "Lugar de llegada", label: "Punto de regreso" },
   returnDate: { placeholder: "Fecha", label: "Fecha de regreso" },
   returnTime: { placeholder: "Hora", label: "Hora de regreso" },
   adults: { placeholder: "#", label: "Adultos" },
@@ -79,6 +79,7 @@ const FIELD_PLACEHOLDERS: Record<QuoteTextField, { placeholder: string; label: s
 const OPTION_PLACEHOLDERS: Record<QuoteOptionField, { placeholder: string; label: string }> = {
   hotelName: { placeholder: "Nombre del hotel", label: "hotel" },
   totalPrice: { placeholder: "Precio", label: "precio total" },
+  roomType: { placeholder: "Tipo de habitación", label: "habitación" },
   plan: { placeholder: "Plan", label: "plan" },
 };
 
@@ -101,8 +102,9 @@ function withAutoHint(item: QuoteIncludeItem, data: QuoteData, content: ReactNod
   }
   if (item.auto === "stay") {
     const nightsHint = !item.title ? <b className="quote-include-hint"># noches </b> : null;
+    // Only while no option has a room yet; with different rooms the line leaves it out on purpose.
     const roomHint =
-      !data.roomType.trim() && item.detail === "de hospedaje" ? (
+      data.options.every((option) => !option.roomType.trim()) && item.detail === "de hospedaje" ? (
         <span className="quote-include-hint"> en habitación Tipo de habitación</span>
       ) : null;
     if (nightsHint || roomHint) {
@@ -247,7 +249,16 @@ function buildEdit(
       data.options.length < QUOTE_MAX_OPTIONS ? (
         <button
           type="button"
-          onClick={() => onChange({ ...data, options: [...data.options, createEmptyQuoteOption()] })}
+          // Starts with the room of the option above it, since most quotes repeat it.
+          onClick={() =>
+            onChange({
+              ...data,
+              options: [
+                ...data.options,
+                { ...createEmptyQuoteOption(), roomType: data.options[data.options.length - 1]?.roomType ?? "" },
+              ],
+            })
+          }
           aria-label={`Agregar opción ${quoteOptionLetter(data.options.length)}`}
           title={`Agregar opción ${quoteOptionLetter(data.options.length)}`}
           className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm transition-colors hover:bg-emerald-700"
