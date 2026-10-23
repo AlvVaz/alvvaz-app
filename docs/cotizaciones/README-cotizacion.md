@@ -8,7 +8,7 @@
 
 ## Rules
 - The output must match `cotizacion-ejemplo.html` pixel for pixel: page is 816×1056 px (US Letter), same colors, spacing and font sizes. Keep the styles exactly as written.
-- One hotel per quote. (The app now quotes three hotel options per quote; see `feat-quoting.md`.)
+- One hotel per quote. (The app now quotes one or more hotel options per quote, and the PDF can run onto a second page; see `feat-quoting.md`.)
 - Every value is typed in by hand in the quoting form. Nothing is calculated (deposit, liquidation date, etc.).
 - Money values are entered without "$". The template adds "$" and, in the sidebar total only, ".00".
 - `stars` is an array with one empty object per star (4 stars = `[{},{},{},{}]`).

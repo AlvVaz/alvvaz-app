@@ -2,7 +2,10 @@ import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 
 import type { QuoteFonts } from "@/lib/quotes/fonts";
 import {
-  QUOTE_OPTION_LETTERS,
+  formatMinorAges,
+  getMinorAges,
+  QUOTE_HIDDEN_FIELDS,
+  quoteOptionLetter,
   type QuoteData,
   type QuoteIncludeItem,
   type QuoteKind,
@@ -11,8 +14,8 @@ import {
 } from "@/lib/quotes/types";
 
 // Started as a 1:1 port of docs/cotizaciones/cotizacion-template.html; the main
-// column now shows three hotel options instead of one hotel. Font families come
-// from QuoteFonts so the preview and the PDF can load them differently.
+// column now shows one card per hotel option (A, B, C...) instead of one hotel.
+// Font families come from QuoteFonts so the preview and the PDF can load them differently.
 
 // Slots the admin editor fills with inline inputs. The PDF never passes this,
 // so every value renders as plain text there.
@@ -21,6 +24,13 @@ export type QuoteDocumentEdit = {
   field: (field: QuoteTextField, repeat?: boolean) => ReactNode;
   option: (index: number, field: QuoteOptionField, repeat?: boolean) => ReactNode;
   optionStars: (index: number) => ReactNode;
+  // Button on an option's card that removes it, and the "Agregar +" button below the cards.
+  removeOption: (index: number) => ReactNode;
+  addOption: ReactNode;
+  // The menores' ages in the sidebar's RESUMEN line (only rendered when there are menores).
+  minorAges: ReactNode;
+  // MXN / USD picker on the "COSTOS POR" header; the other currency labels mirror it.
+  currency: ReactNode;
   // Wraps an "Incluye" item's rendered text in one field that edits all its parts.
   include: (index: number, content: ReactNode) => ReactNode;
   // Drag and drop (and Alt+↑/↓) handlers for an "Incluye" item's row.
@@ -44,6 +54,24 @@ export const QUOTE_DOCUMENT_RESET_CSS = `
 .quote-document * { box-sizing: content-box; }
 `;
 
+const SIDEBAR_BACKGROUND = "linear-gradient(180deg, #1d2a45 0%, #2b4d78 100%)";
+
+// PDF only. A quote with more hotel options than fit on one page continues on the
+// next: Chrome paginates the document and a fixed band (printed on every page) draws
+// the dark column, so the sidebar itself is transparent and keeps page 1's height.
+// If the sidebar runs longer (many options in the summary) it continues over the band
+// with its padding repeated. Each column only stretches to its own content, so a longer
+// sidebar doesn't push the main column's closing lines onto the next page (and vice
+// versa). Needs a transparent <body> (see lib/quotes/render-pdf.ts).
+export const QUOTE_DOCUMENT_PRINT_CSS = `
+@media print {
+  .quote-document { background: transparent !important; }
+  .quote-aside { align-self: flex-start; min-height: 1056px; background: none !important; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  .quote-main { align-self: flex-start; min-height: 1056px; }
+  body::before { content: ""; position: fixed; top: 0; left: 0; width: 236px; height: 1056px; background: ${SIDEBAR_BACKGROUND}; z-index: -1; }
+}
+`;
+
 const label: CSSProperties = {
   fontSize: "9.5px",
   fontWeight: 700,
@@ -60,6 +88,13 @@ const sectionHeader: CSSProperties = {
   alignItems: "baseline",
   paddingBottom: "8px",
   borderBottom: "2px solid #1c2942",
+  // A long title and label don't both fit: the label moves to its own line instead of
+  // each wrapping in half (it's pushed right with marginLeft: auto).
+  flexWrap: "wrap",
+  columnGap: "16px",
+  rowGap: "4px",
+  // On a multi-page PDF, a header never ends a page without its first row.
+  breakAfter: "avoid",
 };
 
 const optionCard: CSSProperties = {
@@ -69,6 +104,7 @@ const optionCard: CSSProperties = {
   padding: "8px 16px",
   border: "1px solid #d9e1ec",
   borderRadius: "12px",
+  breakInside: "avoid",
 };
 
 const optionBadge: CSSProperties = {
@@ -104,7 +140,8 @@ function IncludeText({ item }: { item: QuoteIncludeItem }) {
   );
 }
 
-// SALIDA / REGRESO card icon: a plane (taking off / landing) for aéreo, a bus for terrestre.
+// SALIDA / REGRESO card icon: a plane (taking off / landing) for aéreo and internacional,
+// a bus for terrestre.
 function TransportIcon({ kind, direction }: { kind: QuoteKind; direction: "out" | "back" }) {
   return (
     <svg
@@ -141,8 +178,16 @@ function TransportIcon({ kind, direction }: { kind: QuoteKind; direction: "out" 
   );
 }
 
-// Option A, B, C badges: navy, blue, light blue.
+// Option badges: navy, blue, light blue for A, B, C, then the same again for D, E, F...
 const OPTION_COLORS = ["#1c2942", "#2f6db5", "#5b9bd5"];
+
+// Sidebar "Métodos de pago": the same on every quote, not editable.
+const PAYMENT_METHODS: { label: string; note?: string }[] = [
+  { label: "Pago en efectivo directo en oficinas" },
+  { label: "Transferencia bancaria" },
+  { label: "Depósito en banco, Oxxo o Farmacias Guadalajara" },
+  { label: "Tarjeta de crédito en oficina", note: "+ comisión bancaria" },
+];
 
 const flightCard: CSSProperties = {
   background: "#f4f7fb",
@@ -170,6 +215,9 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
   // "2 ADULTOS Y 1 MENOR". Menores only shows when there are any, except at the
   // header input while editing, so it can be filled in.
   const minors = Number.parseInt(data.minors, 10) || 0;
+  const minorAgesText = formatMinorAges(getMinorAges(data));
+  // Internacional has no flight times (QUOTE_HIDDEN_FIELDS).
+  const hiddenFields = QUOTE_HIDDEN_FIELDS[data.kind];
   const adults = Number.parseInt(data.adults, 10);
   const plural = (value: string, one: string, many: string) => (value.trim() === "1" ? one : many);
   const party = (isInput: boolean) => (
@@ -191,23 +239,25 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
       className={["quote-document", className].filter(Boolean).join(" ")}
       style={{
         width: "816px",
-        // Editing adds things the PDF doesn't have (hints, "+ Agregar nota", Tel.),
-        // so the editor page grows instead of cutting off the bottom.
-        ...(edit ? { minHeight: "1056px" } : { height: "1056px" }),
+        // At least one letter page. More hotel options than fit make it taller and the
+        // PDF continues on a second page (QUOTE_DOCUMENT_PRINT_CSS). Editing also adds
+        // things the PDF doesn't have (hints, "+ Agregar nota", Tel.).
+        minHeight: "1056px",
         display: "flex",
         fontFamily: fonts.body,
         color: "#1c2942",
         background: "#ffffff",
-        overflow: "hidden",
+        ...(edit ? { overflow: "hidden" } : null),
       }}
     >
       <aside
+        className="quote-aside"
         style={{
           width: "236px",
           flexShrink: 0,
           boxSizing: "border-box",
-          padding: "40px 28px 32px",
-          background: "linear-gradient(180deg, #1d2a45 0%, #2b4d78 100%)",
+          padding: "40px 28px 28px",
+          background: SIDEBAR_BACKGROUND,
           color: "#ffffff",
           display: "flex",
           flexDirection: "column",
@@ -217,6 +267,8 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
           style={{
             width: "140px",
             height: "140px",
+            // Centered in the sidebar: the same space on its left and right.
+            alignSelf: "center",
             borderRadius: "50%",
             background: "#ffffff",
             display: "flex",
@@ -237,7 +289,7 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
           />
         </div>
 
-        <div style={{ ...asideLabel, marginTop: "34px" }}>COTIZACIÓN</div>
+        <div style={{ ...asideLabel, marginTop: "28px" }}>COTIZACIÓN</div>
         <div style={{ marginTop: "4px", fontSize: "30px", fontWeight: 800, letterSpacing: "0.02em" }}>
           #{folio}
         </div>
@@ -248,9 +300,14 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
         <div style={{ ...asideLabel, marginTop: "14px" }}>FECHAS DE VIAJE</div>
         <div style={{ marginTop: "4px", fontSize: "13.5px", fontWeight: 700 }}>{f("travelDates")}</div>
 
-        <div style={{ marginTop: "20px", height: "1px", background: "rgba(255,255,255,0.18)" }} />
+        <div style={{ marginTop: "16px", height: "1px", background: "rgba(255,255,255,0.18)" }} />
 
-        <div style={{ ...asideLabel, marginTop: "20px" }}>RESUMEN · {party(false)} (MXN)</div>
+        {/* With menores: "RESUMEN · 2 ADULTOS Y 2 MENORES (5 Y 8 AÑOS) (MXN)"; the editor shows a field for the ages. */}
+        <div style={{ ...asideLabel, marginTop: "16px" }}>
+          RESUMEN · {party(false)}
+          {minors > 0 ? (edit ? <> {edit.minorAges}</> : minorAgesText ? ` (${minorAgesText})` : null) : null} (
+          {data.currency})
+        </div>
         <div style={{ marginTop: "4px" }}>
           {data.options.map((_, index) => (
             <div
@@ -260,11 +317,11 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
                 justifyContent: "space-between",
                 gap: "8px",
                 fontSize: "12.5px",
-                padding: "8px 0",
+                padding: "5px 0",
                 borderBottom: "1px solid rgba(255,255,255,0.14)",
               }}
             >
-              <span style={{ color: "#dbe3f0" }}>Opción {QUOTE_OPTION_LETTERS[index]}</span>
+              <span style={{ color: "#dbe3f0" }}>Opción {quoteOptionLetter(index)}</span>
               <span style={{ fontWeight: 700 }}>${opt(index, "totalPrice", true)}.00</span>
             </div>
           ))}
@@ -272,11 +329,12 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
 
         <div
           style={{
-            marginTop: "18px",
+            marginTop: "14px",
             background: "#ffffff",
             borderRadius: "16px",
             padding: "18px 18px 16px",
             color: "#1c2942",
+            breakInside: "avoid",
           }}
         >
           <div style={label}>RESERVA CON</div>
@@ -289,17 +347,18 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
               gap: "5px",
             }}
           >
+            {/* Calculated from Mínimo por persona × pasajeros (lib/quotes/derived.ts), never typed. */}
             <span style={{ fontSize: "28px", fontWeight: 800, whiteSpace: "nowrap" }}>
-              ${f("depositTotal")}
+              ${f("depositTotal", true)}
             </span>
-            <span style={{ fontSize: "10px", fontWeight: 700, color: "#5d6b84" }}>MXN</span>
+            <span style={{ fontSize: "10px", fontWeight: 700, color: "#5d6b84" }}>{data.currency}</span>
           </div>
           <div style={{ marginTop: "4px", fontSize: "11px", color: "#5d6b84" }}>
-            ${f("depositPerPerson")} mínimo por persona
+            ${f("depositPerPerson", true)} mínimo por persona
           </div>
         </div>
 
-        <div style={{ marginTop: "16px", display: "flex", gap: "12px", alignItems: "flex-start" }}>
+        <div style={{ marginTop: "14px", display: "flex", gap: "12px", alignItems: "flex-start", breakInside: "avoid" }}>
           <div
             style={{
               width: "48px",
@@ -340,8 +399,31 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
           <div>
             <div style={{ fontSize: "12.5px", fontWeight: 700 }}>Liquidación del viaje</div>
             <div style={{ marginTop: "2px", fontSize: "11px", lineHeight: 1.4, color: "#dbe3f0" }}>
-              21 días antes de la salida. Abona semanal, quincenal o mensual.
+              {f("liquidationDays")} {plural(data.liquidationDays, "día", "días")} antes de la salida. Abona
+              semanal, quincenal o mensual.
             </div>
+          </div>
+        </div>
+
+        {/* Compact on purpose: the sidebar has to fit about four options on one page. */}
+        <div style={{ marginTop: "16px", breakInside: "avoid" }}>
+          <div style={asideLabel}>MÉTODOS DE PAGO</div>
+          <div style={{ marginTop: "2px" }}>
+            {PAYMENT_METHODS.map((method) => (
+              <div
+                key={method.label}
+                style={{
+                  padding: "3px 0",
+                  borderBottom: "1px solid rgba(255,255,255,0.14)",
+                  fontSize: "10px",
+                  lineHeight: 1.35,
+                  color: "#dbe3f0",
+                }}
+              >
+                {method.label}
+                {method.note ? <span style={{ color: "#8fc1f0" }}> ({method.note})</span> : null}
+              </div>
+            ))}
           </div>
         </div>
 
@@ -359,12 +441,16 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
       </aside>
 
       <main
+        className="quote-main"
         style={{
           flexGrow: 1,
           boxSizing: "border-box",
           padding: "40px 40px 28px",
           display: "flex",
           flexDirection: "column",
+          // Repeats the top and bottom padding on every PDF page.
+          boxDecorationBreak: "clone",
+          WebkitBoxDecorationBreak: "clone",
         }}
       >
         <h1
@@ -381,7 +467,7 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
           {f("title")}
         </h1>
         <div style={{ marginTop: "6px", fontFamily: display, fontStyle: "italic", fontSize: "15px", color: "#5d6b84" }}>
-          {f("nights")} noches con salida desde {f("originCode")} · elige el hotel que más te guste
+          {f("nights")} noches con salida desde {f("originCode")}
         </div>
 
         <div
@@ -426,7 +512,8 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
                 SALIDA · {f("originCode", true)} → {f("destinationCode")}
               </div>
               <div style={{ marginTop: "2px", fontSize: "14px", fontWeight: 700 }}>
-                {f("departureDate")} · {f("departureTime")}
+                {f("departureDate")}
+                {hiddenFields.includes("departureTime") ? null : <> · {f("departureTime")}</>}
               </div>
               {/* Terrestre only; hidden on the PDF when empty, always editable in the editor. */}
               {data.kind === "terrestre" && (edit || data.meetingPoint.trim()) ? (
@@ -443,21 +530,26 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
                 REGRESO · {f("destinationCode", true)} → {f("originCode", true)}
               </div>
               <div style={{ marginTop: "2px", fontSize: "14px", fontWeight: 700 }}>
-                {f("returnDate")} · {f("returnTime")}
+                {f("returnDate")}
+                {hiddenFields.includes("returnTime") ? null : <> · {f("returnTime")}</>}
               </div>
             </div>
           </div>
         </div>
 
         <div style={sectionHeader}>
-          <h2 style={{ margin: 0, fontFamily: display, fontWeight: 700, fontSize: "19px" }}>Opciones de hotel</h2>
-          <span style={label}>COSTOS POR {party(true)} · MXN</span>
+          <h2 style={{ margin: 0, fontFamily: display, fontWeight: 700, fontSize: "19px" }}>Elige tu favorita</h2>
+          <span style={{ ...label, marginLeft: "auto" }}>
+            COSTOS POR {party(true)} · {edit ? edit.currency : data.currency}
+          </span>
         </div>
         <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "6px" }}>
           {data.options.map((option, index) => (
             <div key={index} style={optionCard}>
-              <span style={{ ...optionBadge, fontFamily: display, background: OPTION_COLORS[index] }}>
-                {QUOTE_OPTION_LETTERS[index]}
+              <span
+                style={{ ...optionBadge, fontFamily: display, background: OPTION_COLORS[index % OPTION_COLORS.length] }}
+              >
+                {quoteOptionLetter(index)}
               </span>
               <div style={{ flexGrow: 1, minWidth: 0 }}>
                 <div
@@ -485,7 +577,8 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
                   )}
                 </div>
                 <div style={{ marginTop: "2px", fontSize: "11px", color: "#5d6b84" }}>
-                  Habitación {f("roomType", index > 0)} · Plan Todo Incluido
+                  Habitación {f("roomType", index > 0)}
+                  {edit || option.plan.trim() ? <> · {opt(index, "plan")}</> : null}
                 </div>
               </div>
               <div style={{ flexShrink: 0, textAlign: "right" }}>
@@ -496,13 +589,15 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
                   {passengers === "1" ? "por 1 pasajero" : <>por los {passengers || f("adults", true)} pasajeros</>}
                 </div>
               </div>
+              {edit ? edit.removeOption(index) : null}
             </div>
           ))}
         </div>
+        {edit ? edit.addOption : null}
 
         <div style={sectionHeader}>
           <h2 style={{ margin: 0, fontFamily: display, fontWeight: 700, fontSize: "19px" }}>Incluye</h2>
-          <span style={label}>EN TODAS LAS OPCIONES</span>
+          <span style={{ ...label, marginLeft: "auto" }}>CONSULTA CON TU EJECUTIVO PARA MÁS DETALLES</span>
         </div>
         <div
           style={{
@@ -516,7 +611,7 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
             <div
               key={index}
               {...edit?.includeProps(index)}
-              style={{ padding: "8px 0", borderBottom: "1px solid #e3e9f1" }}
+              style={{ padding: "8px 0", borderBottom: "1px solid #e3e9f1", breakInside: "avoid" }}
             >
               {/* fit-content so the editor's hover box hugs the text; no visual change on the PDF */}
               <div
@@ -556,47 +651,54 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
             borderBottom: "1px solid #e3e9f1",
             fontSize: "12px",
             lineHeight: 1.5,
+            breakInside: "avoid",
           }}
         >
           <span style={{ fontFamily: display, fontSize: "16px", color: "#3f8ec9", width: "12px" }}>1</span>
           <span>
-            Con <b>${f("depositPerPerson", true)} como mínimo por persona</b> podemos reservar, y estar dando el
+            Con <b>${f("depositPerPerson")} como mínimo por persona</b> podemos reservar, y estar dando el
             resto poco a poco, <b>semanal, quincenal o mensual</b>. Teniendo que estar{" "}
-            <b>liquidado 21 días antes del viaje</b>.
+            <b>
+              liquidado {f("liquidationDays", true)} {plural(data.liquidationDays, "día", "días")} antes del viaje
+            </b>
+            .
           </span>
         </div>
 
         <div style={{ flexGrow: 1, minHeight: "12px" }} />
-        <div
-          style={{
-            background: "#fdecf1",
-            borderRadius: "12px",
-            padding: "12px 16px",
-            fontSize: "11.5px",
-            lineHeight: 1.45,
-            color: "#8f1239",
-          }}
-        >
-          <b>Recuerden: esto solo es una cotización.</b> Precios garantizados hasta obtener un pago en
-          firme. Paquetes sujetos a disponibilidad.
-        </div>
-        <div
-          style={{
-            marginTop: "8px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <span style={{ fontFamily: display, fontStyle: "italic", fontSize: "14px", color: "#2f6db5" }}>
-            Gracias por tu confianza.
-          </span>
-          <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.14em", color: "#5d6b84" }}>
-            AGENCIA ALVVAZ
-          </span>
-        </div>
-        <div style={{ marginTop: "6px", fontSize: "10px", color: "#5d6b84" }}>
-          Consulta las políticas generales con tu ejecutivo AlvVaz.
+        {/* The closing lines stay together when the PDF runs onto another page. */}
+        <div style={{ breakInside: "avoid" }}>
+          <div
+            style={{
+              background: "#fdecf1",
+              borderRadius: "12px",
+              padding: "12px 16px",
+              fontSize: "11.5px",
+              lineHeight: 1.45,
+              color: "#8f1239",
+            }}
+          >
+            <b>Recuerden: esto solo es una cotización.</b> Precios garantizados hasta obtener un pago en
+            firme. Paquetes sujetos a disponibilidad.
+          </div>
+          <div
+            style={{
+              marginTop: "8px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span style={{ fontFamily: display, fontStyle: "italic", fontSize: "14px", color: "#2f6db5" }}>
+              Gracias por tu confianza.
+            </span>
+            <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.14em", color: "#5d6b84" }}>
+              AGENCIA ALVVAZ
+            </span>
+          </div>
+          <div style={{ marginTop: "6px", fontSize: "10px", color: "#5d6b84" }}>
+            Consulta las políticas generales con tu ejecutivo AlvVaz.
+          </div>
         </div>
       </main>
     </div>

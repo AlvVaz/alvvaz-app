@@ -4,7 +4,11 @@ import { createElement } from "react";
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
 
-import { QuoteDocument, QUOTE_DOCUMENT_RESET_CSS } from "@/components/quotes/QuoteDocument";
+import {
+  QuoteDocument,
+  QUOTE_DOCUMENT_PRINT_CSS,
+  QUOTE_DOCUMENT_RESET_CSS,
+} from "@/components/quotes/QuoteDocument";
 import { QUOTE_PDF_FONT_FILES, QUOTE_PDF_FONTS } from "@/lib/quotes/fonts";
 import { formatQuoteHotels, type QuoteData } from "@/lib/quotes/types";
 
@@ -66,12 +70,15 @@ ${fontFaceCss}
 @page { size: letter; margin: 0; }
 html, body { margin: 0; padding: 0; background: #e9edf3; }
 * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.page { width: 816px; height: 1056px; margin: 24px auto; box-shadow: 0 4px 24px rgba(28,41,66,0.12); }
+.page { width: 816px; min-height: 1056px; margin: 24px auto; box-shadow: 0 4px 24px rgba(28,41,66,0.12); }
 @media print {
-  html, body { background: #ffffff; }
+  /* body stays transparent so the sidebar band from QUOTE_DOCUMENT_PRINT_CSS shows on every page. */
+  html { background: #ffffff; }
+  body { background: transparent; }
   .page { margin: 0; box-shadow: none; }
 }
 ${QUOTE_DOCUMENT_RESET_CSS}
+${QUOTE_DOCUMENT_PRINT_CSS}
 </style>
 </head>
 <body>

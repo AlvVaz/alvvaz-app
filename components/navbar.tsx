@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { useHideOnScroll } from "@/lib/use-hide-on-scroll";
 import { cn } from "@/lib/utils";
 
 const showReservations = false;
@@ -24,12 +25,21 @@ export function Navbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
+  // Admin only: slides up while scrolling down, back on scroll up. Never while the
+  // mobile menu is open, since a transformed header would trap its fixed drawer.
+  const hiddenOnScroll = useHideOnScroll(pathname.startsWith("/admin") && !open);
+
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/80">
+    <header
+      className={cn(
+        "sticky top-0 z-50 border-b border-slate-100 bg-white/80 transition-transform duration-300 ease-out motion-reduce:transition-none",
+        hiddenOnScroll && "-translate-y-full"
+      )}
+    >
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/#top" className="flex items-center gap-3" aria-label="Ir al inicio">
           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-brand-200">

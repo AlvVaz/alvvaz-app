@@ -20,6 +20,13 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Admin Navigation
+
+- Admin pages use a left sidebar (`app/admin/AdminNav.tsx`) with lucide-react icons. Menu items and the roles that see them are defined in `navItems` there.
+- On desktop the sidebar collapses to an icon rail; the choice is saved in the `admin-sidebar-collapsed` cookie so the layout renders the right width on first load. On mobile it opens as a slide-out drawer from the menu button.
+- The role badge and the settings link (`/admin/settings`) live at the bottom of the sidebar.
+- On admin pages the site's top bar slides up while scrolling down and comes back on scroll up; the sidebar moves up with it. Both use `lib/use-hide-on-scroll.ts`. Public pages keep the top bar fixed.
+
 ## Admin Payments
 
 - `/admin/contratos` can optionally create or replace an admin-only payment plan when a contract is saved; due dates are generated from reservation date through trip liquidation date.
@@ -32,11 +39,11 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 ## Admin Cotizaciones
 
 - `/admin/cotizaciones` works like Contratos: "Nueva cotización" expands inline, and saved quotes are listed below as cards that expand into the editor. Search by folio, client or hotel. `/admin/cotizaciones/[id]` still opens a single quote full-page.
-- "Agregar" first asks for the quote type: **Aéreo** or **Terrestre** (saved as `data.kind`, fixed once created). Both use the same template; terrestre shows a bus instead of planes, has its own default "Incluye" list and an optional "Punto de salida".
+- "Agregar" first asks for the quote type: **Aéreo**, **Terrestre** or **Internacional** (saved as `data.kind`, fixed once created). All use the same template; terrestre shows a bus instead of planes, has its own default "Incluye" list and an optional "Punto de salida"; internacional looks like aéreo but starts in USD.
 - Editing happens on the template itself: every value is underlined (yellow while empty, green once filled) and opens a small popover when clicked. Each value is an input in one place only; other places mirror it. "Incluye" items are one field each (title, detail and note in one popover), reordered by drag and drop. "Vista previa" shows the document exactly as the PDF renders it. The PDF never gets the edit slots (`QuoteDocument`'s `edit` prop).
 - Visibility matches contracts: owner and tech see every quote; admins only see, edit and delete the quotes they created (`createdById`). Other admins' quotes return 404 from the API.
-- The design started from `docs/cotizaciones/cotizacion-template.html` and now shows three hotel options (A, B, C: hotel, stars and price) in `components/quotes/QuoteDocument.tsx`; the live preview and the PDF both render this component.
-- Values that repeat other info fill themselves (`lib/quotes/derived.ts`): trip dates ↔ Salida/Regreso, noches, liquidación (Salida − 21 days), Reserva con, and the route/nights "Incluye" lines. They stay editable. Money is entered without `$` and gets thousands commas.
+- The design started from `docs/cotizaciones/cotizacion-template.html` and now shows one card per hotel option (hotel, stars and price) in `components/quotes/QuoteDocument.tsx`; the live preview and the PDF both render this component. A quote starts with option A and the green "Agregar +" button adds B, C, D... (up to Z). When the options don't fit on one letter page, the PDF continues on a second page.
+- Values that repeat other info fill themselves (`lib/quotes/derived.ts`): trip dates ↔ Salida/Regreso, noches, liquidación (Salida − 21 days), and the route/nights "Incluye" lines; they stay editable. Reserva con is always Mínimo por persona (typed in the "1 Con $…" note) × adultos + menores and can't be edited. Money is entered without `$` and gets thousands commas.
 - Folios are assigned by the database on first save, starting at 1000, and are never reused (one series for both types). The PDF downloads as `folio-cliente-título.pdf`, accents kept.
 - Every save regenerates the PDF with headless Chrome (`puppeteer-core` + `@sparticuz/chromium`) and uploads it to the private Supabase Storage bucket `quotes` (override with `SUPABASE_STORAGE_BUCKET_QUOTES`). If the PDF fails, the quote is still saved and "Generar PDF" retries. PDFs are only served through the authenticated `/api/admin/quotes/[id]/pdf` route.
 - Local PDF generation needs `CHROME_EXECUTABLE_PATH` in `.env.local` pointing at an installed Chrome, e.g. `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`. On Vercel the bundled Chromium is used.

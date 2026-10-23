@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { ChevronDown } from "lucide-react";
 
-import type { QuoteIncludeItem, QuoteIncludePart } from "@/lib/quotes/types";
+import {
+  formatMinorAges,
+  getMinorAges,
+  type QuoteData,
+  type QuoteIncludeItem,
+  type QuoteIncludePart,
+} from "@/lib/quotes/types";
 
 type InlineFieldProps = {
   value: string;
@@ -105,9 +112,13 @@ export function FieldPopover({ anchor, label, onClose, children, tabBetweenInput
     update();
     window.addEventListener("scroll", update, true);
     window.addEventListener("resize", update);
+    // Re-place it when its content grows (e.g. age boxes appearing as Menores is typed).
+    const observer = new ResizeObserver(update);
+    if (popoverRef.current) observer.observe(popoverRef.current);
     return () => {
       window.removeEventListener("scroll", update, true);
       window.removeEventListener("resize", update);
+      observer.disconnect();
     };
   }, [anchor]);
 
@@ -325,16 +336,189 @@ export function IncludeField({ item, onChange, onRemove, label, children }: Incl
   );
 }
 
+const MINOR_AGES_LABEL = "Edades de los menores";
+
+// Ages past the current Menores count are kept, so lowering it and raising it again restores them.
+const withMinorAges = (data: QuoteData, ages: string[]): QuoteData => ({
+  ...data,
+  minorAges: [...ages, ...data.minorAges.slice(ages.length)],
+});
+
+type MinorAgeInputsProps = {
+  // One entry per menor (see getMinorAges).
+  ages: string[];
+  onChange: (ages: string[]) => void;
+  onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
+  autoFocus?: boolean;
+};
+
+// "Menor 1 [#] años" boxes, one per line; digits only.
+function MinorAgeInputs({ ages, onChange, onKeyDown, autoFocus = false }: MinorAgeInputsProps) {
+  return (
+    <div className="flex flex-col gap-2">
+      {ages.map((age, index) => (
+        <label key={index} className="flex items-center gap-3 text-[11px] font-semibold text-slate-600">
+          <span className="w-16 shrink-0 whitespace-nowrap">Menor {index + 1}</span>
+          <input
+            autoFocus={autoFocus && index === 0}
+            value={age}
+            inputMode="numeric"
+            maxLength={2}
+            onChange={(event) =>
+              onChange(ages.map((current, i) => (i === index ? event.target.value.replace(/\D/g, "") : current)))
+            }
+            onKeyDown={onKeyDown}
+            placeholder="#"
+            className="w-12 rounded-xl border border-slate-200 px-2 py-1.5 text-center text-sm font-normal text-slate-900 outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200"
+          />
+          <span className="font-normal">años</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+type MinorsFieldProps = {
+  data: QuoteData;
+  onChange: (data: QuoteData) => void;
+  placeholder: string;
+  label: string;
+};
+
+// Menores count in the "COSTOS POR" header. Its popover also has the ages, right below the
+// number: the boxes follow the count as it's typed.
+export function MinorsField({ data, onChange, placeholder, label }: MinorsFieldProps) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  // Esc restores the count and ages as they were when the popover opened.
+  const [initial, setInitial] = useState({ minors: data.minors, minorAges: data.minorAges });
+  const ages = getMinorAges(data);
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      anchor?.focus();
+      setAnchor(null);
+    } else if (event.key === "Escape") {
+      onChange({ ...data, ...initial });
+    }
+  };
+
+  return (
+    <>
+      <FieldTrigger
+        value={data.minors}
+        state={data.minors.trim() ? "filled" : "optional"}
+        placeholder={placeholder}
+        label={label}
+        isOpen={Boolean(anchor)}
+        onOpen={(element) => {
+          setInitial({ minors: data.minors, minorAges: data.minorAges });
+          setAnchor(element);
+        }}
+      />
+      {anchor ? (
+        <FieldPopover anchor={anchor} label={label} onClose={() => setAnchor(null)} tabBetweenInputs>
+          <label className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
+            {label}
+            <input
+              autoFocus
+              value={data.minors}
+              inputMode="numeric"
+              maxLength={300}
+              onChange={(event) => onChange({ ...data, minors: event.target.value })}
+              onFocus={(event) => event.currentTarget.select()}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900 outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200"
+            />
+          </label>
+          {ages.length ? (
+            <div className="mt-3 border-t border-slate-100 pt-3">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
+                {MINOR_AGES_LABEL}
+              </p>
+              <MinorAgeInputs
+                ages={ages}
+                onChange={(next) => onChange(withMinorAges(data, next))}
+                onKeyDown={handleKeyDown}
+              />
+            </div>
+          ) : null}
+          <p className="mt-2 text-[11px] text-slate-500">
+            <b>Enter</b> listo · <b>Tab</b> siguiente · <b>Esc</b> deshacer
+          </p>
+        </FieldPopover>
+      ) : null}
+    </>
+  );
+}
+
+type MinorAgesFieldProps = {
+  data: QuoteData;
+  onChange: (data: QuoteData) => void;
+};
+
+// The menores' ages as one field ("(5 Y 8 AÑOS)") in the sidebar's RESUMEN line.
+export function MinorAgesField({ data, onChange }: MinorAgesFieldProps) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  // Esc restores the ages as they were when the popover opened.
+  const [initialAges, setInitialAges] = useState(data.minorAges);
+  const ages = getMinorAges(data);
+  const text = formatMinorAges(ages);
+
+  return (
+    <>
+      <FieldTrigger
+        value={text ? `(${text})` : ""}
+        state={ages.every((age) => age.trim()) ? "filled" : "missing"}
+        placeholder="(edades)"
+        label={MINOR_AGES_LABEL}
+        isOpen={Boolean(anchor)}
+        onOpen={(element) => {
+          setInitialAges(data.minorAges);
+          setAnchor(element);
+        }}
+      />
+      {anchor ? (
+        <FieldPopover anchor={anchor} label={MINOR_AGES_LABEL} onClose={() => setAnchor(null)} tabBetweenInputs>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">
+            {MINOR_AGES_LABEL}
+          </p>
+          <MinorAgeInputs
+            autoFocus
+            ages={ages}
+            onChange={(next) => onChange(withMinorAges(data, next))}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                anchor.focus();
+                setAnchor(null);
+              } else if (event.key === "Escape") {
+                onChange({ ...data, minorAges: initialAges });
+              }
+            }}
+          />
+          <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] text-slate-500">
+            <b>Enter</b> listo · <b>Tab</b> siguiente · <b>Esc</b> deshacer
+          </p>
+        </FieldPopover>
+      ) : null}
+    </>
+  );
+}
+
 type ChoiceFieldProps = {
   value: string;
   options: string[];
   onChange: (value: string) => void;
   placeholder: string;
   label: string;
+  // Small down arrow after the value so it reads as a dropdown (editor only).
+  showArrow?: boolean;
 };
 
 // Like InlineField, but the popover lists fixed choices instead of a text input.
-export function ChoiceField({ value, options, onChange, placeholder, label }: ChoiceFieldProps) {
+export function ChoiceField({ value, options, onChange, placeholder, label, showArrow = false }: ChoiceFieldProps) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
   return (
@@ -346,7 +530,26 @@ export function ChoiceField({ value, options, onChange, placeholder, label }: Ch
         label={label}
         isOpen={Boolean(anchor)}
         onOpen={setAnchor}
-      />
+      >
+        {showArrow && value ? (
+          <>
+            {value}
+            {/* Sized in em so it follows the text; the underline skips it (it isn't text). */}
+            <ChevronDown
+              aria-hidden="true"
+              strokeWidth={2.5}
+              style={{
+                width: "1.1em",
+                height: "1.1em",
+                marginLeft: "0.25em",
+                verticalAlign: "-0.2em",
+                transform: anchor ? "rotate(180deg)" : undefined,
+                transition: "transform 150ms ease",
+              }}
+            />
+          </>
+        ) : undefined}
+      </FieldTrigger>
       {anchor ? (
         <FieldPopover anchor={anchor} label={label} onClose={() => setAnchor(null)}>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-600">{label}</p>

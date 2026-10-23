@@ -145,7 +145,7 @@ export function QuotesList({
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
                 Tipo de cotización
               </p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
                 <button
                   type="button"
                   onClick={() => setNewKind("aereo")}
@@ -193,6 +193,31 @@ export function QuotesList({
                     </svg>
                   </span>
                   <span className="font-display text-lg text-brand-950">Terrestre</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewKind("internacional")}
+                  className="flex items-center gap-4 rounded-2xl border border-brand-200 bg-white p-5 text-left shadow-sm transition hover:border-brand-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-950 text-white">
+                    {/* Globe */}
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M3 12h18" />
+                      <path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z" />
+                    </svg>
+                  </span>
+                  <span className="font-display text-lg text-brand-950">Internacional</span>
                 </button>
               </div>
             </div>
