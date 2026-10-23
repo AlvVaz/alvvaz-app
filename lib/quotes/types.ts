@@ -16,12 +16,14 @@ export type QuoteOption = {
   hotelName: string;
   stars: number;
   totalPrice: string;
+  // "Habitación Estándar" on the card; each option has its own.
+  roomType: string;
   // Shown after the room type on the card ("Habitación Estándar · Plan Todo Incluido").
   // Optional: when cleared, the card shows just the room.
   plan: string;
 };
 
-export type QuoteOptionField = "hotelName" | "totalPrice" | "plan";
+export type QuoteOptionField = "hotelName" | "totalPrice" | "roomType" | "plan";
 
 export const DEFAULT_QUOTE_PLAN = "Plan Todo Incluido";
 
@@ -35,7 +37,7 @@ export function quoteOptionLetter(index: number) {
 }
 
 export function createEmptyQuoteOption(): QuoteOption {
-  return { hotelName: "", stars: 0, totalPrice: "", plan: DEFAULT_QUOTE_PLAN };
+  return { hotelName: "", stars: 0, totalPrice: "", roomType: "", plan: DEFAULT_QUOTE_PLAN };
 }
 
 // Every value is typed by hand in the form. Values that repeat other info are
@@ -85,13 +87,14 @@ export type QuoteData = {
   // Editor only (never printed on the PDF); optional.
   clientPhone: string;
   vendorName: string;
-  roomType: string;
   departureDate: string;
   departureTime: string;
   // Terrestre only, optional: where the group meets the bus (shown in the SALIDA card).
   meetingPoint: string;
   returnDate: string;
   returnTime: string;
+  // Terrestre only, optional: where the bus drops the group off (shown in the REGRESO card).
+  returnPoint: string;
   options: QuoteOption[];
   includes: QuoteIncludeItem[];
   // Dates picked in the travel calendar, so it reopens on them. Not shown on the PDF.
@@ -142,16 +145,21 @@ export const QUOTE_TEXT_FIELDS: QuoteTextField[] = [
   "clientName",
   "clientPhone",
   "vendorName",
-  "roomType",
   "departureDate",
   "departureTime",
   "meetingPoint",
   "returnDate",
   "returnTime",
+  "returnPoint",
 ];
 
 // Can be left empty: not required and not counted as missing in the editor.
-export const QUOTE_OPTIONAL_FIELDS: QuoteTextField[] = ["clientPhone", "minors", "meetingPoint"];
+export const QUOTE_OPTIONAL_FIELDS: QuoteTextField[] = [
+  "clientPhone",
+  "minors",
+  "meetingPoint",
+  "returnPoint",
+];
 
 // Fields a type doesn't show at all (not on the document, not counted in "Faltan").
 // Internacional has no flight times: the SALIDA / REGRESO cards show only the date.
@@ -311,10 +319,13 @@ export function parseQuoteData(input: unknown): QuoteData {
         hotelName: toText(option.hotelName),
         stars: toStars(option.stars),
         totalPrice: toText(option.totalPrice),
+        // Quotes saved before each option had its own room had one for the whole quote.
+        roomType: toText(typeof option.roomType === "string" ? option.roomType : source.roomType),
         // Options saved before the plan was editable all said "Plan Todo Incluido".
         plan: typeof option.plan === "string" ? toText(option.plan) : DEFAULT_QUOTE_PLAN,
       };
     })
+    // Room and plan don't count: old blank B/C got the quote's room copied in above.
     .filter((option) => option.hotelName.trim() || option.totalPrice.trim() || option.stars);
   data.options = options.length ? options : [createEmptyQuoteOption()];
 

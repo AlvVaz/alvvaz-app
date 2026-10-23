@@ -533,6 +533,12 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
                 {f("returnDate")}
                 {hiddenFields.includes("returnTime") ? null : <> · {f("returnTime")}</>}
               </div>
+              {/* Same as Punto de salida: terrestre only, hidden on the PDF when empty. */}
+              {data.kind === "terrestre" && (edit || data.returnPoint.trim()) ? (
+                <div style={{ marginTop: "3px", fontSize: "11px", lineHeight: 1.35, color: "#5d6b84" }}>
+                  Punto de regreso: <span style={{ color: "#1c2942", fontWeight: 600 }}>{f("returnPoint")}</span>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -581,7 +587,7 @@ export function QuoteDocument({ data, folio, logoSrc, fonts, className, edit }: 
                   )}
                 </div>
                 <div style={{ marginTop: "2px", fontSize: "11px", color: "#5d6b84" }}>
-                  Habitación {f("roomType", index > 0)}
+                  Habitación {opt(index, "roomType")}
                   {edit || option.plan.trim() ? <> · {opt(index, "plan")}</> : null}
                 </div>
               </div>
