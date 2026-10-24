@@ -58,7 +58,9 @@ function shortDateOnOrAfter(text: string, fromIso: string) {
 
 // The room every option shares (lowercase), or "" when they differ or none is typed:
 // the "Incluye" stay line only names the room when it's true for every option.
-export function sharedRoomType(data: Pick<QuoteData, "options">) {
+// Abierta cards have no room field, so its stay line never names one.
+export function sharedRoomType(data: Pick<QuoteData, "options" | "open">) {
+  if (data.open) return "";
   const rooms = new Set(data.options.map((option) => option.roomType.trim().toLowerCase()));
   return rooms.size === 1 ? [...rooms][0] : "";
 }
@@ -94,11 +96,21 @@ export function applyDerivedFields(previous: QuoteData, next: QuoteData): QuoteD
       result[field] = formatMoneyInput(next[field]);
     }
   }
-  result.options = next.options.map((option, index) =>
-    option.totalPrice !== previous.options[index]?.totalPrice
-      ? { ...option, totalPrice: formatMoneyInput(option.totalPrice) }
-      : option
-  );
+  result.options = next.options.map((option, index) => {
+    const before = previous.options[index];
+    const withTotal =
+      option.totalPrice !== before?.totalPrice
+        ? { ...option, totalPrice: formatMoneyInput(option.totalPrice) }
+        : option;
+    // Abierta: each category price of the option.
+    if (!option.rates || option.rates === before?.rates) return withTotal;
+    return {
+      ...withTotal,
+      rates: option.rates.map((rate, i) =>
+        rate.price !== before?.rates?.[i]?.price ? { ...rate, price: formatMoneyInput(rate.price) } : rate
+      ),
+    };
+  });
 
   // Noches is never taken from the dates: travel days (e.g. an overnight bus) can make
   // the nights of hospedaje differ from the date span, so it's always typed by hand.

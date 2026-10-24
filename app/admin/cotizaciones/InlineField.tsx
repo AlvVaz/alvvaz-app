@@ -20,7 +20,21 @@ type InlineFieldProps = {
   label: string;
   // Optional fields show a neutral dashed underline when empty instead of yellow.
   optional?: boolean;
+  // "text": one of Abierta's fixed texts. No underline (a dotted box on hover), skipped by
+  // Tab, "**text**" is bold, and empty hides it on the PDF.
+  variant?: "text";
+  // Template text a "text" field can go back to ("Restaurar").
+  defaultValue?: string;
+  // Shown on the document instead of the plain value (e.g. with the bold parts).
+  display?: ReactNode;
+  // Adds a remove button to the popover (e.g. "Quitar categoría").
+  onRemove?: () => void;
+  removeLabel?: string;
+  // Extra buttons in the popover (e.g. moving a category); each closes the popover first.
+  actions?: FieldAction[];
 };
+
+export type FieldAction = { label: string; title: string; onClick: () => void; disabled?: boolean };
 
 // Underline only: follows the text, never overlaps neighbors and doesn't move the layout.
 export const INLINE_FIELD_CSS = `
@@ -45,7 +59,17 @@ export const INLINE_FIELD_CSS = `
 .quote-include.is-drop-target { background-color: color-mix(in srgb, #2f6db5 8%, transparent); box-shadow: 0 0 0 2px #2f6db5; }
 .quote-popover { animation: quote-popover-in 140ms ease-out; }
 @keyframes quote-popover-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .quote-field, .quote-include, .quote-include-body { transition: none; } .quote-popover { animation: none; } }
+.quote-field[data-state="text"] { text-decoration-line: none; }
+.quote-field[data-state="text"]:hover, .quote-field[data-state="text"]:focus-visible, .quote-field[data-state="text"][data-open="true"] { outline: 1px dotted color-mix(in srgb, currentColor 70%, transparent); outline-offset: 2px; }
+.quote-aside .quote-include:hover .quote-include-body, .quote-aside .quote-include:has(.quote-field:focus-visible) .quote-include-body, .quote-aside .quote-include:has(.quote-field[data-open="true"]) .quote-include-body { background-color: rgba(255,255,255,0.14); box-shadow: 0 0 0 3px rgba(255,255,255,0.14); }
+.quote-section { position: relative; }
+.quote-section::before { content: ""; position: absolute; inset: -4px -8px; border: 1px dashed transparent; border-radius: 8px; pointer-events: none; transition: border-color 150ms ease; }
+.quote-section:hover::before, .quote-section:focus-within::before { border-color: #9fb6d6; }
+.quote-section-tools { position: absolute; top: 0; z-index: 3; display: flex; flex-direction: column; gap: 3px; opacity: 0; transition: opacity 150ms ease; }
+.quote-section-tools[data-area="main"] { left: -37px; }
+.quote-section-tools[data-area="aside"] { right: -27px; }
+.quote-section:hover > .quote-section-tools, .quote-section:focus-within > .quote-section-tools { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .quote-field, .quote-include, .quote-include-body, .quote-section::before, .quote-section-tools { transition: none; } .quote-popover { animation: none; } }
 `;
 
 const POPOVER_WIDTH = 300;
@@ -74,10 +98,19 @@ function getPosition(anchor: HTMLElement, popover: HTMLElement | null): Position
 // Returns false when there is none, so a closed field can let Tab leave the document.
 export function openSiblingField(anchor: HTMLElement, direction: 1 | -1) {
   const root = anchor.closest(".quote-document") ?? document;
+  // Abierta's fixed texts ("text" fields) are skipped, so Tab goes from value to value.
   const fields = Array.from(
-    root.querySelectorAll<HTMLElement>('.quote-field[role="button"], .quote-stars')
+    root.querySelectorAll<HTMLElement>('.quote-field[role="button"]:not([data-state="text"]), .quote-stars')
   );
-  const next = fields[fields.indexOf(anchor) + direction];
+  let index = fields.indexOf(anchor);
+  if (index < 0) {
+    // Tab from a skipped field: carry on from where it sits on the page.
+    const after = fields.findIndex(
+      (field) => anchor.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING
+    );
+    index = (after < 0 ? fields.length : after) - (direction === 1 ? 1 : 0);
+  }
+  const next = fields[index + direction];
   if (next?.classList.contains("quote-stars")) {
     const star =
       next.querySelector<HTMLElement>('[aria-checked="true"]') ?? next.querySelector<HTMLElement>("button");
@@ -132,6 +165,19 @@ export function FieldPopover({ anchor, label, onClose, children, tabBetweenInput
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [anchor, onClose]);
 
+  // Pickers with nothing to type in (calendars, the time picker) leave focus on the field
+  // itself, where the Tab handler below never sees the key; close and move on from there too.
+  useEffect(() => {
+    const handleAnchorKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      event.preventDefault();
+      onClose();
+      openSiblingField(anchor, event.shiftKey ? -1 : 1);
+    };
+    anchor.addEventListener("keydown", handleAnchorKeyDown);
+    return () => anchor.removeEventListener("keydown", handleAnchorKeyDown);
+  }, [anchor, onClose]);
+
   return createPortal(
     <div
       ref={popoverRef}
@@ -169,9 +215,26 @@ type TextPopoverProps = {
   placeholder: string;
   label: string;
   onClose: () => void;
+  isText?: boolean;
+  defaultValue?: string;
+  onRemove?: () => void;
+  removeLabel?: string;
+  actions?: FieldAction[];
 };
 
-function TextPopover({ anchor, value, onChange, placeholder, label, onClose }: TextPopoverProps) {
+function TextPopover({
+  anchor,
+  value,
+  onChange,
+  placeholder,
+  label,
+  onClose,
+  isText = false,
+  defaultValue,
+  onRemove,
+  removeLabel = "Quitar",
+  actions = [],
+}: TextPopoverProps) {
   // Esc restores the value the field had when the popover opened.
   const [initialValue] = useState(value);
 
@@ -198,9 +261,56 @@ function TextPopover({ anchor, value, onChange, placeholder, label, onClose }: T
           className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900 outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200"
         />
       </label>
+      {isText ? (
+        <p className="mt-2 text-[11px] text-slate-500">
+          <b>**texto**</b> en negritas · vacío no se muestra en el PDF
+        </p>
+      ) : null}
       <p className="mt-2 text-[11px] text-slate-500">
         <b>Enter</b> listo · <b>Tab</b> siguiente · <b>Esc</b> deshacer
       </p>
+      {(defaultValue !== undefined && value !== defaultValue) || onRemove || actions.length ? (
+        <div className="mt-2 flex items-center justify-end gap-4 border-t border-slate-100 pt-2">
+          {actions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              title={action.title}
+              disabled={action.disabled}
+              onClick={() => {
+                // Close first: after a move this field may show something else.
+                onClose();
+                action.onClick();
+              }}
+              className="text-[11px] font-semibold text-brand-700 hover:text-brand-900 disabled:cursor-default disabled:opacity-40"
+            >
+              {action.label}
+            </button>
+          ))}
+          {defaultValue !== undefined && value !== defaultValue ? (
+            <button
+              type="button"
+              onClick={() => onChange(defaultValue)}
+              className="text-[11px] font-semibold text-brand-700 hover:text-brand-900"
+            >
+              Restaurar
+            </button>
+          ) : null}
+          {onRemove ? (
+            <button
+              type="button"
+              onClick={() => {
+                // Close first: after removal this field may show something else.
+                onClose();
+                onRemove();
+              }}
+              className="text-[11px] font-semibold text-rose-600 hover:text-rose-700"
+            >
+              {removeLabel}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </FieldPopover>
   );
 }
@@ -209,7 +319,7 @@ type FieldTriggerProps = {
   value: string;
   // Shown instead of `value` (e.g. formatted text); leave empty to show the placeholder.
   children?: ReactNode;
-  state: "filled" | "missing" | "optional";
+  state: "filled" | "missing" | "optional" | "text";
   placeholder: string;
   label: string;
   isOpen: boolean;
@@ -236,7 +346,9 @@ export function FieldTrigger({ value, children, state, placeholder, label, isOpe
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           onOpen(event.currentTarget);
-        } else if (event.key === "Tab" && !isOpen) {
+        } else if (event.key === "Tab" && !isOpen && !event.defaultPrevented) {
+          // defaultPrevented: the open popover's listener on this field already moved on
+          // (see FieldPopover); this handler then sees the popover as closed.
           if (openSiblingField(event.currentTarget, event.shiftKey ? -1 : 1)) event.preventDefault();
         }
       }}
@@ -515,10 +627,20 @@ type ChoiceFieldProps = {
   label: string;
   // Small down arrow after the value so it reads as a dropdown (editor only).
   showArrow?: boolean;
+  // Shown on the document instead of the value (e.g. Abierta's transport icon).
+  display?: ReactNode;
 };
 
 // Like InlineField, but the popover lists fixed choices instead of a text input.
-export function ChoiceField({ value, options, onChange, placeholder, label, showArrow = false }: ChoiceFieldProps) {
+export function ChoiceField({
+  value,
+  options,
+  onChange,
+  placeholder,
+  label,
+  showArrow = false,
+  display,
+}: ChoiceFieldProps) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
   return (
@@ -531,14 +653,18 @@ export function ChoiceField({ value, options, onChange, placeholder, label, show
         isOpen={Boolean(anchor)}
         onOpen={setAnchor}
       >
-        {showArrow && value ? (
+        {display ? (
+          display
+        ) : showArrow && value ? (
           <>
             {value}
-            {/* Sized in em so it follows the text; the underline skips it (it isn't text). */}
+            {/* Sized in em so it follows the text; the underline skips it (it isn't text). Inline
+                because Tailwind's base styles make every svg a block, which put it on its own line. */}
             <ChevronDown
               aria-hidden="true"
               strokeWidth={2.5}
               style={{
+                display: "inline-block",
                 width: "1.1em",
                 height: "1.1em",
                 marginLeft: "0.25em",
@@ -580,19 +706,34 @@ export function ChoiceField({ value, options, onChange, placeholder, label, show
 }
 
 // Shows the value on the document; clicking it opens a small popover to type in.
-export function InlineField({ value, onChange, placeholder, label, optional = false }: InlineFieldProps) {
+export function InlineField({
+  value,
+  onChange,
+  placeholder,
+  label,
+  optional = false,
+  variant,
+  defaultValue,
+  display,
+  onRemove,
+  removeLabel,
+  actions,
+}: InlineFieldProps) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
   return (
     <>
       <FieldTrigger
         value={value}
-        state={value.trim() ? "filled" : optional ? "optional" : "missing"}
+        state={variant === "text" ? "text" : value.trim() ? "filled" : optional ? "optional" : "missing"}
         placeholder={placeholder}
         label={label}
         isOpen={Boolean(anchor)}
         onOpen={setAnchor}
-      />
+      >
+        {/* Empty stays empty so the placeholder shows. */}
+        {value ? display : undefined}
+      </FieldTrigger>
       {anchor ? (
         <TextPopover
           anchor={anchor}
@@ -601,6 +742,11 @@ export function InlineField({ value, onChange, placeholder, label, optional = fa
           placeholder={placeholder}
           label={label}
           onClose={() => setAnchor(null)}
+          isText={variant === "text"}
+          defaultValue={defaultValue}
+          onRemove={onRemove}
+          removeLabel={removeLabel}
+          actions={actions}
         />
       ) : null}
     </>

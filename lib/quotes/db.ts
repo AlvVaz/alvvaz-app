@@ -4,12 +4,14 @@ import { prisma } from "@/lib/prisma";
 import {
   formatQuoteHotels,
   parseQuoteData,
+  QUOTE_KIND_LABELS,
+  QUOTE_PAGE_SIZE,
   type QuoteData,
+  type QuoteKind,
   type QuoteListItem,
+  type QuoteListPage,
   type QuoteRecord,
 } from "@/lib/quotes/types";
-
-const QUOTE_LIST_LIMIT = 100;
 
 export type QuoteViewer = { sub: string; role: string };
 
@@ -76,13 +78,19 @@ export async function getNextQuoteFolio() {
   return row.is_called ? Number(row.last_value) + 1 : Number(row.last_value);
 }
 
+// Borradores live in the `data` JSON next to the quote's fields (no migration):
+// `status: "draft"` on a quote never saved for real, and `pendingDraft` with a saved quote's
+// autosaved edits. parseQuoteData leaves both out of `data`.
 function toQuoteRecord(quote: Quote): QuoteRecord {
+  const stored = (quote.data && typeof quote.data === "object" ? quote.data : {}) as Record<string, unknown>;
   return {
     id: quote.id,
     folio: quote.folio,
     clientName: quote.clientName,
     hotelName: quote.hotelName,
     data: parseQuoteData(quote.data),
+    status: stored.status === "draft" ? "draft" : null,
+    draftData: stored.pendingDraft ? parseQuoteData(stored.pendingDraft) : null,
     storageBucket: quote.storageBucket,
     storagePath: quote.storagePath,
     createdById: quote.createdById,
@@ -91,12 +99,17 @@ function toQuoteRecord(quote: Quote): QuoteRecord {
   };
 }
 
-export async function listQuotes(viewer: QuoteViewer, search?: string): Promise<QuoteListItem[]> {
-  const term = search?.trim() ?? "";
+// Quotes this viewer may see (see canAccessQuote).
+const visibleTo = (viewer: QuoteViewer): Prisma.QuoteWhereInput =>
+  viewer.role === "admin" ? { createdById: viewer.sub } : {};
+
+// One page of the list, newest folio first. A page past the end gives the last page.
+export async function listQuotes(viewer: QuoteViewer, search = "", page = 1): Promise<QuoteListPage> {
+  const term = search.trim();
   const folio = Number.parseInt(term.replace(/^#/, ""), 10);
   const where: Prisma.QuoteWhereInput = {
     AND: [
-      viewer.role === "admin" ? { createdById: viewer.sub } : {},
+      visibleTo(viewer),
       term
         ? {
             OR: [
@@ -109,12 +122,42 @@ export async function listQuotes(viewer: QuoteViewer, search?: string): Promise<
     ],
   };
 
+  const total = await prisma.quote.count({ where });
+  const pageCount = Math.max(1, Math.ceil(total / QUOTE_PAGE_SIZE));
+  const current = Math.min(Math.max(Math.trunc(page) || 1, 1), pageCount);
   const quotes = await prisma.quote.findMany({
     where,
     orderBy: { folio: "desc" },
-    take: QUOTE_LIST_LIMIT,
+    skip: (current - 1) * QUOTE_PAGE_SIZE,
+    take: QUOTE_PAGE_SIZE,
   });
 
+  return { quotes: await withCreatorNames(quotes), total, page: current };
+}
+
+// The newest quote of each type this viewer can see: a new quote of that type starts from it.
+// Borradores that were never saved are skipped (a few are read per type to get past them).
+// Quotes saved before types existed (no `kind`) aren't picked; any aéreo saved since is newer.
+export async function latestQuotesByKind(viewer: QuoteViewer) {
+  const kinds = Object.keys(QUOTE_KIND_LABELS) as QuoteKind[];
+  const latest = await Promise.all(
+    kinds.map((kind) =>
+      prisma.quote.findMany({
+        where: { AND: [visibleTo(viewer), { data: { path: ["kind"], equals: kind } }] },
+        orderBy: { folio: "desc" },
+        take: 10,
+      })
+    )
+  );
+  const result: Partial<Record<QuoteKind, QuoteRecord>> = {};
+  kinds.forEach((kind, index) => {
+    const saved = latest[index].map(toQuoteRecord).find((quote) => quote.status !== "draft");
+    if (saved) result[kind] = saved;
+  });
+  return result;
+}
+
+async function withCreatorNames(quotes: Quote[]): Promise<QuoteListItem[]> {
   const creatorIds = Array.from(
     new Set(quotes.map((quote) => quote.createdById).filter((id): id is string => Boolean(id)))
   );
@@ -149,6 +192,39 @@ export async function createQuote(data: QuoteData, createdById: string | null) {
   return toQuoteRecord(quote);
 }
 
+// A new quote's first autosave: it gets its folio now, and no PDF until it's saved for real.
+export async function createDraftQuote(data: QuoteData, createdById: string | null) {
+  const quote = await prisma.quote.create({
+    data: {
+      clientName: data.clientName,
+      hotelName: formatQuoteHotels(data),
+      data: { ...data, status: "draft" },
+      createdById,
+    },
+  });
+  return toQuoteRecord(quote);
+}
+
+// Autosave. A quote never saved for real is all borrador, so it's replaced; a saved quote
+// keeps its data and PDF and gets the edits on the side (pendingDraft).
+export async function saveQuoteDraft(existing: QuoteRecord, data: QuoteData) {
+  const quote = await prisma.quote.update({
+    where: { id: existing.id },
+    data:
+      existing.status === "draft"
+        ? { clientName: data.clientName, hotelName: formatQuoteHotels(data), data: { ...data, status: "draft" } }
+        : { data: { ...existing.data, pendingDraft: data } },
+  });
+  return toQuoteRecord(quote);
+}
+
+// Drops a saved quote's borrador: back to its last saved version.
+export async function discardQuoteDraft(existing: QuoteRecord) {
+  const quote = await prisma.quote.update({ where: { id: existing.id }, data: { data: existing.data } });
+  return toQuoteRecord(quote);
+}
+
+// Saving for real writes only the quote's fields, which also clears any borrador.
 export async function updateQuote(id: string, data: QuoteData) {
   const quote = await prisma.quote.update({
     where: { id },

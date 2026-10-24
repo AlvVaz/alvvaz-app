@@ -2,13 +2,23 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { SyntheticEvent } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import { QUOTE_KIND_LABELS, type QuoteKind, type QuoteListItem, type QuoteRecord } from "@/lib/quotes/types";
+import {
+  QUOTE_KIND_LABELS,
+  QUOTE_PAGE_SIZE,
+  type QuoteKind,
+  type QuoteListPage,
+  type QuoteRecord,
+} from "@/lib/quotes/types";
 
 import { QuoteEditor } from "./QuoteEditor";
 
 type QuotesListProps = {
-  initialQuotes: QuoteListItem[];
+  // Page 1 of the list (20 quotes) and the total.
+  initialPage: QuoteListPage;
+  // Newest quote of each type (latestQuotesByKind): a new quote starts from it.
+  initialLatestByKind: Partial<Record<QuoteKind, QuoteRecord>>;
   currentAdminName: string;
   initialNextFolio: number | null;
   // Only set for owner/tech: admins they can pick as Vendedor.
@@ -20,6 +30,53 @@ const dateFormatter = new Intl.DateTimeFormat("es-MX", {
   month: "short",
   year: "numeric",
 });
+
+const QUOTE_KINDS: QuoteKind[] = ["aereo", "terrestre", "internacional", "abierta"];
+
+// Each type's icon, in the "Agregar" chooser and in the list's Tipo column.
+function QuoteKindIcon({ kind }: { kind: QuoteKind }) {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {kind === "terrestre" ? (
+        <>
+          <rect x="4" y="3" width="16" height="14" rx="2" />
+          <path d="M4 11h16M8 21v-4M16 21v-4" />
+          <circle cx="8" cy="14" r="0.5" />
+          <circle cx="16" cy="14" r="0.5" />
+        </>
+      ) : kind === "internacional" ? (
+        // Globe
+        <>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3 12h18" />
+          <path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z" />
+        </>
+      ) : kind === "abierta" ? (
+        // Pencil: every text and section of an Abierta quote can be edited
+        <>
+          <path d="M13 21h8" />
+          <path d="m15 5 4 4" />
+          <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
+        </>
+      ) : (
+        <>
+          <path d="M2 16l20-6-2-3-7 2-6-5-2 1 4 6-5 1.5-2-2-1.5.5z" />
+          <path d="M3 20h18" />
+        </>
+      )}
+    </svg>
+  );
+}
 
 const getCreatorInitials = (value?: string | null) => {
   const cleaned = value?.trim();
@@ -34,15 +91,22 @@ const getCreatorInitials = (value?: string | null) => {
 };
 
 export function QuotesList({
-  initialQuotes,
+  initialPage,
+  initialLatestByKind,
   currentAdminName,
   initialNextFolio,
   vendorOptions,
 }: QuotesListProps) {
-  const [quotes, setQuotes] = useState(initialQuotes);
-  // Same list without the search filter (newest folio first), so a new quote can start
-  // from the latest one of its type whatever is being searched.
-  const [allQuotes, setAllQuotes] = useState(initialQuotes);
+  // The page being shown (20 quotes, newest folio first) of the whole list or the search.
+  const [quotes, setQuotes] = useState(initialPage.quotes);
+  const [total, setTotal] = useState(initialPage.total);
+  const [page, setPage] = useState(initialPage.page);
+  const pageCount = Math.max(1, Math.ceil(total / QUOTE_PAGE_SIZE));
+  // Bumped to load the current page again (after a quote is created or deleted).
+  const [reloadKey, setReloadKey] = useState(0);
+  const lastSearch = useRef("");
+  const listRef = useRef<HTMLElement>(null);
+  const [latestByKind, setLatestByKind] = useState(initialLatestByKind);
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isNewOpen, setIsNewOpen] = useState(false);
@@ -59,43 +123,60 @@ export function QuotesList({
       isFirstRun.current = false;
       return;
     }
+    // Typing waits a moment so each keystroke doesn't fetch; the page arrows load right away.
+    const delay = search !== lastSearch.current ? 250 : 0;
+    lastSearch.current = search;
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/admin/quotes?search=${encodeURIComponent(search)}`, {
+        const response = await fetch(`/api/admin/quotes?search=${encodeURIComponent(search)}&page=${page}`, {
           signal: controller.signal,
         });
-        const payload = await response.json();
-        if (response.ok) setQuotes(payload.quotes ?? []);
+        const payload = (await response.json()) as Partial<QuoteListPage>;
+        if (!response.ok) return;
+        const next = payload.quotes ?? [];
+        setQuotes(next);
+        setTotal(payload.total ?? 0);
+        // Past the end (e.g. the last quote of a page was deleted) the server sends the last page.
+        if (payload.page && payload.page !== page) setPage(payload.page);
+        // Cards that aren't listed anymore close (their editors autosave as they go).
+        const listed = new Set(next.map((quote) => quote.id));
+        setOpenIds((current) => new Set([...current].filter((id) => listed.has(id))));
       } catch {
         // Aborted or offline: keep the current list.
       } finally {
         if (!controller.signal.aborted) setIsLoading(false);
       }
-    }, 250);
+    }, delay);
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [search]);
+  }, [search, page, reloadKey]);
 
-  // Applies a change to both the shown list and the unfiltered one.
-  const updateLists = (change: (current: QuoteListItem[]) => QuoteListItem[]) => {
-    setQuotes(change);
-    setAllQuotes(change);
+  // Arrows under the list. Open cards on this page close; their editors save a borrador.
+  const goToPage = (target: number) => {
+    if (target < 1 || target > pageCount || target === page) return;
+    setPage(target);
+    listRef.current?.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "start",
+    });
   };
 
   // A new quote starts from the latest one of the chosen type, like new contracts do.
   // Picked once, when the type is chosen, so it doesn't change while the new quote is open.
-  const [draftQuote, setDraftQuote] = useState<QuoteListItem | null>(null);
+  const [draftQuote, setDraftQuote] = useState<QuoteRecord | null>(null);
   const startNewQuote = (kind: QuoteKind) => {
-    setDraftQuote(allQuotes.find((item) => item.data.kind === kind) ?? null);
+    setDraftQuote(latestByKind[kind] ?? null);
     setNewKind(kind);
   };
 
   const handleCreated = (quote: QuoteRecord) => {
-    updateLists((current) => [{ ...quote, createdByName: currentAdminName }, ...current]);
+    setLatestByKind((current) => ({ ...current, [quote.data.kind]: quote }));
+    // Reload the page: the total changes, and on page 1 the new quote shows at the top.
+    setReloadKey((key) => key + 1);
     setIsNewOpen(false);
     setNewKind(null);
     setNewEditorKey((key) => key + 1);
@@ -103,13 +184,38 @@ export function QuotesList({
   };
 
   const handleUpdated = (quote: QuoteRecord) => {
-    updateLists((current) =>
-      current.map((item) => (item.id === quote.id ? { ...item, ...quote } : item))
+    setQuotes((current) => current.map((item) => (item.id === quote.id ? { ...item, ...quote } : item)));
+    setLatestByKind((current) =>
+      current[quote.data.kind]?.id === quote.id ? { ...current, [quote.data.kind]: quote } : current
     );
   };
 
+  // The new quote's autosave. Its first borrador gets a folio, so it shows in the list and the
+  // next folio moves on; later ones update its card. Can arrive after the panel closed.
+  const handleNewDraftSaved = (quote: QuoteRecord, isNew: boolean) => {
+    if (isNew) {
+      setNextFolio(quote.folio + 1);
+      setReloadKey((key) => key + 1);
+    } else {
+      handleUpdated(quote);
+    }
+  };
+
+  // The new quote's borrador was deleted from its own panel.
+  const handleNewDeleted = () => {
+    setIsNewOpen(false);
+    setNewKind(null);
+    setNewEditorKey((key) => key + 1);
+    setReloadKey((key) => key + 1);
+  };
+
   const handleDeleted = (id: string) => {
-    updateLists((current) => current.filter((item) => item.id !== id));
+    setQuotes((current) => current.filter((item) => item.id !== id));
+    // A deleted quote isn't copied anymore; a reload finds the next latest.
+    setLatestByKind((current) =>
+      Object.fromEntries(Object.entries(current).filter(([, quote]) => quote?.id !== id))
+    );
+    setReloadKey((key) => key + 1);
     setOpenIds((current) => {
       const next = new Set(current);
       next.delete(id);
@@ -140,11 +246,14 @@ export function QuotesList({
           onToggle={(event) => {
             const isOpen = event.currentTarget.open;
             setIsNewOpen(isOpen);
-            // Closing the panel starts over at the type chooser next time.
+            // Closing the panel starts over at the type chooser next time (what was typed is
+            // already a borrador in the list).
             if (!isOpen) setNewKind(null);
           }}
         >
-          <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
+          {/* Closed: darker blue on hover. Open: the header stays blue so it reads as active. */}
+          <summary
+            className="cursor-pointer list-none rounded-3xl px-6 py-4 transition-colors duration-200 hover:bg-brand-200/60 group-open:rounded-b-none group-open:bg-brand-200/70 group-open:hover:bg-brand-200 motion-reduce:transition-none [&::-webkit-details-marker]:hidden">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="font-display text-lg text-brand-950">Nueva cotización</h3>
@@ -162,80 +271,20 @@ export function QuotesList({
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
                 Tipo de cotización
               </p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                <button
-                  type="button"
-                  onClick={() => startNewQuote("aereo")}
-                  className="flex items-center gap-4 rounded-2xl border border-brand-200 bg-white p-5 text-left shadow-sm transition hover:border-brand-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
-                >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-950 text-white">
-                    <svg
-                      width="22"
-                      height="22"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M2 16l20-6-2-3-7 2-6-5-2 1 4 6-5 1.5-2-2-1.5.5z" />
-                      <path d="M3 20h18" />
-                    </svg>
-                  </span>
-                  <span className="font-display text-lg text-brand-950">Aéreo</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => startNewQuote("terrestre")}
-                  className="flex items-center gap-4 rounded-2xl border border-brand-200 bg-white p-5 text-left shadow-sm transition hover:border-brand-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
-                >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-950 text-white">
-                    <svg
-                      width="22"
-                      height="22"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <rect x="4" y="3" width="16" height="14" rx="2" />
-                      <path d="M4 11h16M8 21v-4M16 21v-4" />
-                      <circle cx="8" cy="14" r="0.5" />
-                      <circle cx="16" cy="14" r="0.5" />
-                    </svg>
-                  </span>
-                  <span className="font-display text-lg text-brand-950">Terrestre</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => startNewQuote("internacional")}
-                  className="flex items-center gap-4 rounded-2xl border border-brand-200 bg-white p-5 text-left shadow-sm transition hover:border-brand-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
-                >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-950 text-white">
-                    {/* Globe */}
-                    <svg
-                      width="22"
-                      height="22"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <circle cx="12" cy="12" r="9" />
-                      <path d="M3 12h18" />
-                      <path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z" />
-                    </svg>
-                  </span>
-                  <span className="font-display text-lg text-brand-950">Internacional</span>
-                </button>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {QUOTE_KINDS.map((kind) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    onClick={() => startNewQuote(kind)}
+                    className="flex items-center gap-4 rounded-2xl border border-brand-200 bg-white p-5 text-left shadow-sm transition hover:border-brand-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
+                  >
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-950 text-white">
+                      <QuoteKindIcon kind={kind} />
+                    </span>
+                    <span className="font-display text-lg text-brand-950">{QUOTE_KIND_LABELS[kind]}</span>
+                  </button>
+                ))}
               </div>
             </div>
           ) : null}
@@ -256,6 +305,8 @@ export function QuotesList({
                 draftData={draftQuote?.data}
                 embedded
                 onSaved={handleCreated}
+                onDraftSaved={handleNewDraftSaved}
+                onDeleted={handleNewDeleted}
               />
             </div>
           ) : null}
@@ -268,18 +319,23 @@ export function QuotesList({
         <input
           type="search"
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          // A new search starts on its first page.
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
           placeholder="#1000, cliente u hotel"
           aria-label="Buscar cotizaciones"
           className="mt-4 w-full max-w-md rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200"
         />
       </section>
 
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-center gap-3">
+      <section ref={listRef} className="scroll-mt-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-display text-lg text-brand-950">Cotizaciones</h3>
-          <span className="inline-flex h-8 items-center rounded-full border border-brand-200 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
-            {quotes.length} cotizaciones
+          {/* All of them (or all the search matches), not just this page. */}
+          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+            {total} {total === 1 ? "cotización" : "cotizaciones"}
           </span>
         </div>
 
@@ -298,21 +354,33 @@ export function QuotesList({
               >
                 <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                   <div className="rounded-[28px] border border-brand-200/80 bg-gradient-to-br from-white via-brand-50 to-brand-200/60 px-6 py-3 text-brand-950 shadow-[0_12px_28px_rgba(77,143,224,0.16)]">
-                    <div className="grid items-center gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                          Cotización
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <p className="font-display text-lg text-brand-950">#{quote.folio}</p>
-                          <span className="rounded-full border border-brand-200 bg-white/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-brand-700">
-                            {QUOTE_KIND_LABELS[quote.data.kind]}
-                          </span>
+                    {/* Six centered columns; the short type name and Admin take less room so the
+                        client, hotels and dates get more. */}
+                    <div className="grid items-center gap-4 text-center md:grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)_minmax(0,0.8fr)_minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(0,1.2fr)]">
+                      <div className="flex min-w-0 items-center justify-center gap-3 text-left">
+                        {/* The type's name is the next column, so the icon is decorative. */}
+                        <span
+                          aria-hidden="true"
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-950 text-white"
+                        >
+                          <QuoteKindIcon kind={quote.data.kind} />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-display text-lg text-brand-950">#{quote.folio}</p>
+                            {/* Autosaved, not saved for real: never saved, or a saved one with pending edits. */}
+                            {quote.status === "draft" || quote.draftData ? (
+                              <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-amber-800">
+                                Borrador
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="text-xs text-brand-700/80">
+                            {dateFormatter.format(new Date(quote.createdAt))}
+                          </p>
                         </div>
-                        <p className="text-xs text-brand-700/80">
-                          {dateFormatter.format(new Date(quote.createdAt))}
-                        </p>
                       </div>
+                      <p className="min-w-0 truncate text-sm text-brand-900">{QUOTE_KIND_LABELS[quote.data.kind]}</p>
                       <div className="flex flex-col items-center gap-2 text-center">
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
                           Admin
@@ -366,6 +434,7 @@ export function QuotesList({
                       embedded
                       onSaved={handleUpdated}
                       onDeleted={handleDeleted}
+                      onDraftSaved={handleUpdated}
                     />
                   </div>
                 ) : null}
@@ -373,6 +442,34 @@ export function QuotesList({
             ))}
           </div>
         )}
+
+        {pageCount > 1 ? (
+          <nav aria-label="Páginas de cotizaciones" className="flex items-center justify-center gap-4 pt-2">
+            <button
+              type="button"
+              onClick={() => goToPage(page - 1)}
+              disabled={page <= 1 || isLoading}
+              aria-label="Página anterior"
+              title="Página anterior"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-brand-200 bg-white text-brand-700 shadow-sm transition hover:border-brand-400 hover:bg-brand-200/40 disabled:opacity-40 disabled:hover:border-brand-200 disabled:hover:bg-white"
+            >
+              <ChevronLeft aria-hidden="true" strokeWidth={2.25} className="h-5 w-5" />
+            </button>
+            <span className="text-sm font-semibold tabular-nums text-brand-900" aria-live="polite">
+              Página {page} de {pageCount}
+            </span>
+            <button
+              type="button"
+              onClick={() => goToPage(page + 1)}
+              disabled={page >= pageCount || isLoading}
+              aria-label="Página siguiente"
+              title="Página siguiente"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-brand-200 bg-white text-brand-700 shadow-sm transition hover:border-brand-400 hover:bg-brand-200/40 disabled:opacity-40 disabled:hover:border-brand-200 disabled:hover:bg-white"
+            >
+              <ChevronRight aria-hidden="true" strokeWidth={2.25} className="h-5 w-5" />
+            </button>
+          </nav>
+        ) : null}
       </section>
     </>
   );
