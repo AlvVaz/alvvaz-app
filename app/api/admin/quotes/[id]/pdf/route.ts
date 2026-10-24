@@ -74,6 +74,10 @@ export async function POST(_request: Request, { params }: RouteContext) {
   if (!quote || !canAccessQuote(admin, quote)) {
     return NextResponse.json({ error: "Cotización no encontrada." }, { status: 404 });
   }
+  // A borrador gets its PDF when it's saved for real (Guardar checks it first).
+  if (quote.status === "draft") {
+    return NextResponse.json({ error: "Guarda la cotización para generar el PDF." }, { status: 400 });
+  }
 
   try {
     const withPdf = await generateQuotePdf(quote);

@@ -3,7 +3,13 @@ import { redirect } from "next/navigation";
 import { SectionHeading } from "@/components/section-heading";
 import { getAdminFromCookies } from "@/lib/auth/admin";
 import { prisma } from "@/lib/prisma";
-import { canChooseQuoteVendor, getNextQuoteFolio, listQuoteVendorChoices, listQuotes } from "@/lib/quotes/db";
+import {
+  canChooseQuoteVendor,
+  getNextQuoteFolio,
+  latestQuotesByKind,
+  listQuoteVendorChoices,
+  listQuotes,
+} from "@/lib/quotes/db";
 
 import { QuotesList } from "./QuotesList";
 
@@ -15,8 +21,9 @@ export default async function CotizacionesAdminPage() {
     redirect("/admin/login");
   }
 
-  const [quotes, currentAdmin, nextFolio, vendorOptions] = await Promise.all([
+  const [firstPage, latestByKind, currentAdmin, nextFolio, vendorOptions] = await Promise.all([
     listQuotes(admin),
+    latestQuotesByKind(admin),
     prisma.adminUser.findUnique({
       where: { id: admin.sub },
       select: { username: true, email: true },
@@ -33,7 +40,8 @@ export default async function CotizacionesAdminPage() {
         subtitle="Crea cotizaciones, genera el PDF y compártelo."
       />
       <QuotesList
-        initialQuotes={quotes}
+        initialPage={firstPage}
+        initialLatestByKind={latestByKind}
         currentAdminName={currentAdmin?.username || currentAdmin?.email || admin.email}
         initialNextFolio={nextFolio}
         vendorOptions={vendorOptions}

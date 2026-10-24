@@ -4,13 +4,15 @@ import { getAdminFromCookies } from "@/lib/auth/admin";
 import {
   canAccessQuote,
   deleteQuote,
+  discardQuoteDraft,
   getAdminDisplayName,
   getQuote,
   resolveQuoteVendor,
+  saveQuoteDraft,
   updateQuote,
 } from "@/lib/quotes/db";
 import { generateQuotePdf, removeQuotePdf } from "@/lib/quotes/storage";
-import { formatQuoteHotels, parseQuoteData } from "@/lib/quotes/types";
+import { getQuoteSaveError, parseQuoteData } from "@/lib/quotes/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -44,12 +46,18 @@ export async function PUT(request: Request, { params }: RouteContext) {
   }
 
   const body = await request.json().catch(() => null);
+
+  // "Descartar borrador" on a saved quote: back to its last saved version.
+  if (body?.discardDraft === true) {
+    return NextResponse.json({ quote: await discardQuoteDraft(existing) });
+  }
+
   const data = parseQuoteData(body?.data);
-  if (!data.clientName.trim() || !formatQuoteHotels(data)) {
-    return NextResponse.json(
-      { error: "El cliente y al menos un hotel son obligatorios." },
-      { status: 400 }
-    );
+  // Autosave: kept as a borrador as it is, without checks or PDF (see saveQuoteDraft).
+  const isDraft = body?.draft === true;
+  const saveError = isDraft ? null : getQuoteSaveError(data);
+  if (saveError) {
+    return NextResponse.json({ error: saveError }, { status: 400 });
   }
 
   // Vendedor keeps its saved value (the creator, or the admin an owner/tech picked);
@@ -61,6 +69,10 @@ export async function PUT(request: Request, { params }: RouteContext) {
       existing.data.vendorName ||
       ((existing.createdById ? await getAdminDisplayName(existing.createdById) : null) ?? "")
   );
+
+  if (isDraft) {
+    return NextResponse.json({ quote: await saveQuoteDraft(existing, data) });
+  }
 
   const quote = await updateQuote(id, data);
 
