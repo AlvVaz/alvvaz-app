@@ -34,6 +34,7 @@ const getCachedComisionesData = unstable_cache(
           status: true,
           isSigned: true,
           isPaid: true,
+          storagePath: true,
         },
       }),
       prisma.trip.findMany({
@@ -78,9 +79,14 @@ export default async function ComisionesPage() {
     }))
     .filter((option) => option.value);
 
+  const analysisContracts = contracts.map(({ storagePath, ...contract }) => ({
+    ...contract,
+    hasPdf: Boolean(storagePath),
+  }));
+
   return (
     <AnalysisDashboard
-      contracts={contracts as AnalysisContract[]}
+      contracts={analysisContracts as AnalysisContract[]}
       trips={trips as AnalysisTrip[]}
       adminOptions={adminOptions}
     />

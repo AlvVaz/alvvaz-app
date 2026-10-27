@@ -24,6 +24,7 @@ export type AnalysisContract = {
   status: "pending" | "signed" | "paid" | "canceled";
   isSigned: boolean;
   isPaid: boolean;
+  hasPdf: boolean;
 };
 
 export type AnalysisTrip = {
@@ -276,6 +277,9 @@ export function AnalysisDashboard({
   const currentMonth = today.month;
   const [completedMonth, setCompletedMonth] = useState(today.defaultCompletedMonth);
   const [completedYear, setCompletedYear] = useState(today.defaultCompletedYear);
+  const [generatedPdfIds, setGeneratedPdfIds] = useState<Set<string>>(() => new Set());
+  const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   const rawMode = searchParams.get("mode");
   const rawYear = parseNumber(searchParams.get("year"));
@@ -603,16 +607,12 @@ export function AnalysisDashboard({
     const groups = Array.from(sellers.values()).map((entry) => ({
       ...entry,
       contracts: [...entry.contracts].sort((a, b) => {
-        const aParts = parseReservationParts(a.returnDate);
-        const bParts = parseReservationParts(b.returnDate);
-        const aKey = aParts ? toDateKey(aParts) : Number.POSITIVE_INFINITY;
-        const bKey = bParts ? toDateKey(bParts) : Number.POSITIVE_INFINITY;
-        if (aKey !== bKey) return aKey - bKey;
-        return (a.contractNumber ?? a.id).localeCompare(
-          b.contractNumber ?? b.id,
-          "es",
-          { sensitivity: "base" }
-        );
+        if (!a.contractNumber || !b.contractNumber) {
+          if (a.contractNumber) return -1;
+          if (b.contractNumber) return 1;
+          return a.id.localeCompare(b.id);
+        }
+        return a.contractNumber.localeCompare(b.contractNumber, "es", { numeric: true });
       }),
     }));
 
@@ -628,6 +628,41 @@ export function AnalysisDashboard({
 
     return { groups, totalContracts, totalAmount, maxTotal };
   }, [contracts, completedMonth, completedYear, today.dateKey]);
+
+  const handleGeneratePdf = async (contract: AnalysisContract) => {
+    if (generatingPdfId) return;
+    // Open the tab during the click so the browser doesn't block it as a popup.
+    const pdfWindow = window.open("", "_blank");
+    if (pdfWindow) {
+      pdfWindow.opener = null;
+      pdfWindow.document.title = "Generando PDF...";
+      pdfWindow.document.body.textContent = "Generando PDF...";
+    }
+    setGeneratingPdfId(contract.id);
+    setPdfError(null);
+    try {
+      const response = await fetch(`/api/admin/contracts/${contract.id}/pdf`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || "No se pudo generar el PDF.");
+      }
+      setGeneratedPdfIds((prev) => new Set(prev).add(contract.id));
+      const pdfUrl = `/contratos/${contract.id}/pdf`;
+      if (pdfWindow) {
+        pdfWindow.location.href = pdfUrl;
+      } else {
+        window.open(pdfUrl, "_blank", "noopener,noreferrer");
+      }
+    } catch (error) {
+      pdfWindow?.close();
+      const label = contract.contractNumber ? `#${contract.contractNumber}` : contract.id;
+      setPdfError(`${label}: ${(error as Error).message || "No se pudo generar el PDF."}`);
+    } finally {
+      setGeneratingPdfId(null);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -953,6 +988,8 @@ export function AnalysisDashboard({
           </span>
         </div>
 
+        {pdfError ? <p className="mt-3 text-sm text-rose-600">{pdfError}</p> : null}
+
         <div className="mt-5 space-y-3">
           {completedBySeller.groups.map((entry) => {
             const width =
@@ -1023,15 +1060,51 @@ export function AnalysisDashboard({
                   </div>
                 </summary>
 
-                <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-                  {entry.contracts.map((contract) => (
-                    <span
-                      key={contract.id}
-                      className="max-w-full break-all rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700"
-                    >
-                      {contract.contractNumber ? `#${contract.contractNumber}` : contract.id}
-                    </span>
-                  ))}
+                <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-x-4 gap-y-2 border-t border-slate-100 pt-3">
+                  {entry.contracts.map((contract) => {
+                    const label = contract.contractNumber
+                      ? `#${contract.contractNumber}`
+                      : contract.id;
+                    const hasPdf = contract.hasPdf || generatedPdfIds.has(contract.id);
+                    const isGenerating = generatingPdfId === contract.id;
+                    const tooltip = hasPdf
+                      ? "Ver PDF"
+                      : isGenerating
+                        ? "Generando PDF..."
+                        : "Sin PDF: clic para generar";
+                    const linkClassName =
+                      "max-w-full break-all text-left text-sm font-semibold tabular-nums text-brand-700 underline-offset-4 hover:underline";
+
+                    return (
+                      <span key={contract.id} className="group/pdf relative w-fit max-w-full">
+                        {hasPdf ? (
+                          <a
+                            href={`/contratos/${contract.id}/pdf`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={linkClassName}
+                          >
+                            {label}
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => void handleGeneratePdf(contract)}
+                            disabled={isGenerating}
+                            className={`${linkClassName} disabled:cursor-wait disabled:opacity-60`}
+                          >
+                            {label}
+                          </button>
+                        )}
+                        <span
+                          aria-hidden="true"
+                          className="pointer-events-none absolute -top-7 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 opacity-0 shadow-sm transition group-hover/pdf:opacity-100 group-focus-within/pdf:opacity-100"
+                        >
+                          {tooltip}
+                        </span>
+                      </span>
+                    );
+                  })}
                 </div>
               </details>
             );

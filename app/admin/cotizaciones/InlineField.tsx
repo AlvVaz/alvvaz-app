@@ -78,14 +78,29 @@ const VIEWPORT_MARGIN = 12;
 
 type Position = { top: number; left: number };
 
-// Below the field when it fits, otherwise above; always kept inside the viewport.
-function getPosition(anchor: HTMLElement, popover: HTMLElement | null): Position {
+// "above" keeps its offset from the field's top to the popover's bottom edge, so taller
+// content grows upward.
+type Placement = { side: "below" | "above"; offset: number };
+
+// Below the field when it fits, otherwise above; kept inside the viewport when it opens.
+function getPlacement(anchor: HTMLElement, popover: HTMLElement | null): Placement {
   const rect = anchor.getBoundingClientRect();
   const height = popover?.offsetHeight ?? 120;
-  const fitsBelow = rect.bottom + POPOVER_GAP + height <= window.innerHeight - VIEWPORT_MARGIN;
-  const top = fitsBelow
-    ? rect.bottom + POPOVER_GAP
-    : Math.max(VIEWPORT_MARGIN, rect.top - POPOVER_GAP - height);
+  if (rect.bottom + POPOVER_GAP + height <= window.innerHeight - VIEWPORT_MARGIN) {
+    return { side: "below", offset: POPOVER_GAP };
+  }
+  const top = Math.max(VIEWPORT_MARGIN, rect.top - POPOVER_GAP - height);
+  return { side: "above", offset: top + height - rect.top };
+}
+
+// Follows the field at the placement chosen on open, so scrolling never flips it.
+function getPosition(anchor: HTMLElement, popover: HTMLElement | null, placement: Placement): Position {
+  const rect = anchor.getBoundingClientRect();
+  const height = popover?.offsetHeight ?? 120;
+  const top =
+    placement.side === "below"
+      ? rect.bottom + placement.offset
+      : rect.top + placement.offset - height;
   const left = Math.min(
     Math.max(VIEWPORT_MARGIN, rect.left),
     window.innerWidth - POPOVER_WIDTH - VIEWPORT_MARGIN
@@ -138,18 +153,35 @@ type FieldPopoverProps = {
 // Floating card anchored to a field. Closes on outside click or Esc; Tab moves to the next field.
 export function FieldPopover({ anchor, label, onClose, children, tabBetweenInputs = false }: FieldPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState<Position>(() => getPosition(anchor, null));
+  const onCloseRef = useRef(onClose);
+  const [position, setPosition] = useState<Position>(() =>
+    getPosition(anchor, null, getPlacement(anchor, null))
+  );
 
   useLayoutEffect(() => {
-    const update = () => setPosition(getPosition(anchor, popoverRef.current));
+    onCloseRef.current = onClose;
+  });
+
+  useLayoutEffect(() => {
+    // Side and gap are picked once per field; after that it only moves along with the field.
+    const placement = getPlacement(anchor, popoverRef.current);
+    const update = () => setPosition(getPosition(anchor, popoverRef.current, placement));
+    const handleScroll = () => {
+      const rect = anchor.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > window.innerHeight) {
+        onCloseRef.current();
+        return;
+      }
+      update();
+    };
     update();
-    window.addEventListener("scroll", update, true);
+    window.addEventListener("scroll", handleScroll, true);
     window.addEventListener("resize", update);
     // Re-place it when its content grows (e.g. age boxes appearing as Menores is typed).
     const observer = new ResizeObserver(update);
     if (popoverRef.current) observer.observe(popoverRef.current);
     return () => {
-      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("scroll", handleScroll, true);
       window.removeEventListener("resize", update);
       observer.disconnect();
     };
