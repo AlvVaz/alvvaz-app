@@ -56,7 +56,7 @@ Titles in styled text ("𝗦𝗔𝗟𝗜𝗗𝗔𝗦 𝟮𝟬𝟮𝟳") produced
   - `issue-1793162532118` → `salidas-a-cancun-en-febrero-2027`
 - [x] Check the WhatsApp preview with a new share (title, description and the AlvVaz logo).
 - [x] Slugs stay fixed after creation: editing a title no longer changes the link (`updateMagazineIssue`).
-- [ ] "Contactar" on a shared magazine opens the WhatsApp of the admin who sent it (Enviar adds `?asesor=<admin id>`; falls back to /contacto). **Before merging:** run `ALTER TABLE "AdminUser" ADD COLUMN "whatsapp" TEXT;` in the SQL editor, then mark `20261028120000_add_admin_whatsapp` as applied. After deploy, each admin adds their WhatsApp in Settings → Mi perfil.
+- [x] "Contactar" on a shared magazine opens the WhatsApp of the admin who sent it (Enviar adds `?asesor=<admin id>`; falls back to /contacto). The `whatsapp` column was added in the SQL editor and `20261028120000_add_admin_whatsapp` recorded as applied (2026-10-28). After deploy, each admin adds their WhatsApp in Settings → Mi perfil.
 
 ## Code health
 
