@@ -451,6 +451,15 @@ export const RENAMED_MAGAZINE_SLUGS: Record<string, string> = {
   "issue-1793162532118": "salidas-a-cancun-en-febrero-2027",
 };
 
+// Admin who shared a magazine link (?asesor=<admin id>). Only public contact data.
+export async function getMagazineAdvisor(id: string) {
+  if (!id) return null;
+  return prisma.adminUser.findUnique({
+    where: { id },
+    select: { username: true, whatsapp: true },
+  });
+}
+
 export async function getMagazineIssueBySlug(slug: string) {
   const issue = await prisma.magazineIssue.findUnique({ where: { slug } });
   return issue ? mapIssue(issue) : null;

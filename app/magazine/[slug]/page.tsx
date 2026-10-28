@@ -7,6 +7,7 @@ import { FlipBook } from "@/components/magazine/FlipBook";
 import { buttonLinkStyles } from "@/components/ui/button";
 import { getMagazineIssueBySlug, getMagazinePages, RENAMED_MAGAZINE_SLUGS } from "@/lib/db";
 
+import { getMagazineContact } from "../contact";
 import { getIssueMetadata } from "../issue-metadata";
 
 export const dynamic = "force-dynamic";
@@ -18,18 +19,24 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function MagazineIssuePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ asesor?: string }>;
 }) {
   const { slug } = await params;
+  const { asesor } = await searchParams;
   const issue = await getMagazineIssueBySlug(slug);
   if (!issue) {
     const renamed = RENAMED_MAGAZINE_SLUGS[slug];
-    if (renamed) permanentRedirect(`/magazine/${renamed}`);
+    if (renamed) permanentRedirect(`/magazine/${renamed}${asesor ? `?asesor=${encodeURIComponent(asesor)}` : ""}`);
     notFound();
   }
 
-  const magazinePages = await getMagazinePages(issue.id);
+  const [magazinePages, contact] = await Promise.all([
+    getMagazinePages(issue.id),
+    getMagazineContact(asesor, issue.title),
+  ]);
   // TODO: PDF-to-image processing for uploaded PDFs so they can appear here.
   const fallbackPages = [
     {
@@ -124,14 +131,26 @@ export default async function MagazineIssuePage({
             <div>
               <h3 className="font-display text-xl text-brand-950">¿Quieres más detalles?</h3>
               <p className="text-sm text-slate-600">
-                Comparte la edición con tu asesor o solicita un itinerario personalizado.
+                {contact.advisorName
+                  ? `Escríbele a tu asesor, ${contact.advisorName}, por WhatsApp.`
+                  : "Comparte la edición con tu asesor o solicita un itinerario personalizado."}
               </p>
             </div>
-            <Link href="/contacto" className={buttonLinkStyles({ variant: "primary" })}>
-              Contactar
-            </Link>
+            {contact.external ? (
+              <a
+                href={contact.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={buttonLinkStyles({ variant: "primary" })}
+              >
+                Contactar
+              </a>
+            ) : (
+              <Link href={contact.href} className={buttonLinkStyles({ variant: "primary" })}>
+                Contactar
+              </Link>
+            )}
           </div>
-          {/* TODO: Integrate WhatsApp CTA once automation flows are ready. */}
         </section>
       </Container>
     </div>

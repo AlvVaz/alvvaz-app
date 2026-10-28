@@ -153,6 +153,7 @@ export default async function AdminSettingsPage({
     const usernameRaw = formData.get("username");
     const emailRaw = formData.get("email");
     const passwordRaw = formData.get("password");
+    const whatsappRaw = formData.get("whatsapp");
 
     const username =
       typeof usernameRaw === "string" ? usernameRaw.trim().toLowerCase() : "";
@@ -164,7 +165,13 @@ export default async function AdminSettingsPage({
       email?: string;
       passwordHash?: string;
       lastPasswordResetAt?: Date;
+      whatsapp?: string | null;
     } = {};
+
+    // Empty clears it; magazines this admin shares then fall back to the general contact page.
+    if (typeof whatsappRaw === "string") {
+      data.whatsapp = whatsappRaw.trim() || null;
+    }
 
     if (username) {
       data.username = username;
@@ -327,6 +334,20 @@ export default async function AdminSettingsPage({
                 defaultValue={adminRecord?.email ?? ""}
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200"
               />
+            </label>
+            <label className="block space-y-2 text-sm font-semibold text-slate-700">
+              WhatsApp
+              <input
+                name="whatsapp"
+                type="tel"
+                inputMode="tel"
+                defaultValue={adminRecord?.whatsapp ?? ""}
+                placeholder="444 123 4567"
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-200"
+              />
+              <span className="block text-xs font-normal text-slate-500">
+                Los clientes te contactan aquí desde las revistas que compartes.
+              </span>
             </label>
             <label className="block space-y-2 text-sm font-semibold text-slate-700">
               Nueva contraseña
