@@ -1,6 +1,7 @@
 import nextDynamic from "next/dynamic";
 
 import { SectionHeading } from "@/components/section-heading";
+import { getAdminFromCookies } from "@/lib/auth/admin";
 import { getMagazineIssues, getMagazineItems } from "@/lib/db";
 
 import { createIssueActionWithState, deleteIssueAction, updateIssueAction } from "./actions";
@@ -18,6 +19,7 @@ const UploadItemForm = nextDynamic(() =>
 export const dynamic = "force-dynamic";
 
 export default async function MagazineAdminPage() {
+  const admin = await getAdminFromCookies();
   const issues = await getMagazineIssues();
   const items = await getMagazineItems();
 
@@ -80,6 +82,7 @@ export default async function MagazineAdminPage() {
           items={items}
           updateIssueAction={updateIssueAction}
           deleteIssueAction={deleteIssueAction}
+          sharerId={admin?.sub ?? ""}
         />
       </section>
     </div>

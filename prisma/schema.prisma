@@ -46,6 +46,8 @@ model AdminUser {
   role         AdminRole @default(admin)
   lastLoginAt  DateTime?
   lastPasswordResetAt DateTime?
+  /// Shown to clients: "Contactar" on magazines this admin shares opens their WhatsApp.
+  whatsapp     String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 }

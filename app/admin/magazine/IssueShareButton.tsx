@@ -7,6 +7,8 @@ type IssueShareButtonProps = {
   title: string;
   deleteAction: (formData: FormData) => void;
   issueId: string;
+  // Admin sending the link; the magazine's "Contactar" opens their WhatsApp.
+  sharerId: string;
 };
 
 export default function IssueShareButton({
@@ -14,11 +16,12 @@ export default function IssueShareButton({
   title,
   deleteAction,
   issueId,
+  sharerId,
 }: IssueShareButtonProps) {
   const { confirm, dialog } = useConfirmDialog();
   const handleClick = () => {
     const origin = window.location.origin;
-    const shareUrl = `${origin}/magazine/${slug}/share`;
+    const shareUrl = `${origin}/magazine/${slug}/share?asesor=${encodeURIComponent(sharerId)}`;
     const message = `Hola, aquí está la revista ${title}: ${shareUrl}`;
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");

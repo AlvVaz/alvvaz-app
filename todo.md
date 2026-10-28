@@ -50,12 +50,13 @@ Merged to master (PRs #12, #13). Setup is done: `quotes` bucket, migration, `CHR
 
 Titles in styled text ("𝗦𝗔𝗟𝗜𝗗𝗔𝗦 𝟮𝟬𝟮𝟳") produced `issue-<timestamp>` links, and issue links showed no WhatsApp preview. Fixed in code: `slugify` converts styled text to plain letters, issue pages send Open Graph tags (title, description, AlvVaz logo), and the site has a default preview image.
 
-- [ ] After the fix is deployed, rename the 3 old slugs in the DB (the old links then redirect via `RENAMED_MAGAZINE_SLUGS` in `lib/db/store.ts`):
+- [x] After the fix is deployed, rename the 3 old slugs in the DB (the old links then redirect via `RENAMED_MAGAZINE_SLUGS` in `lib/db/store.ts`):
   - `issue-1793122203631` → `salidas-a-cancun-en-enero-2027`
   - `issue-1793156586533` → `experiencias-fuera-de-mexico-2027`
   - `issue-1793162532118` → `salidas-a-cancun-en-febrero-2027`
-- [ ] Check the WhatsApp preview with a new share (title, description and the AlvVaz logo).
+- [x] Check the WhatsApp preview with a new share (title, description and the AlvVaz logo).
 - [x] Slugs stay fixed after creation: editing a title no longer changes the link (`updateMagazineIssue`).
+- [ ] "Contactar" on a shared magazine opens the WhatsApp of the admin who sent it (Enviar adds `?asesor=<admin id>`; falls back to /contacto). **Before merging:** run `ALTER TABLE "AdminUser" ADD COLUMN "whatsapp" TEXT;` in the SQL editor, then mark `20261028120000_add_admin_whatsapp` as applied. After deploy, each admin adds their WhatsApp in Settings → Mi perfil.
 
 ## Code health
 

@@ -33,6 +33,7 @@ type MagazineIssuesManagerProps = {
   items: MagazineItem[];
   updateIssueAction: (formData: FormData) => void;
   deleteIssueAction: (formData: FormData) => void;
+  sharerId: string;
 };
 
 const FALLBACK_THUMB = "/magazine/placeholders/01.svg";
@@ -42,6 +43,7 @@ export function MagazineIssuesManager({
   items,
   updateIssueAction,
   deleteIssueAction,
+  sharerId,
 }: MagazineIssuesManagerProps) {
   const [localIssues, setLocalIssues] = useState<MagazineIssue[]>(() =>
     issues.slice().sort((a, b) => a.sortOrder - b.sortOrder)
@@ -204,6 +206,7 @@ export function MagazineIssuesManager({
                       title={issue.title}
                       deleteAction={deleteIssueAction}
                       issueId={issue.id}
+                      sharerId={sharerId}
                     />
                   </div>
                 </div>
