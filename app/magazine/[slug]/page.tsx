@@ -1,12 +1,20 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import { Container } from "@/components/container";
 import { FlipBook } from "@/components/magazine/FlipBook";
 import { buttonLinkStyles } from "@/components/ui/button";
-import { getMagazineIssueBySlug, getMagazinePages } from "@/lib/db";
+import { getMagazineIssueBySlug, getMagazinePages, RENAMED_MAGAZINE_SLUGS } from "@/lib/db";
+
+import { getIssueMetadata } from "../issue-metadata";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  return getIssueMetadata(slug, `/magazine/${slug}`);
+}
 
 export default async function MagazineIssuePage({
   params,
@@ -15,7 +23,11 @@ export default async function MagazineIssuePage({
 }) {
   const { slug } = await params;
   const issue = await getMagazineIssueBySlug(slug);
-  if (!issue) notFound();
+  if (!issue) {
+    const renamed = RENAMED_MAGAZINE_SLUGS[slug];
+    if (renamed) permanentRedirect(`/magazine/${renamed}`);
+    notFound();
+  }
 
   const magazinePages = await getMagazinePages(issue.id);
   // TODO: PDF-to-image processing for uploaded PDFs so they can appear here.

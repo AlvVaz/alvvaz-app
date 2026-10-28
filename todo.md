@@ -46,6 +46,17 @@ Merged to master (PRs #12, #13). Setup is done: `quotes` bucket, migration, `CHR
 - [ ] Ask the agency for the final aéreo baggage ("1 maleta de 15 kg…") and Traslados wording.
 - [ ] Later (deferred): WhatsApp "Enviar" straight to the client's number (`clientPhone`). A wa.me link can't attach the PDF; pick between open chat + download, an expiring PDF link, or the WhatsApp Business API.
 
+## Magazine (branch `feat/magazine-fix`)
+
+Titles in styled text ("𝗦𝗔𝗟𝗜𝗗𝗔𝗦 𝟮𝟬𝟮𝟳") produced `issue-<timestamp>` links, and issue links showed no WhatsApp preview. Fixed in code: `slugify` converts styled text to plain letters, issue pages send Open Graph tags (title, description, AlvVaz logo), and the site has a default preview image.
+
+- [ ] After the fix is deployed, rename the 3 old slugs in the DB (the old links then redirect via `RENAMED_MAGAZINE_SLUGS` in `lib/db/store.ts`):
+  - `issue-1793122203631` → `salidas-a-cancun-en-enero-2027`
+  - `issue-1793156586533` → `experiencias-fuera-de-mexico-2027`
+  - `issue-1793162532118` → `salidas-a-cancun-en-febrero-2027`
+- [ ] Check the WhatsApp preview with a new share (title, description and the AlvVaz logo).
+- [x] Slugs stay fixed after creation: editing a title no longer changes the link (`updateMagazineIssue`).
+
 ## Code health
 
 - [ ] **Existing lint errors.** `npm run lint` reports 23 errors and 26 warnings, in these files:
