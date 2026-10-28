@@ -442,6 +442,15 @@ export async function getMagazineIssues() {
   });
 }
 
+// Issues created with styled-text titles got "issue-<timestamp>" links before slugify
+// handled them, and those links were already shared. After their slugs were renamed,
+// the old links redirect here to the new ones.
+export const RENAMED_MAGAZINE_SLUGS: Record<string, string> = {
+  "issue-1793122203631": "salidas-a-cancun-en-enero-2027",
+  "issue-1793156586533": "experiencias-fuera-de-mexico-2027",
+  "issue-1793162532118": "salidas-a-cancun-en-febrero-2027",
+};
+
 export async function getMagazineIssueBySlug(slug: string) {
   const issue = await prisma.magazineIssue.findUnique({ where: { slug } });
   return issue ? mapIssue(issue) : null;
@@ -493,12 +502,8 @@ export async function updateMagazineIssue(
   const existing = await prisma.magazineIssue.findUnique({ where: { id } });
   if (!existing) return null;
 
-  let slug = existing.slug;
-  if (updates.title !== undefined && updates.title !== existing.title) {
-    const baseSlug = slugify(updates.title) || existing.slug;
-    slug = await uniqueSlug(baseSlug, id);
-  }
-
+  // The slug is set once at creation and never follows title edits: issue links get
+  // shared, and a changed slug would break them.
   const issue = await prisma.magazineIssue.update({
     where: { id },
     data: {
@@ -508,7 +513,6 @@ export async function updateMagazineIssue(
       ...(updates.thumbnailUrl !== undefined
         ? { thumbnailUrl: updates.thumbnailUrl }
         : {}),
-      ...(slug !== existing.slug ? { slug } : {}),
     },
   });
   return mapIssue(issue);

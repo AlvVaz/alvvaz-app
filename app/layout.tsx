@@ -30,9 +30,19 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
+  // Lets link previews (WhatsApp, Facebook...) resolve image paths to full URLs.
+  metadataBase: new URL("https://alvvaz.com.mx"),
   title: "AlvVaz | Agencia de viajes premium",
   description:
     "Viajes premium a playas de México y destinos internacionales con atención personalizada.",
+  openGraph: {
+    title: "AlvVaz | Agencia de viajes premium",
+    description: "Viajes premium a playas de México y destinos internacionales con atención personalizada.",
+    siteName: "AlvVaz",
+    locale: "es_MX",
+    type: "website",
+    images: ["/logoalvvaz.png"],
+  },
   icons: {
     icon: [{ url: "/favicon.ico?v=3", type: "image/x-icon" }],
     apple: "/apple-touch-icon.png?v=3",
