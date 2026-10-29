@@ -163,6 +163,8 @@ export async function createContractAction(
   const travelersRaw = String(formData.get("travelers") ?? "[]");
   const description = String(formData.get("description") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
+  // Shown under the destination on the PDF; kept in metadata (no column).
+  const subtitle = String(formData.get("subtitle") ?? "").trim();
   const totalPrice = String(formData.get("totalPrice") ?? "").trim();
   const firstPayment = String(formData.get("firstPayment") ?? "").trim();
   const balanceDue = String(formData.get("balanceDue") ?? "").trim();
@@ -214,7 +216,7 @@ export async function createContractAction(
     storageBucket: null,
     storagePath: null,
     mimeType: null,
-    metadata: {},
+    metadata: subtitle ? { subtitle } : {},
   };
   const paymentPlan = getPaymentPlanInputFromForm(formData, liquidationDate || departureDate);
   if (paymentPlan.error) {
@@ -341,6 +343,8 @@ export async function updateContractAction(
   const travelersRaw = String(formData.get("travelers") ?? "[]");
   const description = String(formData.get("description") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
+  // Shown under the destination on the PDF; kept in metadata (no column).
+  const subtitle = String(formData.get("subtitle") ?? "").trim();
   const totalPrice = String(formData.get("totalPrice") ?? "").trim();
   const firstPayment = String(formData.get("firstPayment") ?? "").trim();
   const balanceDue = String(formData.get("balanceDue") ?? "").trim();
@@ -405,6 +409,7 @@ export async function updateContractAction(
       status,
       isSigned,
       isPaid,
+      metadata: { ...existingContract.metadata, subtitle },
     });
   } catch (error) {
     if (isUniqueConstraintError(error)) {
