@@ -122,8 +122,8 @@ body{font-family:Manrope,system-ui,sans-serif;color:var(--ink);font-size:9.5pt;l
 .pad{padding:0 0.5in}
 .label{font-size:7pt;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 .num{font-variant-numeric:tabular-nums}
-header.pad{display:flex;align-items:center;gap:18px;padding-top:0.32in;padding-bottom:10px}
-header .logo{width:1.12in;height:auto;flex:none}
+header.pad{display:flex;align-items:center;gap:18px;padding-top:0.12in;padding-bottom:10px}
+header .logo{width:1.22in;height:auto;flex:none}
 header .titles{flex:1;min-width:0}
 header .eyebrow{font-size:7.7pt;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--blue)}
 header h1{font-family:Montserrat,sans-serif;font-weight:800;font-size:33pt;line-height:1;color:var(--navy);margin-top:3px;text-transform:uppercase}
@@ -189,7 +189,7 @@ td.cost{font-weight:800;font-size:12.1pt;white-space:nowrap;padding-left:12px}
 .tier span{font-size:7.3pt;color:var(--muted);font-weight:600}
 .tier:nth-child(1) b{color:#2c6faf}.tier:nth-child(2) b{color:#2a5d93}.tier:nth-child(3) b{color:#2b4a74}.tier:nth-child(4) b{color:#8a2a4f}.tier:nth-child(5){background:var(--rose-soft)}.tier:nth-child(5) b{color:var(--rose)}
 .accept{text-align:center;font-size:8.4pt;color:var(--muted);margin-top:10px}
-.sigs{display:grid;grid-template-columns:1fr 1fr;gap:0.6in;margin-top:32px;break-inside:avoid}
+.sigs{display:grid;grid-template-columns:1fr 1fr;gap:0.6in;margin-top:42px;break-inside:avoid}
 .sig{border-top:1.2px solid var(--navy);padding-top:5px;text-align:center}
 .sig b{display:block;font-size:9.2pt}
 .sig span{font-size:7.3pt}
@@ -320,7 +320,7 @@ ${CSS}
     <p class="thanks"><i>Gracias por tu confianza.</i></p>
 
     <section class="policies">
-      <h2>Políticas generales <span class="label">Lee antes de firmar</span></h2>
+      <h2>Políticas generales</h2>
       <ul>${POLICIES.map((policy) => `<li>${policy}</li>`).join("")}</ul>
       <div class="cancel">
         <span class="label">Cancelaciones de hotelería · penalidad sobre el total del viaje contratado</span>
@@ -332,7 +332,7 @@ ${CSS}
 
     <section class="sigs">
       <div class="sig"><b>${e(clientName)}</b><span class="label">Firma del cliente</span></div>
-      <div class="sig"><b>Agencia Alvvaz</b><span class="label">Firma y sello de la agencia</span></div>
+      <div class="sig"><b>Agencia Alvvaz</b><span class="label">Firma de la agencia</span></div>
     </section>
   </div>
 
