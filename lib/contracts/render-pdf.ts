@@ -122,11 +122,11 @@ body{font-family:Manrope,system-ui,sans-serif;color:var(--ink);font-size:9.5pt;l
 .pad{padding:0 0.5in}
 .label{font-size:7pt;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 .num{font-variant-numeric:tabular-nums}
-header.pad{display:flex;align-items:center;gap:18px;padding-top:0.42in;padding-bottom:10px}
+header.pad{display:flex;align-items:center;gap:18px;padding-top:0.32in;padding-bottom:10px}
 header .logo{width:1.12in;height:auto;flex:none}
 header .titles{flex:1;min-width:0}
 header .eyebrow{font-size:7.7pt;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--blue)}
-header h1{font-family:Philosopher,Georgia,serif;font-weight:700;font-size:33pt;line-height:1;color:var(--navy);margin-top:3px}
+header h1{font-family:Montserrat,sans-serif;font-weight:800;font-size:33pt;line-height:1;color:var(--navy);margin-top:3px;text-transform:uppercase}
 header .tag{font-family:Philosopher,Georgia,serif;font-style:italic;font-size:11pt;color:var(--muted);margin-top:4px}
 .meta{flex:none;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:7px}
 .badge{background:var(--navy);color:#fff;border-radius:999px;padding:6px 14px;font-weight:800;font-size:11.6pt;letter-spacing:.02em}
@@ -202,8 +202,9 @@ footer .waves{height:34px}
 `;
 
 export async function buildContractHtml(contract: Contract) {
-  const [manrope, philosopherRegular, philosopherBold, philosopherItalic, logo] = await Promise.all([
+  const [manrope, montserrat, philosopherRegular, philosopherBold, philosopherItalic, logo] = await Promise.all([
     toDataUri("fonts/Manrope-Variable.ttf", "font/ttf"),
+    toDataUri("fonts/Montserrat-Variable.ttf", "font/ttf"),
     toDataUri("fonts/Philosopher-Regular.ttf", "font/ttf"),
     toDataUri("fonts/Philosopher-Bold.ttf", "font/ttf"),
     toDataUri("fonts/Philosopher-Italic.ttf", "font/ttf"),
@@ -247,6 +248,7 @@ export async function buildContractHtml(contract: Contract) {
 <title>Reserva de viaje · Contrato ${number ? `#${e(number)}` : ""}</title>
 <style>
 @font-face{font-family:Manrope;font-weight:200 800;src:url(${manrope}) format('truetype')}
+@font-face{font-family:Montserrat;font-weight:100 900;src:url(${montserrat}) format('truetype')}
 @font-face{font-family:Philosopher;font-weight:400;src:url(${philosopherRegular}) format('truetype')}
 @font-face{font-family:Philosopher;font-weight:700;src:url(${philosopherBold}) format('truetype')}
 @font-face{font-family:Philosopher;font-style:italic;src:url(${philosopherItalic}) format('truetype')}
