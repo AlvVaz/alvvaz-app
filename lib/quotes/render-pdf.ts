@@ -1,14 +1,13 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { createElement } from "react";
-import chromium from "@sparticuz/chromium";
-import puppeteer from "puppeteer-core";
 
 import {
   QuoteDocument,
   QUOTE_DOCUMENT_PRINT_CSS,
   QUOTE_DOCUMENT_RESET_CSS,
 } from "@/components/quotes/QuoteDocument";
+import { renderHtmlToPdf } from "@/lib/pdf/html-to-pdf";
 import { QUOTE_PDF_FONT_FILES, QUOTE_PDF_FONTS } from "@/lib/quotes/fonts";
 import { formatQuoteHotels, type QuoteData } from "@/lib/quotes/types";
 
@@ -87,48 +86,6 @@ ${body}
 </html>`;
 }
 
-async function launchBrowser() {
-  // Local dev uses an installed Chrome; serverless uses the bundled Chromium.
-  const localExecutable = process.env.CHROME_EXECUTABLE_PATH;
-  if (localExecutable) {
-    return puppeteer.launch({ executablePath: localExecutable, headless: true });
-  }
-  return puppeteer.launch({
-    executablePath: await chromium.executablePath(),
-    args: chromium.args,
-    headless: true,
-  });
-}
-
 export async function renderQuotePdf(data: QuoteData, folio: string) {
-  const html = await buildQuoteHtml(data, folio);
-  const browser = await launchBrowser();
-
-  try {
-    const page = await browser.newPage();
-    await page.setViewport({ width: 816, height: 1056 });
-
-    // Everything is inlined; block any request that would leave the process.
-    await page.setRequestInterception(true);
-    page.on("request", (request) => {
-      if (request.url().startsWith("data:")) {
-        void request.continue();
-      } else {
-        void request.abort();
-      }
-    });
-
-    await page.setContent(html, { waitUntil: "load" });
-    await page.evaluate(() => document.fonts.ready);
-
-    const pdf = await page.pdf({
-      format: "letter",
-      printBackground: true,
-      preferCSSPageSize: true,
-      margin: { top: 0, right: 0, bottom: 0, left: 0 },
-    });
-    return Buffer.from(pdf);
-  } finally {
-    await browser.close();
-  }
+  return renderHtmlToPdf(await buildQuoteHtml(data, folio));
 }

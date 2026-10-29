@@ -14,6 +14,13 @@ const nextConfig: NextConfig = {
       "./public/fonts/Philosopher-*.ttf",
       "./public/logoalvvaz.png",
     ],
+    // Contract PDFs use the same headless Chrome renderer (lib/pdf/html-to-pdf.ts).
+    "/api/admin/contracts/[id]/pdf": [
+      "./node_modules/@sparticuz/chromium/bin/**",
+      "./public/fonts/Manrope-*.ttf",
+      "./public/fonts/Philosopher-*.ttf",
+      "./public/logoalvvaz.png",
+    ],
   },
   turbopack: {
     root: __dirname,

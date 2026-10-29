@@ -955,6 +955,20 @@ export function ContractForm({
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+          Subtítulo
+        </label>
+        <input
+          name="subtitle"
+          defaultValue={
+            typeof seedContract?.metadata?.subtitle === "string" ? seedContract.metadata.subtitle : ""
+          }
+          placeholder="Agrega un subtitulo"
+          className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
           Agencia
         </label>
         <ThemedSelect
