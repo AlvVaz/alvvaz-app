@@ -5,6 +5,16 @@
 - [ ] **Contract PDF route has no auth.** `app/contratos/[id]/pdf/route.ts` lives outside `/admin` and `/api/admin`, so `proxy.ts` does not check the session. Anyone with a contract id can download that contract's PDF. Move it under a protected path or add an admin check in the handler.
 - [ ] **Contracts bucket may be public.** `app/api/admin/contracts/[id]/pdf/route.ts` calls `getPublicUrl` and stores the result in `fileUrl`. Check in the Supabase dashboard whether the contracts bucket is public. If it is, make it private and serve files only through signed URLs or the authenticated route.
 
+## Contract PDF template (2026-10-29)
+
+- **Files:** production HTML/CSS is in `lib/contracts/render-pdf.ts`; `design/contrato-reserva/contrato.html` is the synchronized reference. This close-out is recorded in `todo.md`; no routes, dependencies, environment files, backend logic, storage, schema or database data changed.
+- **UI:** typography was enlarged about 10% while retaining one US Letter page. The destination title now matches cotizaciones with uppercase Montserrat 800 from the valid `public/fonts/Montserrat-Variable.ttf`; the logo is 1.22in wide; final header top padding is 0.12in. Vertical whitespace was tightened around the policy block and reassigned to a 42px signing area. "Lee antes de firmar" was removed, and the agency label is now "Firma de la agencia".
+- **Bug fixed:** `.pad` had higher specificity than the old `header` rule, so the requested header padding computed to zero. The rule is now `header.pad`, making the configured top padding effective. The contract no longer depends on the invalid legacy Montserrat files.
+- **Decisions:** keep production and reference templates in sync; reuse the cotización PDF title font; preserve the current fixed policy copy and one-page layout; make no auth, storage or data-model changes as part of the visual work.
+- **Validation/current status:** the reference rendered through local headless Chrome as one 816×1056 page with no overflow or clipped footer. Focused ESLint, TypeScript and diff checks passed. The template changes are on `master` / `origin/master` through PR #26 (`47048dd`); only these documentation close-out edits remain local and uncommitted. Production deployment has not been verified from this workspace.
+- **Follow-ups/concerns:** verify a production preview with representative long destinations, multiple description rows and many note chips, since those can add height beyond the reference sample. Existing stored contract PDFs may need regeneration after deployment to receive the new design. The unauthenticated public route and possible public contracts bucket remain separate open security items above.
+- **Security:** no credentials, tokens, environment variables or secrets were added, changed, logged or exposed.
+
 ## Database migrations
 
 - [ ] **Adopt Supabase CLI without resetting the DB.** Deferred. Decide first:
@@ -66,7 +76,7 @@ Titles in styled text ("𝗦𝗔𝗟𝗜𝗗𝗔𝗦 𝟮𝟬𝟮𝟳") produced
   - `ClientsDashboard.tsx`, `MagazineIssuesManager.tsx`, `MagazineItemsManager.tsx`, `NewIssueForm.tsx`
   - `PromocionesGrid.tsx`, `navbar.tsx`, `themed-select.tsx`
 - [ ] **Existing type errors.** `npx tsc --noEmit` fails on the Clients and Settings pages: `searchParams` must be a `Promise` (Next 15+ page props).
-- [ ] **Broken font files.** `public/fonts/Montserrat-Bold.ttf`, `Montserrat-Regular.ttf` and both `Rubik-*.ttf` are saved GitHub HTML pages, not fonts. The contracts PDF loads the Montserrat ones, so it likely falls back to a default font. Replace them with the real files from google/fonts.
+- [ ] **Unused broken font files.** `public/fonts/Montserrat-Bold.ttf`, `Montserrat-Regular.ttf` and both `Rubik-*.ttf` are saved GitHub HTML pages, not fonts. Current contract and quote PDFs use the valid `Montserrat-Variable.ttf`, so rendering is unaffected; remove or replace the legacy files when cleaning up assets.
 
 ## Dependencies
 

@@ -194,7 +194,7 @@ If production uses a different Supabase project, check `migrate status` there fi
 
 ## Found along the way (tracked in todo.md)
 
-- `public/fonts/Montserrat-Bold.ttf`, `Montserrat-Regular.ttf` and both `Rubik-*.ttf` are saved GitHub HTML pages, not fonts. The contracts PDF loads the Montserrat ones. (The quotes use `Montserrat-Variable.ttf`, a real font.)
+- `public/fonts/Montserrat-Bold.ttf`, `Montserrat-Regular.ttf` and both `Rubik-*.ttf` are saved GitHub HTML pages, not fonts. They are legacy files: current contract and quote PDFs both use `Montserrat-Variable.ttf`, a real font.
 - The Clients and Settings pages type `searchParams` as a plain object; Next 16 expects a `Promise`, so `tsc` fails on them.
 - The repo isn't Prettier-formatted; don't run `prettier --write` on existing files.
 - `app/globals.css` only defines brand-200/400/500/600/700/900/950, so `brand-50`, `brand-100`, `brand-300` and `brand-800` classes (about 90 uses in 41 files, e.g. the "Nueva cotización" card's `bg-brand-100/70`) render no color at all. Not fixed; either add those shades to the theme or switch the classes to defined ones.

@@ -7,6 +7,15 @@ Files involved:
 - `app/admin/comisiones/AnalysisFilters.tsx` (Mes / Año / Asesor / Desde-Hasta controls)
 - `app/admin/comisiones/AnalysisDashboard.tsx` (filtering, KPIs, charts, per-asesor lists)
 
+## Changes
+
+- [x] **Viajes Completados counts by departure month (2026-11-09).** Client request: a trip that leaves in October and returns in November was counted in November, so its commission was paid a month late (example: Jessy Marquez, contracts #2164 and #2397).
+  - **File:** `app/admin/comisiones/AnalysisDashboard.tsx` only. Uses `departureDate` instead of `returnDate` for the month bucket (line 587), the "Año completado" year list (line 334), and the "already happened" check (line 592). The subtitle now says "fecha de salida".
+  - **Decision:** a contract counts once its departure date has passed (doesn't wait for the return), so the month's list doesn't change after it's paid. Contracts without a parseable `departureDate` are skipped, same as missing `returnDate` before.
+  - **Backend/DB:** none. `page.tsx` already selects `departureDate`; no migration.
+  - **Status:** ESLint and TypeScript pass for the file. Not checked in the browser, not committed, not deployed.
+  - **Follow-ups:** check `/admin/comisiones` → Octubre 2026 shows #2164 and #2397. If October was already paid using the old numbers, those two now appear in October after the fact and no longer in November, so they could be missed. Confirm with the client. November now includes trips still in progress.
+
 ## Confirmed in code
 
 - [ ] **Mes and Año selects change the filter on focus.** `AnalysisFilters.tsx` lines 160-169 and 191-198 call `router.push` in `onFocus`, before the user picks anything.

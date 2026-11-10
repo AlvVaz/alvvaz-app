@@ -331,7 +331,7 @@ export function AnalysisDashboard({
   completedYearsSet.add(currentYear);
   completedYearsSet.add(today.defaultCompletedYear);
   for (const contract of contracts) {
-    const parts = parseReservationParts(contract.returnDate);
+    const parts = parseReservationParts(contract.departureDate);
     if (parts) completedYearsSet.add(parts.year);
   }
   const completedYears = Array.from(completedYearsSet).sort((a, b) => b - a);
@@ -584,12 +584,12 @@ export function AnalysisDashboard({
     for (const contract of contracts) {
       const seller = normalizeCurrentSeller(contract.seller);
       if (!seller) continue;
-      const returnParts = parseReservationParts(contract.returnDate);
-      if (!returnParts) continue;
-      if (returnParts.year !== completedYear || returnParts.month !== completedMonth) {
+      const departureParts = parseReservationParts(contract.departureDate);
+      if (!departureParts) continue;
+      if (departureParts.year !== completedYear || departureParts.month !== completedMonth) {
         continue;
       }
-      if (toDateKey(returnParts) > today.dateKey) continue;
+      if (toDateKey(departureParts) > today.dateKey) continue;
       const isCompletedSale =
         contract.status === "signed" ||
         contract.status === "paid" ||
@@ -941,7 +941,7 @@ export function AnalysisDashboard({
               Viajes Completados por Asesor (Comisiones)
             </h3>
             <p className="mt-1 text-sm text-slate-500">
-              Contratos firmados o pagados con fecha de regreso en el mes seleccionado.
+              Contratos firmados o pagados con fecha de salida en el mes seleccionado.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
