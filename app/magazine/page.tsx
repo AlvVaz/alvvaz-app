@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { Container } from "@/components/container";
@@ -40,12 +41,13 @@ export default async function MagazinePage() {
                   className="flex h-full flex-col justify-between rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
                 >
                   <div className="space-y-3">
-                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                      <img
+                    <div className="relative h-44 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                      <Image
                         src={issue.thumbnailUrl || "/magazine/placeholders/01.svg"}
                         alt={`Miniatura de ${issue.title}`}
-                        className="h-44 w-full object-cover"
-                        loading="lazy"
+                        fill
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                        className="object-cover"
                       />
                     </div>
                     <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
