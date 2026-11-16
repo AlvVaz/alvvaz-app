@@ -26,6 +26,11 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   images: {
+    // Keep optimized images for 31 days. The default (4h) plus Supabase's no-cache
+    // header made every image re-optimize every 4h, costing a Vercel transformation
+    // (Hobby: 5K/month) and a fresh multi-MB download from Supabase each time.
+    // Safe because uploaded files are never overwritten (upsert is off).
+    minimumCacheTTL: 2678400,
     remotePatterns: [
       {
         protocol: "https",

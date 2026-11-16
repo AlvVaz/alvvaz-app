@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import HTMLFlipBook from "react-pageflip";
 import {
   forwardRef,
@@ -26,14 +27,20 @@ const PORTRAIT_RATIO = 2 / 3;
 const MAX_BOOK_WIDTH = 1200;
 const BOOK_GUTTER = 24;
 const MOBILE_BREAKPOINT = 768;
+// One page fills the screen on mobile; on desktop two pages share MAX_BOOK_WIDTH.
+const PAGE_SIZES = `(max-width: ${MOBILE_BREAKPOINT}px) 100vw, ${MAX_BOOK_WIDTH / 2}px`;
 
 const FlipPage = forwardRef<HTMLDivElement, MagazinePage>(({ imageUrl, title, pageNumber }, ref) => (
   <div ref={ref} className="h-full w-full bg-white">
     <div className="relative h-full w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
-      <img
+      {/* next/image serves a resized, cached copy from Vercel instead of the multi-MB
+          Supabase original, which kept blowing through the storage egress quota. */}
+      <Image
         src={imageUrl}
         alt={title ? `${title} — Página ${pageNumber}` : `Página ${pageNumber}`}
-        className="h-full w-full object-contain"
+        fill
+        sizes={PAGE_SIZES}
+        className="object-contain"
         loading={pageNumber <= 2 ? "eager" : "lazy"}
       />
       <span className="absolute bottom-4 right-5 rounded-full bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 shadow-sm">
