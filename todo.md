@@ -5,6 +5,13 @@
 - [ ] **Contract PDF route has no auth.** `app/contratos/[id]/pdf/route.ts` lives outside `/admin` and `/api/admin`, so `proxy.ts` does not check the session. Anyone with a contract id can download that contract's PDF. Move it under a protected path or add an admin check in the handler.
 - [ ] **Contracts bucket may be public.** `app/api/admin/contracts/[id]/pdf/route.ts` calls `getPublicUrl` and stores the result in `fileUrl`. Check in the Supabase dashboard whether the contracts bucket is public. If it is, make it private and serve files only through signed URLs or the authenticated route.
 
+## Storage egress (2026-11-15)
+
+- **Cause:** Supabase cached egress hit 17.8 / 5 GB (Free plan). Public `magazine` bucket is 678 MB / 400 files; pages are 2-5 MB phone photos and recent issues are 40-86 MB each. `FlipBook` loads them raw. Public files were also served with `cache-control: private, no-cache` because `uploadToSignedUrl` without options sends `max-age=undefined`. The carousel preloaded raw originals instead of the `next/image` variant.
+- **Done (branch `fix/storage-egress`):** admin uploads (magazine, promotions) compress images in the browser to WebP, max 2000px (`lib/supabase/public-uploads.ts`), and send `cacheControl` (7 days). Upload UI shows "Optimizando imágenes X/Y" during compression. Compressed files keep the original extension in the name (`1.jpg` → `1-jpg.webp`) to avoid name clashes; magazine titles still use the original name. Carousel preload now uses `getImageProps` so it hits the optimized URL.
+- [ ] **Shrink existing magazine/promotion files.** One-time script: download, resize to WebP, re-upload with cacheControl, update DB URLs. Back up first; overwrites production data.
+- [ ] **Optional:** serve `FlipBook` pages through `next/image` (no data change, but uses Vercel image transformations).
+
 ## Contract PDF template (2026-10-29)
 
 - **Files:** production HTML/CSS is in `lib/contracts/render-pdf.ts`; `design/contrato-reserva/contrato.html` is the synchronized reference. This close-out is recorded in `todo.md`; no routes, dependencies, environment files, backend logic, storage, schema or database data changed.

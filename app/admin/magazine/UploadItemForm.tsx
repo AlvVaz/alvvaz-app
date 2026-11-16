@@ -6,6 +6,7 @@ import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ThemedSelect } from "@/components/ui/themed-select";
 import { supabaseClient } from "@/lib/supabase/client";
+import { compressImagesForUpload, PUBLIC_CACHE_CONTROL } from "@/lib/supabase/public-uploads";
 
 type IssueOption = {
   id: string;
@@ -18,14 +19,16 @@ export function UploadItemForm({ issues }: { issues: IssueOption[] }) {
   );
   const [uploadCount, setUploadCount] = useState(0);
   const [uploadedCount, setUploadedCount] = useState(0);
+  // Files compressed so far; null when not in the compression step.
+  const [optimizedCount, setOptimizedCount] = useState<number | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const progress = useMemo(() => {
     if (uploadCount === 0) return 0;
-    return Math.round((uploadedCount / uploadCount) * 100);
-  }, [uploadedCount, uploadCount]);
+    return Math.round(((optimizedCount ?? uploadedCount) / uploadCount) * 100);
+  }, [optimizedCount, uploadedCount, uploadCount]);
 
   const syncFileInput = (nextFiles: File[]) => {
     const input = fileInputRef.current;
@@ -57,12 +60,16 @@ export function UploadItemForm({ issues }: { issues: IssueOption[] }) {
     setErrorMessage(null);
 
     try {
+      // Shrink photos before upload: public files are served to every visitor.
+      setOptimizedCount(0);
+      const uploadFiles = await compressImagesForUpload(selectedFiles, setOptimizedCount);
+      setOptimizedCount(null);
       const prepResponse = await fetch("/api/admin/magazine/upload-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           issueId,
-          files: selectedFiles.map((file) => ({ name: file.name, type: file.type })),
+          files: uploadFiles.map((file) => ({ name: file.name, type: file.type })),
         }),
       });
 
@@ -83,7 +90,7 @@ export function UploadItemForm({ issues }: { issues: IssueOption[] }) {
       }[];
 
       const uploadedItems = [];
-      for (const [index, file] of selectedFiles.entries()) {
+      for (const [index, file] of uploadFiles.entries()) {
         const uploadInfo = uploads.find((upload) => upload.index === index);
         if (!uploadInfo) {
           throw new Error("No se pudo preparar la subida.");
@@ -91,7 +98,9 @@ export function UploadItemForm({ issues }: { issues: IssueOption[] }) {
 
         const { error: uploadError } = await supabaseClient.storage
           .from(bucket)
-          .uploadToSignedUrl(uploadInfo.storagePath, uploadInfo.token, file);
+          .uploadToSignedUrl(uploadInfo.storagePath, uploadInfo.token, file, {
+            cacheControl: PUBLIC_CACHE_CONTROL,
+          });
 
         if (uploadError) {
           throw new Error(uploadError.message || "No se pudo subir el archivo.");
@@ -101,7 +110,9 @@ export function UploadItemForm({ issues }: { issues: IssueOption[] }) {
           .from(bucket)
           .getPublicUrl(uploadInfo.storagePath);
         const fileUrl = data.publicUrl;
-        const resolvedTitle = title || file.name.replace(/\.[^/.]+$/, "") || "Archivo";
+        // Title and originalName come from the file the admin picked, not the compressed copy.
+        const originalName = selectedFiles[index]?.name ?? file.name;
+        const resolvedTitle = title || originalName.replace(/\.[^/.]+$/, "") || "Archivo";
 
         uploadedItems.push({
           issueId,
@@ -110,7 +121,7 @@ export function UploadItemForm({ issues }: { issues: IssueOption[] }) {
           fileUrl,
           metadata: {
             mime: uploadInfo.mime,
-            originalName: file.name,
+            originalName,
             bucket,
             storagePath: uploadInfo.storagePath,
           },
@@ -210,7 +221,9 @@ export function UploadItemForm({ issues }: { issues: IssueOption[] }) {
       <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
         <span>
           {status === "uploading" &&
-            `Subiendo ${uploadedCount}/${uploadCount} archivos...`}
+            (optimizedCount !== null
+              ? `Optimizando imágenes ${optimizedCount}/${uploadCount}...`
+              : `Subiendo ${uploadedCount}/${uploadCount} archivos...`)}
           {status === "done" &&
             `${uploadCount > 1 ? "Archivos subidos" : "Archivo subido"}. Actualiza la lista.`}
           {status === "error" && (errorMessage || "No se pudo subir. Intenta de nuevo.")}
