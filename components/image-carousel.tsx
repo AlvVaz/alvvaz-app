@@ -1,9 +1,12 @@
 "use client";
 
-import Image from "next/image";
+import Image, { getImageProps } from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
+
+// Shared by the rendered <Image> and the preloader so both request the same optimized file.
+const SLIDE_SIZES = "(max-width: 768px) 100vw, 60vw";
 
 type CarouselImage = {
   src: string;
@@ -76,9 +79,14 @@ export function ImageCarousel({
   const preloadSrc = useCallback((src: string) => {
     if (!src || preloadedSrcSet.current.has(src)) return;
     preloadedSrcSet.current.add(src);
+    // Preload the optimized variant next/image will render, not the raw original
+    // (raw Supabase originals are several MB each and count against storage egress).
+    const { props } = getImageProps({ src, alt: "", fill: true, sizes: SLIDE_SIZES });
     const img = new window.Image();
     img.decoding = "async";
-    img.src = src;
+    if (props.sizes) img.sizes = props.sizes;
+    if (props.srcSet) img.srcset = props.srcSet;
+    img.src = props.src;
   }, []);
 
   useEffect(() => {
@@ -166,7 +174,7 @@ export function ImageCarousel({
               priority={priority && (length <= 1 ? imageIndex === 0 : imageIndex === 1)}
               className="object-cover"
               loading={priority ? undefined : imageIndex <= 2 ? "eager" : "lazy"}
-              sizes="(max-width: 768px) 100vw, 60vw"
+              sizes={SLIDE_SIZES}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-brand-950/40 via-transparent to-transparent" />
           </div>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { supabaseClient } from "@/lib/supabase/client";
+import { compressImagesForUpload, PUBLIC_CACHE_CONTROL } from "@/lib/supabase/public-uploads";
 
 type PromotionImage = {
   id: string;
@@ -28,6 +29,8 @@ export function PromotionImagesManager({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [uploadCount, setUploadCount] = useState(0);
   const [uploadedCount, setUploadedCount] = useState(0);
+  // Files compressed so far; null when not in the compression step.
+  const [optimizedCount, setOptimizedCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -36,8 +39,8 @@ export function PromotionImagesManager({
 
   const progress = useMemo(() => {
     if (uploadCount === 0) return 0;
-    return Math.round((uploadedCount / uploadCount) * 100);
-  }, [uploadCount, uploadedCount]);
+    return Math.round(((optimizedCount ?? uploadedCount) / uploadCount) * 100);
+  }, [optimizedCount, uploadedCount, uploadCount]);
 
   const syncFileInput = (nextFiles: File[]) => {
     const input = fileInputRef.current;
@@ -65,12 +68,16 @@ export function PromotionImagesManager({
     setErrorMessage(null);
 
     try {
+      // Shrink photos before upload: public files are served to every visitor.
+      setOptimizedCount(0);
+      const uploadFiles = await compressImagesForUpload(selectedFiles, setOptimizedCount);
+      setOptimizedCount(null);
       const prepResponse = await fetch("/api/admin/promociones/upload-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           promotionId,
-          files: selectedFiles.map((file) => ({ name: file.name, type: file.type })),
+          files: uploadFiles.map((file) => ({ name: file.name, type: file.type })),
         }),
       });
 
@@ -90,7 +97,7 @@ export function PromotionImagesManager({
       }[];
 
       const newImages: PromotionImage[] = [];
-      for (const [index, file] of selectedFiles.entries()) {
+      for (const [index, file] of uploadFiles.entries()) {
         const uploadInfo = uploads.find((upload) => upload.index === index);
         if (!uploadInfo) {
           throw new Error("No se pudo preparar la subida.");
@@ -98,7 +105,9 @@ export function PromotionImagesManager({
 
         const { error: uploadError } = await supabaseClient.storage
           .from(bucket)
-          .uploadToSignedUrl(uploadInfo.storagePath, uploadInfo.token, file);
+          .uploadToSignedUrl(uploadInfo.storagePath, uploadInfo.token, file, {
+            cacheControl: PUBLIC_CACHE_CONTROL,
+          });
 
         if (uploadError) {
           throw new Error(uploadError.message || "No se pudo subir el archivo.");
@@ -222,7 +231,9 @@ export function PromotionImagesManager({
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
           <span>
             {status === "uploading" &&
-              `Subiendo ${uploadedCount}/${uploadCount} archivos...`}
+              (optimizedCount !== null
+                ? `Optimizando imágenes ${optimizedCount}/${uploadCount}...`
+                : `Subiendo ${uploadedCount}/${uploadCount} archivos...`)}
             {status === "done" && "Imágenes subidas. Actualiza la lista."}
             {status === "error" && (errorMessage || "No se pudo subir.")}
           </span>
